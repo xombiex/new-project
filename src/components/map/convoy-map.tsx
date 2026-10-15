@@ -1,0 +1,151 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import {
+  Camera,
+  GeoJSONSource,
+  Layer,
+  Map,
+  Marker,
+  UserLocation,
+  type CameraRef,
+  type TrackUserLocation,
+} from '@maplibre/maplibre-react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Pressable, StyleSheet, View, useColorScheme } from 'react-native';
+
+import { Avatar } from '@/components/ui';
+import { Radius, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { MAP_STYLE_DARK, MAP_STYLE_LIGHT } from '@/lib/map-style';
+
+import type { ConvoyMapProps } from './types';
+
+export type { ConvoyMapProps, MapLine, MapPerson } from './types';
+
+export function ConvoyMap({
+  style,
+  follow = false,
+  showUser = true,
+  lines = [],
+  people = [],
+  destination,
+  fit,
+  padding,
+}: ConvoyMapProps) {
+  const scheme = useColorScheme();
+  const theme = useTheme();
+  const camera = useRef<CameraRef>(null);
+  const [tracking, setTracking] = useState<TrackUserLocation | undefined>(follow ? 'course' : undefined);
+  const edge = { top: (padding?.top ?? 0) + 40, bottom: (padding?.bottom ?? 0) + 40, left: 40, right: 40 };
+
+  useEffect(() => setTracking(follow ? 'course' : undefined), [follow]);
+
+  const fitKey = fit?.key;
+  useEffect(() => {
+    if (!fit || fit.points.length === 0) return;
+    let [w, s, e, n] = [Infinity, Infinity, -Infinity, -Infinity];
+    for (const [lng, lat] of fit.points) {
+      w = Math.min(w, lng);
+      e = Math.max(e, lng);
+      s = Math.min(s, lat);
+      n = Math.max(n, lat);
+    }
+    setTracking(undefined);
+    camera.current?.fitBounds([w, s, e, n], { padding: edge, duration: 600 });
+    // Only refit when the caller's key changes, not on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fitKey]);
+
+  return (
+    <View style={[styles.container, style]}>
+      <Map
+        style={StyleSheet.absoluteFill}
+        mapStyle={scheme === 'dark' ? MAP_STYLE_DARK : MAP_STYLE_LIGHT}
+        compass={false}
+        logo={false}
+        attribution
+        attributionPosition={{ bottom: (padding?.bottom ?? 0) + 8, left: 8 }}>
+        <Camera
+          ref={camera}
+          initialViewState={{ zoom: 15 }}
+          trackUserLocation={tracking}
+          padding={{ top: edge.top, bottom: edge.bottom, left: 0, right: 0 }}
+          onTrackUserLocationChange={(e) => setTracking(e.nativeEvent.trackUserLocation ?? undefined)}
+        />
+
+        {lines.map((line) => (
+          <GeoJSONSource
+            key={line.id}
+            id={`line-${line.id}`}
+            data={{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: line.coords } }}>
+            <Layer
+              id={`line-${line.id}-casing`}
+              type="line"
+              layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+              paint={{ 'line-color': '#0B1220', 'line-width': (line.width ?? 6) + 3, 'line-opacity': 0.35 * (line.opacity ?? 1) }}
+            />
+            <Layer
+              id={`line-${line.id}-fill`}
+              type="line"
+              layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+              paint={{ 'line-color': line.color, 'line-width': line.width ?? 6, 'line-opacity': line.opacity ?? 1 }}
+            />
+          </GeoJSONSource>
+        ))}
+
+        {destination ? (
+          <Marker id="destination" lngLat={destination} anchor="bottom">
+            <MaterialCommunityIcons name="map-marker" size={44} color={theme.danger} />
+          </Marker>
+        ) : null}
+
+        {people.map((p) => (
+          <Marker key={p.id} id={`person-${p.id}`} lngLat={p.coord} anchor="center">
+            <View style={[styles.person, p.stale && { opacity: 0.45 }]}>
+              {p.heading != null && !p.stale ? (
+                <View style={[styles.headingWrap, { transform: [{ rotate: `${p.heading}deg` }] }]}>
+                  <MaterialCommunityIcons name="navigation" size={16} color={p.color} />
+                </View>
+              ) : null}
+              <View style={styles.avatarRing}>
+                <Avatar name={p.name} color={p.color} size={32} />
+              </View>
+            </View>
+          </Marker>
+        ))}
+
+        {showUser ? <UserLocation heading animated /> : null}
+      </Map>
+
+      {follow && tracking == null ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Recenter map on my location"
+          onPress={() => setTracking('course')}
+          style={[styles.recenter, { backgroundColor: theme.backgroundElement, bottom: (padding?.bottom ?? 0) + Spacing.three }]}>
+          <MaterialCommunityIcons name="crosshairs-gps" size={24} color={theme.accent} />
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { overflow: 'hidden' },
+  person: { width: 52, height: 52, alignItems: 'center', justifyContent: 'center' },
+  headingWrap: { ...StyleSheet.absoluteFill, alignItems: 'center' },
+  avatarRing: { borderRadius: 20, borderWidth: 3, borderColor: '#fff' },
+  recenter: {
+    position: 'absolute',
+    right: Spacing.three,
+    width: 52,
+    height: 52,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
+});

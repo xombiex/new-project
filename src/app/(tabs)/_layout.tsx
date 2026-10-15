@@ -1,0 +1,38 @@
+import { NativeTabs } from 'expo-router/native-tabs';
+import { useColorScheme } from 'react-native';
+
+import { Colors } from '@/constants/theme';
+
+export default function TabLayout() {
+  const scheme = useColorScheme();
+  const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+
+  return (
+    <NativeTabs
+      backgroundColor={colors.backgroundElement}
+      indicatorColor={colors.backgroundSelected}
+      iconColor={{ default: colors.textSecondary, selected: colors.accent }}
+      labelStyle={{ default: { color: colors.textSecondary }, selected: { color: colors.accent } }}>
+      <NativeTabs.Trigger name="index">
+        <NativeTabs.Trigger.Label>Drive</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf={{ default: 'speedometer', selected: 'speedometer' }} md="speed" />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="convoy">
+        <NativeTabs.Trigger.Label>Convoy</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf={{ default: 'car.2', selected: 'car.2.fill' }} md="group" />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="friends">
+        <NativeTabs.Trigger.Label>Friends</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf={{ default: 'person.2', selected: 'person.2.fill' }} md="person" />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="trips">
+        <NativeTabs.Trigger.Label>Trips</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf={{ default: 'map', selected: 'map.fill' }} md="route" />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="profile">
+        <NativeTabs.Trigger.Label>Profile</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf={{ default: 'person.crop.circle', selected: 'person.crop.circle.fill' }} md="account_circle" />
+      </NativeTabs.Trigger>
+    </NativeTabs>
+  );
+}
