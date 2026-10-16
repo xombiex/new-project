@@ -6,6 +6,7 @@ import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { NavBanner, NavFooter } from '@/components/drive/nav-overlay';
+import { SpeedLimitSign } from '@/components/drive/speed-limit-sign';
 import { Glass } from '@/components/glass';
 import { LocationPrompt } from '@/components/location-prompt';
 import { ConvoyMap, type MapLine, type MapMarker, type MapPerson } from '@/components/map/convoy-map';
@@ -13,6 +14,7 @@ import { Speedometer } from '@/components/speedometer';
 import { ThemedText } from '@/components/themed-text';
 import { Button, Stat } from '@/components/ui';
 import { BottomTabInset, Radius, Spacing } from '@/constants/theme';
+import { useSpeedLimit } from '@/hooks/use-speed-limit';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDistance, formatDuration, speedIn, speedUnitLabel } from '@/lib/geo';
 import { addReason, removeReason } from '@/lib/location';
@@ -54,6 +56,7 @@ export default function DriveScreen() {
   const members = useDrive((s) => s.members);
   const myId = useAuth((s) => s.session?.user.id);
   const myVehicle = useAuth((s) => s.profile?.vehicle);
+  const myPaint = useAuth((s) => s.profile?.vehicle_color);
   const [now, setNow] = useState(Date.now());
 
   // GPS on while this tab is visible; trips/drives/navigation keep it on in the background separately.
@@ -101,6 +104,7 @@ export default function DriveScreen() {
           heading: m.position!.heading,
           icon: vehicleIcon(m.profile.vehicle),
           vehicle: m.profile.vehicle,
+          paint: m.profile.vehicle_color,
           stale: !m.online || now - m.position!.t > MEMBER_STALE_MS,
         })),
     [members, myId, now]
@@ -173,6 +177,8 @@ export default function DriveScreen() {
 
   const elapsed = active ? (now - active.startedAt) / 1000 : 0;
   const panelHeight = navigating ? 260 : active ? 330 : 270;
+  // Posted limit while a ride is on (recording a trip or navigating).
+  const speedLimit = useSpeedLimit(Boolean(active || navigating));
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
@@ -181,7 +187,7 @@ export default function DriveScreen() {
       <ConvoyMap
         style={StyleSheet.absoluteFill}
         follow
-        me={lastSample ? { coord: [lastSample.lng, lastSample.lat], heading: lastSample.heading, vehicle: myVehicle } : null}
+        me={lastSample ? { coord: [lastSample.lng, lastSample.lat], heading: lastSample.heading, vehicle: myVehicle, paint: myPaint } : null}
         lines={lines}
         people={people}
         markers={markers}
@@ -269,6 +275,12 @@ export default function DriveScreen() {
 
       <LocationPrompt />
 
+      {speedLimit ? (
+        <View style={[styles.limit, { bottom: panelHeight + BottomTabInset + Spacing.three }]} pointerEvents="none">
+          <SpeedLimitSign limit={speedLimit} units={units} speedMps={stale ? null : (lastSample?.speed ?? null)} />
+        </View>
+      ) : null}
+
       {/* Report button floats above the panel */}
       <Pressable
         onPress={() => router.push('/report')}
@@ -351,6 +363,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
     borderRadius: Radius.pill,
   },
+  limit: { position: 'absolute', left: Spacing.three },
   reportBtn: {
     position: 'absolute',
     right: Spacing.three,

@@ -23,6 +23,8 @@ export type MapPerson = {
   icon?: string;
   /** Profile vehicle (car, sport, suv…), drawn as a 3D sprite under the avatar */
   vehicle?: string;
+  /** Paint color of that vehicle */
+  paint?: string;
   /** dimmed when the position is old or the person is offline */
   stale?: boolean;
 };
@@ -42,7 +44,7 @@ export type ConvoyMapProps = {
   follow?: boolean;
   showUser?: boolean;
   /** The signed-in driver, drawn as their 3D vehicle instead of a blue dot. */
-  me?: { coord: LngLat; heading: number | null; vehicle?: string | null } | null;
+  me?: { coord: LngLat; heading: number | null; vehicle?: string | null; paint?: string | null } | null;
   lines?: MapLine[];
   people?: MapPerson[];
   markers?: MapMarker[];

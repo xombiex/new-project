@@ -139,3 +139,18 @@ export function streaks(trips: TripLike[], now: number): { current: number; best
   }
   return { current, best };
 }
+
+/**
+ * Distinct places you've driven to or from: trip start and end points snapped to a ~400 m grid,
+ * so the same parking lot or neighborhood counts once.
+ */
+export function placesVisited(trips: { path: [number, number][] }[]): number {
+  const cells = new Set<string>();
+  const cell = ([lng, lat]: [number, number]) => `${Math.round(lat / 0.004)}:${Math.round((lng * Math.cos((lat * Math.PI) / 180)) / 0.004)}`;
+  for (const t of trips) {
+    if (t.path.length === 0) continue;
+    cells.add(cell(t.path[0]));
+    cells.add(cell(t.path[t.path.length - 1]));
+  }
+  return cells.size;
+}

@@ -92,7 +92,7 @@ export const useDrive = create<DriveState>()(
       async function loadRoster(driveId: string) {
         const { data, error } = await supabase
           .from('group_members')
-          .select('profiles(id, username, display_name, avatar_color, vehicle)')
+          .select('profiles(id, username, display_name, avatar_color, vehicle, vehicle_color)')
           .eq('drive_id', driveId);
         if (error) {
           console.warn('Roster load failed', error.message);

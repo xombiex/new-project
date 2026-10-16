@@ -39,7 +39,7 @@ const COPY: Record<Offering, { entitlement: Entitlement; title: string; tagline:
       ['car-multiple', 'Host group drives of up to 50 people (free: 6)'],
       ['play-circle-outline', 'Trip replay: watch any drive play back on the map'],
       ['file-export-outline', 'Export trips as GPX for other apps'],
-      ['palette-outline', 'All glow colors, map themes and vehicle icons'],
+      ['palette-outline', 'Every 3D car in the garage, all glow colors and map themes'],
       ['card-account-details-star-outline', 'Premium share card styles'],
     ],
   },

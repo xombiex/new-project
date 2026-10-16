@@ -47,7 +47,7 @@ export type ClubDetail = {
 
 export type NewEvent = Omit<ClubEvent, 'id' | 'drive_id' | 'currency'>;
 
-const PROFILE = 'id, username, display_name, avatar_color, vehicle';
+const PROFILE = 'id, username, display_name, avatar_color, vehicle, vehicle_color';
 
 function rpcError(message: string) {
   if (message.includes('club plan required')) return 'Creating a club needs the Convoy Clubs plan';

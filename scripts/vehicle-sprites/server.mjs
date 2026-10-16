@@ -17,7 +17,7 @@ createServer((req, res) => {
   }
   if (req.method === 'POST' && url.pathname === '/save') {
     const name = url.searchParams.get('name') ?? '';
-    if (!/^[a-z]+(@[23]x)?\.png$/.test(name)) return res.writeHead(400).end('bad name');
+    if (!/^[a-z]+-[a-z]+(@[23]x)?\.png$/.test(name)) return res.writeHead(400).end('bad name');
     const chunks = [];
     req.on('data', (c) => chunks.push(c));
     req.on('end', () => {

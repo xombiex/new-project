@@ -195,6 +195,7 @@ function ActiveDrive() {
   const myId = useAuth((s) => s.session?.user.id);
   const last = useTrips((s) => s.lastSample);
   const myVehicle = useAuth((s) => s.profile?.vehicle);
+  const myPaint = useAuth((s) => s.profile?.vehicle_color);
   const insets = useSafeAreaInsets();
   const [now, setNow] = useState(Date.now());
 
@@ -234,6 +235,7 @@ function ActiveDrive() {
             heading: m.position!.heading,
             icon: vehicleIcon(m.profile.vehicle),
             vehicle: m.profile.vehicle,
+          paint: m.profile.vehicle_color,
             stale: v.status !== 'live',
           };
         }),
@@ -265,7 +267,7 @@ function ActiveDrive() {
       <ConvoyMap
         style={{ height: 300 + insets.top }}
         padding={{ top: insets.top }}
-        me={me ? { coord: me, heading: last?.heading ?? null, vehicle: myVehicle } : null}
+        me={me ? { coord: me, heading: last?.heading ?? null, vehicle: myVehicle, paint: myPaint } : null}
         people={people}
         destination={destination}
         fit={{

@@ -19,16 +19,8 @@ setWorkerUrl('/maplibre-gl-worker.mjs');
 
 const EMPTY = { type: 'FeatureCollection' as const, features: [] };
 
-/** Vehicle sprites + the symbol layers that draw them. Re-run after every style (re)load. */
-async function addVehicleLayers(m: MLMap) {
-  await Promise.all(
-    Object.keys(VEHICLE_IMAGES).map(async (name) => {
-      if (m.hasImage(name)) return;
-      // @3x renders copied to public/vehicles, so sprites stay sharp on high-density screens.
-      const img = await m.loadImage(`/vehicles/${name.replace('vehicle-', '')}.png`);
-      if (!m.hasImage(name)) m.addImage(name, img.data, { pixelRatio: 3 });
-    })
-  );
+/** Symbol layers that draw vehicle sprites. Re-run after every style (re)load. */
+function addVehicleLayers(m: MLMap) {
   for (const id of ['people', 'me']) {
     if (!m.getSource(id)) m.addSource(id, { type: 'geojson', data: EMPTY });
     if (!m.getLayer(`${id}-vehicles`)) {
@@ -78,7 +70,16 @@ export function ConvoyMap({ style, follow = false, me, lines = [], people = [], 
     });
     m.on('load', () => {
       setLoaded(true);
-      void addVehicleLayers(m).then(() => setVehiclesReady(true));
+      addVehicleLayers(m);
+      setVehiclesReady(true);
+    });
+    // 81 model × paint sprites: load each one only when a car on screen needs it. The @3x renders
+    // live in public/vehicles so they stay sharp on high-density screens.
+    m.on('styleimagemissing', ({ id }) => {
+      if (!id.startsWith('vehicle-') || !(id in VEHICLE_IMAGES)) return;
+      void m.loadImage(`/vehicles/${id.replace('vehicle-', '')}.png`).then((img) => {
+        if (!m.hasImage(id)) m.addImage(id, img.data, { pixelRatio: 3 });
+      });
     });
     // Panning by hand stops follow mode (like the native recenter behavior).
     m.on('dragstart', () => (following.current = false));
@@ -171,10 +172,10 @@ export function ConvoyMap({ style, follow = false, me, lines = [], people = [], 
     if (!vehiclesReady || !m) return;
     (m.getSource('people') as GeoJSONSource | undefined)?.setData({
       type: 'FeatureCollection',
-      features: people.map((p) => point(p.coord, vehicleSprite(p.vehicle), p.heading ?? 0, p.stale ? 0.45 : 1)),
+      features: people.map((p) => point(p.coord, vehicleSprite(p.vehicle, p.paint), p.heading ?? 0, p.stale ? 0.45 : 1)),
     });
     (m.getSource('me') as GeoJSONSource | undefined)?.setData(
-      me ? { type: 'FeatureCollection', features: [point(me.coord, vehicleSprite(me.vehicle), myHeading)] } : EMPTY
+      me ? { type: 'FeatureCollection', features: [point(me.coord, vehicleSprite(me.vehicle, me.paint), myHeading)] } : EMPTY
     );
   }, [vehiclesReady, people, me, myHeading]);
 

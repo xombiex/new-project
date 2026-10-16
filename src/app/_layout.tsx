@@ -87,6 +87,7 @@ export default function RootLayout() {
         <Stack.Screen name="event/new" options={{ title: 'New event', presentation: 'modal' }} />
         <Stack.Screen name="event/[id]" options={{ title: 'Event' }} />
         <Stack.Screen name="gear" options={{ title: 'Driving gear' }} />
+        <Stack.Screen name="garage" options={{ title: 'Garage' }} />
         <Stack.Screen name="stripe-return" options={{ headerShown: false }} />
         <Stack.Screen name="invite" options={{ title: 'Invite to drive', presentation: 'modal' }} />
         <Stack.Screen name="report" options={{ title: 'Report', presentation: 'formSheet', sheetAllowedDetents: [0.6, 1] }} />

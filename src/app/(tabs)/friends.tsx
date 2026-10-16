@@ -1,7 +1,8 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Platform, Pressable, RefreshControl, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -9,6 +10,7 @@ import { Avatar, Button, Card, EmptyState, Screen, SectionTitle, TextField } fro
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDistance, haversine } from '@/lib/geo';
+import { SITE_URL } from '@/lib/legal';
 import { formatAgo } from '@/lib/time';
 import { useAuth } from '@/store/auth';
 import { useFriends, type Friendship } from '@/store/friends';
@@ -133,6 +135,12 @@ export default function FriendsScreen() {
           <ThemedText type="small" themeColor="textSecondary">
             Your username is @{profile.username}
           </ThemedText>
+          <Button
+            label="Share my invite link"
+            variant="secondary"
+            icon={<MaterialCommunityIcons name="link-variant" size={18} color={theme.text} />}
+            onPress={() => void shareInvite(profile.username)}
+          />
         </Card>
 
         {incoming.length > 0 ? (
@@ -207,3 +215,17 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   person: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.two + 2 },
 });
+
+/** Share sheet where there is one; desktop browsers often have none, so copy the link instead. */
+async function shareInvite(username: string) {
+  const url = `${SITE_URL}/add/${username}`;
+  try {
+    if (Platform.OS === 'web' && !navigator.share) throw new Error('no share sheet');
+    await Share.share({ message: `Add me on Convoy: ${url}`, url });
+  } catch {
+    await Clipboard.setStringAsync(url);
+    if (Platform.OS === 'web') window.alert(`Invite link copied:
+${url}`);
+    else Alert.alert('Invite link copied', url);
+  }
+}

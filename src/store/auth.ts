@@ -3,7 +3,7 @@ import { create } from 'zustand';
 
 import { unregisterPush } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
-import type { Vehicle } from '@/lib/vehicles';
+import type { Paint, Vehicle } from '@/lib/vehicles';
 
 export type Profile = {
   id: string;
@@ -11,6 +11,7 @@ export type Profile = {
   display_name: string;
   avatar_color: string;
   vehicle: Vehicle;
+  vehicle_color: Paint;
 };
 
 type AuthState = {
@@ -19,7 +20,7 @@ type AuthState = {
   profile: Profile | null;
   init: () => () => void;
   loadProfile: () => Promise<void>;
-  saveProfile: (p: Pick<Profile, 'username' | 'display_name' | 'avatar_color' | 'vehicle'>) => Promise<string | null>;
+  saveProfile: (p: Pick<Profile, 'username' | 'display_name' | 'avatar_color' | 'vehicle' | 'vehicle_color'>) => Promise<string | null>;
   signOut: () => Promise<void>;
 };
 
@@ -48,7 +49,7 @@ export const useAuth = create<AuthState>()((set, get) => ({
     if (!uid) return;
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, username, display_name, avatar_color, vehicle')
+      .select('id, username, display_name, avatar_color, vehicle, vehicle_color')
       .eq('id', uid)
       .maybeSingle();
     if (error) console.warn('Profile load failed', error.message);
@@ -63,7 +64,7 @@ export const useAuth = create<AuthState>()((set, get) => ({
     const { data, error } = await supabase
       .from('profiles')
       .upsert(row)
-      .select('id, username, display_name, avatar_color, vehicle')
+      .select('id, username, display_name, avatar_color, vehicle, vehicle_color')
       .single();
     if (error) {
       if (error.code === '23505') return 'That username is taken';

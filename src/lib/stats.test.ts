@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { evaluate } from '@/lib/achievements';
-import { buckets, change, periodStart, records, streaks, totals, type TripLike } from '@/lib/stats';
+import { buckets, change, periodStart, placesVisited, records, streaks, totals, type TripLike } from '@/lib/stats';
 
 const MI = 1609.344;
 let n = 0;
@@ -85,5 +85,14 @@ describe('achievements', () => {
     expect(byId.thousand.earned).toBe(false);
     expect(byId.thousand.value).toBeCloseTo(115);
     expect(byId.regular.value).toBe(2);
+  });
+});
+
+describe('placesVisited', () => {
+  it('counts distinct start/end spots, merging nearby ones', () => {
+    const home: [number, number] = [-82.45, 27.95];
+    const nearHome: [number, number] = [-82.4502, 27.9501]; // ~25 m away
+    const work: [number, number] = [-82.5, 28.0];
+    expect(placesVisited([{ path: [home, work] }, { path: [work, nearHome] }, { path: [] }])).toBe(2);
   });
 });

@@ -10,7 +10,7 @@ import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { evaluate } from '@/lib/achievements';
 import { formatDistance, formatDuration, speedIn, speedUnitLabel } from '@/lib/geo';
-import { buckets, change, periodEnd, periodStart, records, streaks, totals, type Period } from '@/lib/stats';
+import { buckets, change, periodEnd, periodStart, placesVisited, records, streaks, totals, type Period } from '@/lib/stats';
 import { formatDayOrdinal } from '@/lib/time';
 import { useAuth } from '@/store/auth';
 import { useEntitled } from '@/store/pro';
@@ -23,6 +23,7 @@ export default function StatsScreen() {
   const theme = useTheme();
   const router = useRouter();
   const history = useTrips((s) => s.history);
+  const places = useMemo(() => placesVisited(history), [history]);
   const units = useSettings((s) => s.units);
   const profile = useAuth((s) => s.profile);
   const pro = useEntitled('pro');
@@ -130,6 +131,13 @@ export default function StatsScreen() {
           <ThemedText style={styles.streakValue}>{streak.best}</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
             best streak
+          </ThemedText>
+        </Card>
+        <Card style={styles.streak}>
+          <MaterialCommunityIcons name="map-marker-multiple-outline" size={26} color={theme.success} />
+          <ThemedText style={styles.streakValue}>{places}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            places
           </ThemedText>
         </Card>
       </View>

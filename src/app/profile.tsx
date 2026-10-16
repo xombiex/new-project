@@ -278,6 +278,19 @@ export default function ProfileScreen() {
         ) : null}
       </Card>
 
+      <Pressable onPress={() => router.push('/garage')} accessibilityRole="button">
+        <Card style={styles.row}>
+          <MaterialCommunityIcons name="garage-variant" size={24} color={theme.accent} />
+          <View style={{ flex: 1 }}>
+            <ThemedText style={{ fontWeight: 700 }}>Garage</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              Pick the 3D car and paint your friends see on the map
+            </ThemedText>
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={22} color={theme.textSecondary} />
+        </Card>
+      </Pressable>
+
       <Pressable onPress={() => router.push('/gear')} accessibilityRole="button">
         <Card style={styles.row}>
           <MaterialCommunityIcons name="toolbox-outline" size={24} color={theme.accent} />

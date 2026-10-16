@@ -42,6 +42,15 @@ function periodStart(period: Period): number {
   return d.getTime();
 }
 
+function monthKey(t: number) {
+  const d = new Date(t);
+  return `${d.getFullYear()}-${d.getMonth()}`;
+}
+
+function monthLabel(t: number) {
+  return new Date(t).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+}
+
 const compare: Record<Sort, (a: SavedTrip, b: SavedTrip) => number> = {
   recent: (a, b) => b.startedAt - a.startedAt,
   oldest: (a, b) => a.startedAt - b.startedAt,
@@ -65,6 +74,20 @@ export default function DrivesScreen() {
     const since = periodStart(period);
     return history.filter((t) => t.startedAt >= since).sort(compare[sort]);
   }, [history, period, sort]);
+
+  // Timeline: month headers with that month's totals, when the list is in date order.
+  const chronological = sort === 'recent' || sort === 'oldest';
+  const months = useMemo(() => {
+    const out = new Map<string, { count: number; distanceM: number }>();
+    for (const t of trips) {
+      const k = monthKey(t.startedAt);
+      const m = out.get(k) ?? { count: 0, distanceM: 0 };
+      m.count++;
+      m.distanceM += t.distanceM;
+      out.set(k, m);
+    }
+    return out;
+  }, [trips]);
 
   const totals = useMemo(
     () => ({
@@ -174,15 +197,30 @@ export default function DrivesScreen() {
                   </ThemedText>
                 </View>
               }
-              renderItem={({ item, index }) => (
-                <DriveRow
-                  trip={item}
-                  units={units}
-                  selected={item.id === selected}
-                  divider={index > 0}
-                  onPress={() => onPressTrip(item)}
-                />
-              )}
+              renderItem={({ item, index }) => {
+                const key = monthKey(item.startedAt);
+                const newMonth = chronological && (index === 0 || monthKey(trips[index - 1].startedAt) !== key);
+                const month = months.get(key);
+                return (
+                  <>
+                    {newMonth && month ? (
+                      <View style={styles.month}>
+                        <ThemedText type="smallBold">{monthLabel(item.startedAt)}</ThemedText>
+                        <ThemedText type="small" themeColor="textSecondary">
+                          {month.count} drive{month.count === 1 ? '' : 's'} · {formatDistance(units, month.distanceM)}
+                        </ThemedText>
+                      </View>
+                    ) : null}
+                    <DriveRow
+                      trip={item}
+                      units={units}
+                      selected={item.id === selected}
+                      divider={index > 0 && !newMonth}
+                      onPress={() => onPressTrip(item)}
+                    />
+                  </>
+                );
+              }}
             />
           </>
         )}
@@ -271,6 +309,7 @@ function DriveRow({
 }
 
 const styles = StyleSheet.create({
+  month: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: Spacing.three, paddingTop: Spacing.three, paddingBottom: Spacing.one },
   brand: {
     position: 'absolute',
     left: Spacing.three,

@@ -51,7 +51,7 @@ export function ConvoyMap({
         type: 'Feature' as const,
         id: p.id,
         geometry: { type: 'Point' as const, coordinates: p.coord },
-        properties: { sprite: vehicleSprite(p.vehicle), heading: p.heading ?? 0, opacity: p.stale ? 0.45 : 1 },
+        properties: { sprite: vehicleSprite(p.vehicle, p.paint), heading: p.heading ?? 0, opacity: p.stale ? 0.45 : 1 },
       })),
     }),
     [people]
@@ -150,7 +150,7 @@ export function ConvoyMap({
               type="symbol"
               id="me-vehicle"
               source="mlrn-user-location"
-              layout={{ ...VEHICLE_LAYOUT, 'icon-image': vehicleSprite(me?.vehicle), 'icon-rotate': myHeading } as SymbolLayerSpecification['layout']}
+              layout={{ ...VEHICLE_LAYOUT, 'icon-image': vehicleSprite(me?.vehicle, me?.paint), 'icon-rotate': myHeading } as SymbolLayerSpecification['layout']}
             />
           </UserLocation>
         ) : null}

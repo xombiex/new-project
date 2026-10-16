@@ -8,6 +8,7 @@ import { Button } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useLocationPermission } from '@/hooks/use-location-permission';
 import { useTheme } from '@/hooks/use-theme';
+import { useTrips } from '@/store/trips';
 
 const WEB_BLOCKED =
   'Location is blocked for this site. Click the icon at the left of the address bar, allow Location, then reload the page.';
@@ -18,8 +19,10 @@ export function LocationPrompt() {
   const { access, request } = useLocationPermission();
   const [busy, setBusy] = useState(false);
   const [blockedAfterAsk, setBlockedAfterAsk] = useState(false);
+  // A GPS fix proves we have access, even where the browser's permission API says otherwise.
+  const hasFix = useTrips((s) => s.lastSample != null);
 
-  if (access === 'checking' || access === 'granted') return null;
+  if (access === 'checking' || access === 'granted' || hasFix) return null;
   const blocked = access === 'blocked' || blockedAfterAsk;
 
   async function onAllow() {
