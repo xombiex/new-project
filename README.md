@@ -83,7 +83,7 @@ In development builds, Profile → "Developer: simulate purchases" unlocks featu
 ### 3. Stripe: web subscriptions + event tickets
 Already created in the **Convoy sandbox** account: products/prices (lookup keys `convoy_pro_monthly`, `convoy_pro_yearly`, `convoy_clubs_monthly`, `convoy_style_pack`), the Customer Portal configuration, and two webhook endpoints pointing at the `stripe` function.
 
-To switch it on:
+Already switched on: the Stripe key and both webhook signing secrets are stored in Supabase Vault (see "Secrets" below). The full subscribe → unlock → cancel → revoke loop was tested against the sandbox. To use function env vars instead:
 1. Supabase → Edge Functions → Secrets:
    - `STRIPE_SECRET_KEY`: your `sk_test_…` key
    - `STRIPE_WEBHOOK_SECRET`: signing secret of the webhook "Convoy: subscriptions, style pack, ticket payments & refunds"
@@ -101,6 +101,28 @@ Store rules: digital subscriptions sold inside iOS/Android apps normally go thro
 
 ### 5. Email confirmation
 For testing, Supabase → Authentication → Email → turn off "Confirm email". Turn it back on with custom SMTP before launch.
+
+## Admin portal
+
+`admin/index.html` is a self-contained admin dashboard:
+- overview stats
+- user search, user detail, comping Pro/Clubs/Style Pack, bans, deletes
+- live drives (end them), clubs, road-report moderation
+- an audit log of every admin action
+
+Run it locally with `npm run admin` and open http://localhost:8092. It's a static page, so it can also be hosted on Netlify, Vercel or Cloudflare Pages.
+
+Access: sign in with a Convoy account whose email is in `private.admin_emails` **and confirmed**. All admin powers are `admin_*` database functions that check that on the server; the page itself holds no secrets.
+
+Add another admin (SQL editor): `insert into private.admin_emails (email) values ('someone@example.com');`
+
+## Secrets
+
+Server secrets (Stripe key, webhook signing secrets) live in **Supabase Vault** and are read by the edge functions through `public.app_secret()` (service role only). Function env vars with the same names take precedence if you set them. To rotate the Stripe key:
+
+```sql
+select vault.update_secret((select id from vault.secrets where name = 'stripe_secret_key'), 'sk_test_NEW...');
+```
 
 ## Architecture
 

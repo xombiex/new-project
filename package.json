@@ -61,7 +61,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "lint": "expo lint",
-    "postinstall": "node scripts/copy-maplibre-worker.mjs"
+    "postinstall": "node scripts/copy-maplibre-worker.mjs",
+    "admin": "npx --yes serve admin --listen 8092"
   },
   "private": true
 }

@@ -14,12 +14,13 @@
 //   charge.refunded, account.updated (connected accounts).
 // GET ?page=…                                       → 302 back into the app (convoy://stripe-return)
 //
-// Secrets: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET (+ STRIPE_CONNECT_WEBHOOK_SECRET if you use a separate
-// Connect endpoint), optional PLATFORM_FEE_PERCENT (default 5).
+// Secrets: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_CONNECT_WEBHOOK_SECRET, optional PLATFORM_FEE_PERCENT
+// (default 5). Each is read from the function env first, else from Supabase Vault
+// (stripe_secret_key, stripe_webhook_secret, stripe_connect_webhook_secret) via public.app_secret().
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const STRIPE_KEY = Deno.env.get('STRIPE_SECRET_KEY');
-const WEBHOOK_SECRETS = [Deno.env.get('STRIPE_WEBHOOK_SECRET'), Deno.env.get('STRIPE_CONNECT_WEBHOOK_SECRET')].filter(Boolean) as string[];
+let STRIPE_KEY: string | undefined;
+let WEBHOOK_SECRETS: string[] = [];
 const FEE_PERCENT = Number(Deno.env.get('PLATFORM_FEE_PERCENT') ?? '5');
 const SELF_URL = `${Deno.env.get('SUPABASE_URL')}/functions/v1/stripe`;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -46,6 +47,23 @@ class HttpError extends Error {
   constructor(public status: number, message: string) {
     super(message);
   }
+}
+
+/** Env var, else Vault. Cached once found; retried (each minute) while missing. */
+let secretsLoadedAt = 0;
+async function loadSecrets() {
+  if (STRIPE_KEY && WEBHOOK_SECRETS.length) return;
+  if (Date.now() - secretsLoadedAt < 60_000) return;
+  secretsLoadedAt = Date.now();
+  const vault = async (name: string) => {
+    const { data } = await admin.rpc('app_secret', { p_name: name });
+    return (data as string | null) ?? undefined;
+  };
+  STRIPE_KEY = Deno.env.get('STRIPE_SECRET_KEY') ?? (await vault('stripe_secret_key'));
+  WEBHOOK_SECRETS = [
+    Deno.env.get('STRIPE_WEBHOOK_SECRET') ?? (await vault('stripe_webhook_secret')),
+    Deno.env.get('STRIPE_CONNECT_WEBHOOK_SECRET') ?? (await vault('stripe_connect_webhook_secret')),
+  ].filter(Boolean) as string[];
 }
 
 // ─── Stripe REST helpers ─────────────────────────────────────────────────
@@ -377,6 +395,7 @@ Deno.serve(async (req) => {
     return new Response('Not found', { status: 404 });
   }
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405);
+  await loadSecrets();
   if (!STRIPE_KEY) return json({ error: 'payments not configured' }, 503);
 
   try {
