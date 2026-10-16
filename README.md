@@ -51,7 +51,7 @@ eas build --profile development --platform ios
 
 After the first build, `npm start` serves JS changes to the installed dev app.
 
-`npm run web` renders the UI in a browser for layout work. The map is a placeholder there, since MapLibre has no web renderer.
+`npm run web` renders the UI in a browser for layout work, using maplibre-gl with the same tiles and route styles (no GPS there).
 
 ### Checks
 

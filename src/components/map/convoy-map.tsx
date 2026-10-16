@@ -7,16 +7,19 @@ import {
   Marker,
   UserLocation,
   type CameraRef,
+  type LineLayerSpecification,
   type TrackUserLocation,
 } from '@maplibre/maplibre-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, View, useColorScheme } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 import { MAP_STYLE_DARK, MAP_STYLE_LIGHT } from '@/lib/map-style';
 
+import { lineFeature, lineLayers } from './line-style';
 import type { ConvoyMapProps } from './types';
 
 export type { ConvoyMapProps, MapLine, MapPerson } from './types';
@@ -73,22 +76,16 @@ export function ConvoyMap({
         />
 
         {lines.map((line) => (
-          <GeoJSONSource
-            key={line.id}
-            id={`line-${line.id}`}
-            data={{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: line.coords } }}>
-            <Layer
-              id={`line-${line.id}-casing`}
-              type="line"
-              layout={{ 'line-cap': 'round', 'line-join': 'round' }}
-              paint={{ 'line-color': '#0B1220', 'line-width': (line.width ?? 6) + 3, 'line-opacity': 0.35 * (line.opacity ?? 1) }}
-            />
-            <Layer
-              id={`line-${line.id}-fill`}
-              type="line"
-              layout={{ 'line-cap': 'round', 'line-join': 'round' }}
-              paint={{ 'line-color': line.color, 'line-width': line.width ?? 6, 'line-opacity': line.opacity ?? 1 }}
-            />
+          <GeoJSONSource key={line.id} id={`line-${line.id}`} data={lineFeature(line)}>
+            {lineLayers(line).map((l) => (
+              <Layer
+                key={l.suffix}
+                id={`line-${line.id}-${l.suffix}`}
+                type="line"
+                layout={l.layout as LineLayerSpecification['layout']}
+                paint={l.paint as LineLayerSpecification['paint']}
+              />
+            ))}
           </GeoJSONSource>
         ))}
 

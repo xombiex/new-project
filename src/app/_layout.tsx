@@ -3,9 +3,9 @@ import '@/lib/bootstrap';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { useColorScheme } from 'react-native';
 
 import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuth } from '@/store/auth';
 import { useDrive } from '@/store/drive';
 import { useFriends } from '@/store/friends';

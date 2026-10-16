@@ -63,7 +63,7 @@ export default function TripScreen() {
         <ConvoyMap
           style={{ height: 300 }}
           showUser={false}
-          lines={[{ id: 'trip', coords: trip.path, color: theme.accent, width: 5 }]}
+          lines={[{ id: 'trip', coords: trip.path, color: theme.speed, width: 5, variant: 'glow' }]}
           fit={{ key: trip.id, points: trip.path }}
         />
         <View style={{ padding: Spacing.three, gap: Spacing.three }}>
@@ -79,7 +79,7 @@ export default function TripScreen() {
             </View>
             <View style={styles.row}>
               <Stat label={`Avg ${unit}`} value={String(Math.round(speedIn(units, averageSpeedMps(trip))))} />
-              <Stat label={`Top ${unit}`} value={String(Math.round(speedIn(units, trip.maxSpeedMps)))} />
+              <Stat label={`Top ${unit}`} value={String(Math.round(speedIn(units, trip.maxSpeedMps)))} color={theme.speed} />
             </View>
           </Card>
           <Card style={{ gap: Spacing.three }}>

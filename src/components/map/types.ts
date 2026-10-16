@@ -2,7 +2,16 @@ import type { StyleProp, ViewStyle } from 'react-native';
 
 import type { LngLat } from '@/lib/geo';
 
-export type MapLine = { id: string; coords: LngLat[]; color: string; width?: number; opacity?: number };
+export type MapLine = {
+  id: string;
+  /** one line, or several drawn as a single layer (e.g. every past drive) */
+  coords: LngLat[] | LngLat[][];
+  color: string;
+  width?: number;
+  opacity?: number;
+  /** 'glow' renders a heat-trail look: red haze → orange glow → hot white core */
+  variant?: 'solid' | 'glow';
+};
 
 export type MapPerson = {
   id: string;

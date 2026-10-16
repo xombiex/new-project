@@ -1,122 +1,316 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { FlatList, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ConvoyMap, type MapLine } from '@/components/map/convoy-map';
+import { RouteThumbnail } from '@/components/route-thumbnail';
 import { ThemedText } from '@/components/themed-text';
-import { Card, EmptyState, Screen, Segmented, SectionTitle, Stat } from '@/components/ui';
-import { Spacing } from '@/constants/theme';
+import { Avatar } from '@/components/ui';
+import { BottomTabInset, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { formatDistance, formatDuration, speedIn, speedUnitLabel } from '@/lib/geo';
-import { averageSpeedMps } from '@/lib/trip-recorder';
+import { formatDistance, formatDuration, speedIn, speedUnitLabel, type LngLat } from '@/lib/geo';
+import { formatClock, formatDayOrdinal } from '@/lib/time';
+import { useAuth } from '@/store/auth';
 import { useSettings } from '@/store/settings';
 import { useTrips, type SavedTrip } from '@/store/trips';
 
-type Period = 'week' | 'month' | 'all';
+type Sort = 'recent' | 'oldest' | 'fastest' | 'longest';
+type Period = 'all' | 'month' | 'week';
+
+const SORTS: { value: Sort; label: string }[] = [
+  { value: 'recent', label: 'Recent' },
+  { value: 'oldest', label: 'Oldest' },
+  { value: 'fastest', label: 'Fastest' },
+  { value: 'longest', label: 'Longest' },
+];
+
+const PERIODS: { value: Period; label: string }[] = [
+  { value: 'all', label: 'All time' },
+  { value: 'month', label: 'This month' },
+  { value: 'week', label: 'This week' },
+];
 
 function periodStart(period: Period): number {
+  if (period === 'all') return 0;
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   if (period === 'week') d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // Monday
-  else if (period === 'month') d.setDate(1);
-  else return 0;
+  else d.setDate(1);
   return d.getTime();
 }
 
-export default function TripsScreen() {
+const compare: Record<Sort, (a: SavedTrip, b: SavedTrip) => number> = {
+  recent: (a, b) => b.startedAt - a.startedAt,
+  oldest: (a, b) => a.startedAt - b.startedAt,
+  fastest: (a, b) => b.maxSpeedMps - a.maxSpeedMps,
+  longest: (a, b) => b.distanceM - a.distanceM,
+};
+
+export default function DrivesScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
   const history = useTrips((s) => s.history);
   const units = useSettings((s) => s.units);
-  const [period, setPeriod] = useState<Period>('week');
+  const profile = useAuth((s) => s.profile);
+  const [sort, setSort] = useState<Sort>('recent');
+  const [period, setPeriod] = useState<Period>('all');
+  const [selected, setSelected] = useState<string | null>(null);
 
-  const totals = useMemo(() => {
+  const trips = useMemo(() => {
     const since = periodStart(period);
-    const trips = history.filter((t) => t.startedAt >= since);
-    const distanceM = trips.reduce((a, t) => a + t.distanceM, 0);
-    const movingS = trips.reduce((a, t) => a + t.movingS, 0);
-    return {
-      count: trips.length,
-      distanceM,
-      movingS,
-      avg: averageSpeedMps({ distanceM, movingS }),
-      max: trips.reduce((a, t) => Math.max(a, t.maxSpeedMps), 0),
-    };
-  }, [history, period]);
+    return history.filter((t) => t.startedAt >= since).sort(compare[sort]);
+  }, [history, period, sort]);
 
-  // Group by calendar day for the list.
-  const sections = useMemo(() => {
-    const groups: { day: string; trips: SavedTrip[] }[] = [];
-    for (const t of history) {
-      const day = new Date(t.startedAt).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
-      const g = groups[groups.length - 1];
-      if (g?.day === day) g.trips.push(t);
-      else groups.push({ day, trips: [t] });
+  const totals = useMemo(
+    () => ({
+      distanceM: trips.reduce((a, t) => a + t.distanceM, 0),
+      durationS: trips.reduce((a, t) => a + (t.endedAt - t.startedAt) / 1000, 0),
+    }),
+    [trips]
+  );
+
+  const selectedTrip = trips.find((t) => t.id === selected) ?? null;
+
+  // Every drive in one glowing layer; overlapping roads stack up into a heat trail.
+  const lines = useMemo<MapLine[]>(() => {
+    const paths = trips.filter((t) => t.path.length > 1).map((t) => t.path);
+    const out: MapLine[] = [];
+    if (paths.length) {
+      out.push({ id: 'all-drives', coords: paths, color: theme.speed, width: 4, variant: 'glow', opacity: selectedTrip ? 0.35 : 1 });
     }
-    return groups;
-  }, [history]);
+    if (selectedTrip && selectedTrip.path.length > 1) {
+      out.push({ id: 'selected-drive', coords: selectedTrip.path, color: theme.speed, width: 6, variant: 'glow' });
+    }
+    return out;
+  }, [trips, selectedTrip, theme.speed]);
+
+  const sheetHeight = Math.round(height * 0.5);
+  const fitPoints: LngLat[] = selectedTrip ? selectedTrip.path : trips.flatMap((t) => t.path);
+
+  function onPressTrip(trip: SavedTrip) {
+    if (selected === trip.id) router.push({ pathname: '/trip/[id]', params: { id: trip.id } });
+    else setSelected(trip.id);
+  }
+
+  function cyclePeriod() {
+    const i = PERIODS.findIndex((p) => p.value === period);
+    setPeriod(PERIODS[(i + 1) % PERIODS.length].value);
+    setSelected(null);
+  }
 
   return (
-    <Screen>
-      <ThemedText type="subtitle">Trips</ThemedText>
-      <Segmented
-        options={[
-          { value: 'week', label: 'This week' },
-          { value: 'month', label: 'This month' },
-          { value: 'all', label: 'All time' },
-        ]}
-        value={period}
-        onChange={setPeriod}
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
+      <ConvoyMap
+        style={StyleSheet.absoluteFill}
+        showUser={false}
+        lines={lines}
+        fit={fitPoints.length ? { key: `${selected ?? 'all'}-${period}-${trips.length}`, points: fitPoints } : null}
+        padding={{ top: insets.top + 60, bottom: sheetHeight + BottomTabInset }}
       />
-      <Card style={{ gap: Spacing.three }}>
-        <View style={styles.statRow}>
-          <Stat label="Trips" value={String(totals.count)} />
-          <Stat label="Distance" value={formatDistance(units, totals.distanceM)} />
-          <Stat label="Drive time" value={formatDuration(totals.movingS)} />
-        </View>
-        <View style={styles.statRow}>
-          <Stat label={`Avg ${speedUnitLabel(units)}`} value={String(Math.round(speedIn(units, totals.avg)))} />
-          <Stat label={`Top ${speedUnitLabel(units)}`} value={String(Math.round(speedIn(units, totals.max)))} />
-        </View>
-      </Card>
 
-      {history.length === 0 ? (
-        <EmptyState title="No trips yet" body="Tap Start trip on the Drive tab and your route, time, distance and speeds are saved here." />
-      ) : (
-        sections.map((s) => (
-          <View key={s.day} style={{ gap: Spacing.two }}>
-            <SectionTitle>{s.day}</SectionTitle>
-            <Card style={{ paddingVertical: Spacing.one }}>
-              {s.trips.map((t, i) => (
-                <Pressable
-                  key={t.id}
-                  onPress={() => router.push({ pathname: '/trip/[id]', params: { id: t.id } })}
-                  accessibilityRole="button"
-                  style={[styles.trip, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border }]}>
-                  <View style={{ flex: 1 }}>
-                    <ThemedText style={{ fontWeight: 700 }} numberOfLines={1}>
-                      {t.name ?? new Date(t.startedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ' drive'}
-                    </ThemedText>
-                    <ThemedText type="small" themeColor="textSecondary">
-                      {formatDistance(units, t.distanceM)} · {formatDuration((t.endedAt - t.startedAt) / 1000)} ·{' '}
-                      {Math.round(speedIn(units, averageSpeedMps(t)))} {speedUnitLabel(units)} avg
-                    </ThemedText>
-                  </View>
-                  {!t.synced ? (
-                    <MaterialCommunityIcons name="cloud-off-outline" size={18} color={theme.textSecondary} accessibilityLabel="Not backed up" />
-                  ) : null}
-                  <MaterialCommunityIcons name="chevron-right" size={22} color={theme.textSecondary} />
-                </Pressable>
-              ))}
-            </Card>
+      <View style={[styles.brand, { top: insets.top + Spacing.two, backgroundColor: theme.backgroundElement }]}>
+        <MaterialCommunityIcons name="car-sports" size={22} color={theme.text} />
+        <ThemedText style={styles.brandText}>Convoy</ThemedText>
+      </View>
+
+      <View
+        style={[
+          styles.sheet,
+          { height: sheetHeight, bottom: BottomTabInset + Spacing.two, backgroundColor: theme.backgroundElement, borderColor: theme.border },
+        ]}>
+        <View style={styles.sheetHeader}>
+          <View style={{ flex: 1 }}>
+            <ThemedText style={styles.title}>Drives</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              {trips.length} {trips.length === 1 ? 'drive' : 'drives'} · {formatDistance(units, totals.distanceM)} ·{' '}
+              {formatDuration(totals.durationS)}
+            </ThemedText>
           </View>
-        ))
-      )}
-    </Screen>
+          <Pressable onPress={() => router.navigate('/profile')} accessibilityRole="button" accessibilityLabel="Profile">
+            {profile ? (
+              <Avatar name={profile.display_name} color={profile.avatar_color} size={48} />
+            ) : (
+              <View style={[styles.avatarFallback, { backgroundColor: theme.backgroundSelected }]}>
+                <MaterialCommunityIcons name="account" size={28} color={theme.textSecondary} />
+              </View>
+            )}
+          </Pressable>
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chips}
+          style={styles.chipScroll}>
+          <Chip onPress={cyclePeriod} icon="calendar-blank-outline" trailing="chevron-down">
+            {PERIODS.find((p) => p.value === period)!.label}
+          </Chip>
+          {SORTS.map((s) => (
+            <Chip key={s.value} selected={s.value === sort} onPress={() => setSort(s.value)}>
+              {s.label}
+            </Chip>
+          ))}
+        </ScrollView>
+
+        <FlatList
+          data={trips}
+          keyExtractor={(t) => t.id}
+          contentContainerStyle={{ paddingBottom: Spacing.three }}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <MaterialCommunityIcons name="road-variant" size={36} color={theme.textSecondary} />
+              <ThemedText style={{ fontWeight: 700, fontSize: 17 }}>
+                {history.length ? 'No drives in this period' : 'No drives yet'}
+              </ThemedText>
+              <ThemedText themeColor="textSecondary" style={{ textAlign: 'center' }}>
+                {history.length
+                  ? 'Try a longer time range.'
+                  : 'Tap Start trip on the Drive tab. Every route you record lights up this map.'}
+              </ThemedText>
+            </View>
+          }
+          renderItem={({ item, index }) => (
+            <DriveRow
+              trip={item}
+              units={units}
+              selected={item.id === selected}
+              divider={index > 0}
+              onPress={() => onPressTrip(item)}
+            />
+          )}
+        />
+      </View>
+    </View>
+  );
+}
+
+function Chip({
+  children,
+  selected,
+  onPress,
+  icon,
+  trailing,
+}: {
+  children: string;
+  selected?: boolean;
+  onPress: () => void;
+  icon?: keyof typeof MaterialCommunityIcons.glyphMap;
+  trailing?: keyof typeof MaterialCommunityIcons.glyphMap;
+}) {
+  const theme = useTheme();
+  const fg = selected ? theme.accentText : theme.textSecondary;
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      style={({ pressed }) => [
+        styles.chip,
+        { backgroundColor: selected ? theme.accent : theme.chip, borderColor: selected ? theme.accent : theme.border, opacity: pressed ? 0.8 : 1 },
+      ]}>
+      {icon ? <MaterialCommunityIcons name={icon} size={18} color={selected ? fg : theme.text} /> : null}
+      <ThemedText style={[styles.chipText, { color: icon ? theme.text : fg }]}>{children}</ThemedText>
+      {trailing ? <MaterialCommunityIcons name={trailing} size={18} color={theme.text} /> : null}
+    </Pressable>
+  );
+}
+
+function DriveRow({
+  trip,
+  units,
+  selected,
+  divider,
+  onPress,
+}: {
+  trip: SavedTrip;
+  units: 'imperial' | 'metric';
+  selected: boolean;
+  divider: boolean;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityHint={selected ? 'Opens drive details' : 'Highlights this drive on the map'}
+      style={[styles.row, selected && { backgroundColor: theme.backgroundSelected }]}>
+      <RouteThumbnail path={trip.path} color={selected ? theme.speed : theme.text} />
+      <View style={[styles.rowBody, divider && !selected && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
+        <View style={{ flex: 1 }}>
+          <ThemedText style={styles.rowTitle} numberOfLines={1}>
+            {trip.name ?? formatDayOrdinal(trip.startedAt)}
+          </ThemedText>
+          <ThemedText style={styles.rowSub} themeColor="textSecondary" numberOfLines={1}>
+            {trip.name ? `${formatDayOrdinal(trip.startedAt)} · ` : ''}
+            {formatClock(trip.startedAt)} – {formatClock(trip.endedAt)}
+          </ThemedText>
+          <ThemedText style={styles.rowSub} themeColor="textSecondary" numberOfLines={1}>
+            {formatDistance(units, trip.distanceM)} · {formatDuration((trip.endedAt - trip.startedAt) / 1000)}
+          </ThemedText>
+        </View>
+        <View style={styles.speed}>
+          <ThemedText style={[styles.speedValue, { color: theme.speed }]}>
+            {Math.round(speedIn(units, trip.maxSpeedMps))}
+          </ThemedText>
+          <ThemedText style={styles.speedUnit} themeColor="textSecondary">
+            {speedUnitLabel(units).toUpperCase()}
+          </ThemedText>
+        </View>
+        {selected ? <MaterialCommunityIcons name="chevron-right" size={24} color={theme.textSecondary} /> : null}
+      </View>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  statRow: { flexDirection: 'row' },
-  trip: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingVertical: Spacing.three },
+  brand: {
+    position: 'absolute',
+    left: Spacing.three,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two + 2,
+    borderRadius: Radius.pill,
+    opacity: 0.94,
+  },
+  brandText: { fontSize: 18, fontWeight: 700 },
+  sheet: {
+    position: 'absolute',
+    left: Spacing.two,
+    right: Spacing.two,
+    borderRadius: 32,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingTop: Spacing.four,
+    overflow: 'hidden',
+    opacity: 0.97,
+  },
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.four, gap: Spacing.three },
+  title: { fontSize: 34, lineHeight: 40, fontWeight: 800, letterSpacing: -0.5 },
+  avatarFallback: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  chipScroll: { flexGrow: 0, flexShrink: 0, height: 40 + Spacing.three * 2 },
+  chips: { gap: Spacing.two, paddingHorizontal: Spacing.three, alignItems: 'center' },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one + 2,
+    height: 40,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+  },
+  chipText: { fontSize: 15, fontWeight: 600 },
+  row: { flexDirection: 'row', alignItems: 'center', paddingLeft: Spacing.three, gap: Spacing.three },
+  rowBody: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingVertical: Spacing.three, paddingRight: Spacing.three, gap: Spacing.two },
+  rowTitle: { fontSize: 18, fontWeight: 700 },
+  rowSub: { fontSize: 15, lineHeight: 21 },
+  speed: { alignItems: 'center', minWidth: 56 },
+  speedValue: { fontSize: 30, lineHeight: 34, fontWeight: 800, fontVariant: ['tabular-nums'] },
+  speedUnit: { fontSize: 12, fontWeight: 600, letterSpacing: 0.5 },
+  empty: { alignItems: 'center', gap: Spacing.two, padding: Spacing.five },
 });

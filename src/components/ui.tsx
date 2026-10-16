@@ -142,10 +142,10 @@ export function Avatar({ name, color, size = 40 }: { name: string; color: string
   );
 }
 
-export function Stat({ label, value }: { label: string; value: string }) {
+export function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <View style={styles.stat}>
-      <ThemedText style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>
+      <ThemedText style={[styles.statValue, color ? { color } : null]} numberOfLines={1} adjustsFontSizeToFit>
         {value}
       </ThemedText>
       <ThemedText type="small" themeColor="textSecondary">
