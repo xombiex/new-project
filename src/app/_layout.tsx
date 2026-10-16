@@ -82,6 +82,10 @@ export default function RootLayout() {
         <Stack.Screen name="profile" options={{ title: 'Profile' }} />
         <Stack.Screen name="privacy-zones" options={{ title: 'Privacy zones' }} />
         <Stack.Screen name="share/[id]" options={{ title: 'Share drive', presentation: 'modal' }} />
+        <Stack.Screen name="club/new" options={{ title: 'New club', presentation: 'modal' }} />
+        <Stack.Screen name="club/[id]" options={{ title: 'Club' }} />
+        <Stack.Screen name="event/new" options={{ title: 'New event', presentation: 'modal' }} />
+        <Stack.Screen name="event/[id]" options={{ title: 'Event' }} />
         <Stack.Screen name="invite" options={{ title: 'Invite to drive', presentation: 'modal' }} />
         <Stack.Screen name="report" options={{ title: 'Report', presentation: 'formSheet', sheetAllowedDetents: [0.6, 1] }} />
       </Stack>

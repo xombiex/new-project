@@ -16,7 +16,9 @@ import { addReason, removeReason } from '@/lib/location';
 import { formatAgo } from '@/lib/time';
 import { vehicleIcon } from '@/lib/vehicles';
 import { useAuth } from '@/store/auth';
+import { useClubs } from '@/store/clubs';
 import { useDrive, type Member } from '@/store/drive';
+import { useEntitled } from '@/store/pro';
 import { useSettings } from '@/store/settings';
 import { useTrips } from '@/store/trips';
 
@@ -106,7 +108,81 @@ function StartDrive() {
         Your location is only visible to members of the drive while you are in it, and you can pause sharing at any
         time.
       </ThemedText>
+      <ClubsSection />
     </Screen>
+  );
+}
+
+function ClubsSection() {
+  const theme = useTheme();
+  const router = useRouter();
+  const { mine, loadMine, join } = useClubs();
+  const canCreate = useEntitled('club');
+  const [code, setCode] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadMine();
+    }, [loadMine])
+  );
+
+  async function onJoin() {
+    const res = await join(code);
+    if (res.error) setError(res.error);
+    else {
+      setCode('');
+      setError(null);
+      router.push({ pathname: '/club/[id]', params: { id: res.club!.id } });
+    }
+  }
+
+  return (
+    <>
+      <SectionTitle
+        action={
+          <Button
+            label={canCreate ? 'New club' : 'Start a club'}
+            variant="ghost"
+            onPress={() => (canCreate ? router.push('/club/new') : router.push({ pathname: '/paywall', params: { offering: 'clubs' } }))}
+          />
+        }>
+        Clubs
+      </SectionTitle>
+      {mine.map((c) => (
+        <Pressable key={c.id} onPress={() => router.push({ pathname: '/club/[id]', params: { id: c.id } })} accessibilityRole="button">
+          <Card style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.three }}>
+            <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: c.color, alignItems: 'center', justifyContent: 'center' }}>
+              <MaterialCommunityIcons name="account-group" size={24} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <ThemedText style={{ fontWeight: 700 }}>{c.name}</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                {c.role === 'member' ? 'Member' : c.role === 'owner' ? 'Owner' : 'Admin'}
+              </ThemedText>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={22} color={theme.textSecondary} />
+          </Card>
+        </Pressable>
+      ))}
+      <Card style={{ gap: Spacing.two }}>
+        <ThemedText style={{ fontWeight: 700 }}>Join a club</ThemedText>
+        <View style={{ flexDirection: 'row', gap: Spacing.two, alignItems: 'flex-start' }}>
+          <View style={{ flex: 1 }}>
+            <TextField
+              placeholder="CLUB CODE"
+              value={code}
+              onChangeText={(t) => setCode(t.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              maxLength={8}
+              error={error}
+            />
+          </View>
+          <Button label="Join" variant="secondary" disabled={code.length !== 8} onPress={onJoin} />
+        </View>
+      </Card>
+    </>
   );
 }
 
@@ -115,6 +191,7 @@ function ActiveDrive() {
   const router = useRouter();
   const units = useSettings((s) => s.units);
   const { drive, members, status, sharing, setSharing, leave, setDestination, arrived } = useDrive();
+  const club = useClubs((c) => c.mine.find((x) => x.id === drive?.club_id));
   const myId = useAuth((s) => s.session?.user.id);
   const last = useTrips((s) => s.lastSample);
   const insets = useSafeAreaInsets();
@@ -196,6 +273,14 @@ function ActiveDrive() {
       <Screen safeTop={false}>
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
+            {club ? (
+              <View style={[styles.clubPill, { backgroundColor: club.color }]}>
+                <MaterialCommunityIcons name="account-group" size={14} color="#fff" />
+                <ThemedText type="smallBold" style={{ color: '#fff' }} numberOfLines={1}>
+                  {club.name}
+                </ThemedText>
+              </View>
+            ) : null}
             <ThemedText style={{ fontSize: 24, fontWeight: 800 }} numberOfLines={1}>
               {drive.name}
             </ThemedText>
@@ -377,6 +462,16 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 18, fontWeight: 700 },
   codeInput: { fontSize: 24, fontWeight: 800, letterSpacing: 6, textAlign: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  clubPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+    marginBottom: Spacing.one,
+  },
   code: { alignItems: 'center', paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.md },
   codeText: { fontSize: 22, fontWeight: 800, letterSpacing: 3, fontVariant: ['tabular-nums'] },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },

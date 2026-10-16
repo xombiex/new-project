@@ -9,7 +9,7 @@ import { supabase } from '@/lib/supabase';
  * Entitlements (configure the same identifiers in RevenueCat):
  *   pro       – Convoy Pro subscription (includes cosmetics)
  *   cosmetics – one-time glow/map/vehicle pack
- *   club      – club organizer plan
+ *   club      – club organizer plan (includes Pro)
  */
 export type Entitlement = 'pro' | 'cosmetics' | 'club';
 const ALL: Entitlement[] = ['pro', 'cosmetics', 'club'];
@@ -38,6 +38,12 @@ async function syncServer() {
 
 const known = (ids: string[]) => ids.filter((id): id is Entitlement => (ALL as string[]).includes(id));
 
+/** Mirrors private.has_entitlement on the server: club ⊃ pro ⊃ cosmetics. */
+function grants(owned: Set<Entitlement>, e: Entitlement) {
+  if (owned.has(e) || owned.has('club')) return true;
+  return e === 'cosmetics' && owned.has('pro');
+}
+
 export const usePro = create<ProState>()(
   persist(
     (set, get) => ({
@@ -47,8 +53,7 @@ export const usePro = create<ProState>()(
 
       has: (e) => {
         const { device, server, simulated } = get();
-        const owned = new Set([...device, ...server, ...(__DEV__ ? simulated : [])]);
-        return owned.has(e) || (e === 'cosmetics' && owned.has('pro'));
+        return grants(new Set([...device, ...server, ...(__DEV__ ? simulated : [])]), e);
       },
 
       identify: async (userId) => {
@@ -116,7 +121,6 @@ export const usePro = create<ProState>()(
 /** Hook form for components: re-renders when entitlements change. */
 export function useEntitled(e: Entitlement) {
   return usePro((s) => {
-    const owned = new Set([...s.device, ...s.server, ...(__DEV__ ? s.simulated : [])]);
-    return owned.has(e) || (e === 'cosmetics' && owned.has('pro'));
+    return grants(new Set([...s.device, ...s.server, ...(__DEV__ ? s.simulated : [])]), e);
   });
 }

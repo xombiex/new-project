@@ -24,6 +24,7 @@ export type GroupDrive = {
   dest_lat: number | null;
   dest_lng: number | null;
   status: 'active' | 'ended';
+  club_id: string | null;
 };
 
 export type MemberPosition = {
@@ -53,6 +54,9 @@ type DriveState = {
   arrived: Record<string, number>;
   create: (name: string, destination?: { name: string; lat: number; lng: number }) => Promise<string | null>;
   join: (code: string) => Promise<string | null>;
+  /** Start (owner/admin) or join (member) a club drive — no code needed. */
+  startClubDrive: (clubId: string, eventId?: string) => Promise<string | null>;
+  joinClubDrive: (driveId: string) => Promise<string | null>;
   resume: () => Promise<void>;
   setSharing: (on: boolean) => void;
   setDestination: (destination: { name: string; lat: number; lng: number } | null) => Promise<string | null>;
@@ -77,6 +81,7 @@ const MONITOR_MS = 10_000;
 function rpcError(message: string) {
   if (message.includes('drive not found')) return 'No active drive with that code';
   if (message.includes('drive is full')) return 'That drive is full';
+  if (message.includes('not a club member')) return 'Only club members can join this drive';
   if (message.includes('too many active drives')) return 'You already have 3 active drives — end one first';
   return message;
 }
@@ -271,6 +276,23 @@ export const useDrive = create<DriveState>()(
           set({ arrived: {} });
           await connect(data as GroupDrive);
           void notify({ type: 'member_joined', drive_id: (data as GroupDrive).id });
+          return null;
+        },
+
+        startClubDrive: async (clubId, eventId) => {
+          const { data, error } = await supabase.rpc('start_club_drive', { p_club: clubId, p_event: eventId ?? null });
+          if (error) return rpcError(error.message);
+          set({ arrived: {} });
+          await connect(data as GroupDrive);
+          return null;
+        },
+
+        joinClubDrive: async (driveId) => {
+          const { data, error } = await supabase.rpc('join_club_drive', { p_drive: driveId });
+          if (error) return rpcError(error.message);
+          set({ arrived: {} });
+          await connect(data as GroupDrive);
+          void notify({ type: 'member_joined', drive_id: driveId });
           return null;
         },
 

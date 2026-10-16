@@ -4,15 +4,14 @@
 // request is legitimate (e.g. you can only invite *your friends* to a drive *you're in*),
 // respects each recipient's notification settings, dedupes, and rate-limits senders.
 //
-// Optional secrets: EXPO_ACCESS_TOKEN (if "enhanced push security" is on in Expo),
-// NOTIFY_CRON_SECRET (lets the scheduled job send club event reminders).
+// Optional secret: EXPO_ACCESS_TOKEN (if "enhanced push security" is on in Expo).
+// Club event reminders come from a pg_cron job that sends a vault-stored secret header.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
   auth: { persistSession: false },
 });
 const EXPO_TOKEN = Deno.env.get('EXPO_ACCESS_TOKEN');
-const CRON_SECRET = Deno.env.get('NOTIFY_CRON_SECRET');
 
 type Pref = 'friend_requests' | 'drive_invites' | 'drive_activity' | 'club_events';
 
@@ -23,6 +22,14 @@ class HttpError extends Error {
   constructor(public status: number, message: string) {
     super(message);
   }
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Ids from the request body are interpolated into filters below, so only accept real UUIDs. */
+function uuid(v: unknown): string {
+  if (typeof v !== 'string' || !UUID.test(v)) throw new HttpError(400, 'invalid id');
+  return v;
 }
 
 async function displayName(id: string) {
@@ -115,7 +122,10 @@ async function eventReminders() {
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405);
   try {
-    if (CRON_SECRET && req.headers.get('x-cron-secret') === CRON_SECRET) {
+    const cronSecret = req.headers.get('x-cron-secret');
+    if (cronSecret) {
+      const { data: ok } = await admin.rpc('cron_secret_ok', { p: cronSecret });
+      if (!ok) return json({ error: 'unauthorized' }, 401);
       return json({ sent: await eventReminders() });
     }
 
@@ -130,20 +140,20 @@ Deno.serve(async (req) => {
 
     switch (body.type) {
       case 'friend_request': {
-        const { count } = await admin.from('friendships').select('*', { count: 'exact', head: true }).eq('requester_id', me).eq('addressee_id', body.to).eq('status', 'pending');
+        const { count } = await admin.from('friendships').select('*', { count: 'exact', head: true }).eq('requester_id', me).eq('addressee_id', uuid(body.to)).eq('status', 'pending');
         if (!count) throw new HttpError(403, 'no pending request');
-        sent = await send(me, [body.to], 'friend_request', 'friend_requests', 'Friend request', `${name} wants to add you on Convoy`, {});
+        sent = await send(me, [uuid(body.to)], 'friend_request', 'friend_requests', 'Friend request', `${name} wants to add you on Convoy`, {});
         break;
       }
       case 'friend_accepted': {
-        const { count } = await admin.from('friendships').select('*', { count: 'exact', head: true }).eq('requester_id', body.to).eq('addressee_id', me).eq('status', 'accepted');
+        const { count } = await admin.from('friendships').select('*', { count: 'exact', head: true }).eq('requester_id', uuid(body.to)).eq('addressee_id', me).eq('status', 'accepted');
         if (!count) throw new HttpError(403, 'not accepted');
-        sent = await send(me, [body.to], 'friend_accepted', 'friend_requests', 'New friend', `${name} accepted your friend request`, {});
+        sent = await send(me, [uuid(body.to)], 'friend_accepted', 'friend_requests', 'New friend', `${name} accepted your friend request`, {});
         break;
       }
       case 'drive_invite': {
-        const drive = await activeDriveFor(me, body.drive_id);
-        const to: string[] = Array.isArray(body.to) ? body.to.slice(0, 20) : [];
+        const drive = await activeDriveFor(me, uuid(body.drive_id));
+        const to: string[] = Array.isArray(body.to) ? body.to.slice(0, 20).map(uuid) : [];
         const friends: string[] = [];
         for (const id of to) if (await areFriends(me, id)) friends.push(id);
         sent = await send(me, friends, 'drive_invite', 'drive_invites', `Join ${drive.name}`, `${name} invited you to a group drive`, { code: drive.code });
@@ -151,7 +161,7 @@ Deno.serve(async (req) => {
       }
       case 'member_joined':
       case 'arrived': {
-        const drive = await activeDriveFor(me, body.drive_id);
+        const drive = await activeDriveFor(me, uuid(body.drive_id));
         const { data: members } = await admin.from('group_members').select('user_id').eq('drive_id', drive.id);
         const text = body.type === 'arrived' ? `${name} arrived at the destination` : `${name} joined the drive`;
         sent = await send(me, (members ?? []).map((m) => m.user_id), body.type, 'drive_activity', drive.name, text, { drive_id: drive.id });
