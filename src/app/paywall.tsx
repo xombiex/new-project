@@ -7,11 +7,26 @@ import { ThemedText } from '@/components/themed-text';
 import { Button, Card } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { fetchWebPlans, formatPrice, type WebPlan, type WebPlanId } from '@/lib/payments';
 import { fetchPackages, purchasesAvailable, type PaywallPackage } from '@/lib/purchases';
 import { useAuth } from '@/store/auth';
 import { useEntitled, usePro, type Entitlement } from '@/store/pro';
 
 type Offering = 'default' | 'clubs' | 'cosmetics';
+
+/** Stripe web plans offered for each paywall. */
+const WEB_PLANS: Record<Offering, WebPlanId[]> = {
+  default: ['pro_yearly', 'pro_monthly'],
+  clubs: ['clubs_monthly'],
+  cosmetics: ['style_pack'],
+};
+
+/**
+ * Show card checkout (Stripe, on the web) when store billing isn't configured, or when
+ * EXPO_PUBLIC_WEB_CHECKOUT=1. Check current App Store / Google Play rules for your
+ * storefronts before enabling it alongside in-app purchases.
+ */
+const WEB_CHECKOUT = !purchasesAvailable || process.env.EXPO_PUBLIC_WEB_CHECKOUT === '1';
 
 const COPY: Record<Offering, { entitlement: Entitlement; title: string; tagline: string; features: [string, string][] }> = {
   default: {
@@ -72,6 +87,18 @@ export default function PaywallScreen() {
   const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [webPlans, setWebPlans] = useState<Partial<Record<WebPlanId, WebPlan>> | null>(null);
+  const [webBusy, setWebBusy] = useState<WebPlanId | null>(null);
+
+  useEffect(() => {
+    if (WEB_CHECKOUT) void fetchWebPlans().then(setWebPlans);
+  }, []);
+
+  async function onBuyWeb(plan: WebPlanId) {
+    setWebBusy(plan);
+    setError(await usePro.getState().buyOnWeb(plan));
+    setWebBusy(null);
+  }
 
   useEffect(() => {
     fetchPackages(offering)
@@ -133,6 +160,31 @@ export default function PaywallScreen() {
             <ThemedText>Sign in first so your purchase follows you to any device.</ThemedText>
             <Button label="Sign in" onPress={() => router.push('/sign-in')} />
           </Card>
+        ) : WEB_CHECKOUT && webPlans && WEB_PLANS[offering].some((p) => webPlans[p]) ? (
+          <View style={{ gap: Spacing.two }}>
+            {WEB_PLANS[offering].map((id) => {
+              const p = webPlans[id];
+              if (!p) return null;
+              const per = p.interval ? `/${p.interval === 'year' ? 'yr' : 'mo'}` : ' once';
+              const trial = offering === 'default';
+              return (
+                <Button
+                  key={id}
+                  size="lg"
+                  variant={id === 'pro_monthly' ? 'secondary' : 'primary'}
+                  loading={webBusy === id}
+                  disabled={webBusy !== null}
+                  label={`${trial ? 'Try 7 days free, then ' : ''}${formatPrice(p.amount, p.currency)}${per}`}
+                  onPress={() => void onBuyWeb(id)}
+                />
+              );
+            })}
+            {error ? <ThemedText style={{ color: theme.danger }}>{error}</ThemedText> : null}
+            <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
+              Secure checkout by Stripe. Cancel anytime from Profile → Manage subscription; you keep access until the end of the
+              period.
+            </ThemedText>
+          </View>
         ) : !purchasesAvailable ? (
           <Card style={{ gap: Spacing.two }}>
             <ThemedText style={{ fontWeight: 700 }}>Purchases aren&apos;t set up yet</ThemedText>

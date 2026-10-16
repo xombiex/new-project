@@ -9,6 +9,7 @@ import { Avatar, Button, Card, SectionTitle, Segmented } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { GLOW_PRESETS, type GlowPreset } from '@/lib/glow';
+import { openBillingPortal } from '@/lib/payments';
 import { MAP_THEMES } from '@/lib/map-style';
 import { useAuth } from '@/store/auth';
 import { useNotificationSettings, type NotificationPrefs } from '@/store/notification-settings';
@@ -31,7 +32,7 @@ export default function ProfileScreen() {
   const pro = useEntitled('pro');
   const cosmetics = useEntitled('cosmetics');
   const club = useEntitled('club');
-  const { simulated, setSimulated } = usePro();
+  const { simulated, setSimulated, webBilling } = usePro();
   const unsynced = useTrips((s) => s.history.filter((t) => !t.synced).length);
   const [perm, setPerm] = useState<PermissionSummary | null>(null);
   const notif = useNotificationSettings();
@@ -86,7 +87,16 @@ export default function ProfileScreen() {
         </Card>
       </Pressable>
       {pro || cosmetics || club ? (
-        <Button label="Manage subscription" variant="ghost" onPress={() => void Linking.openURL(MANAGE_SUBSCRIPTIONS!)} />
+        <Button
+          label="Manage subscription"
+          variant="ghost"
+          onPress={async () => {
+            if (webBilling) {
+              await openBillingPortal();
+              void usePro.getState().refreshServer();
+            } else void Linking.openURL(MANAGE_SUBSCRIPTIONS!);
+          }}
+        />
       ) : null}
 
       <SectionTitle>Appearance</SectionTitle>

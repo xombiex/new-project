@@ -80,14 +80,21 @@ Everything works without these; each section lights up when its keys exist.
 
 In development builds, Profile → "Developer: simulate purchases" unlocks features locally without buying. Server-enforced limits still need a real purchase.
 
-### 3. Paid event tickets (Stripe Connect)
-1. Enable Connect (Express) in Stripe.
-2. Supabase secrets: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, optional `PLATFORM_FEE_PERCENT`.
-3. Stripe webhooks → endpoint `https://qdcdveoidmnwqnabfuvd.supabase.co/functions/v1/stripe`:
-   - `checkout.session.completed` (your account)
-   - `account.updated` (enable "Listen to events on connected accounts")
+### 3. Stripe: web subscriptions + event tickets
+Already created in the **Convoy sandbox** account: products/prices (lookup keys `convoy_pro_monthly`, `convoy_pro_yearly`, `convoy_clubs_monthly`, `convoy_style_pack`), the Customer Portal configuration, and two webhook endpoints pointing at the `stripe` function.
 
-Club owners then tap "Set up payouts" on their club page. Refunds are handled in the Stripe dashboard.
+To switch it on:
+1. Supabase → Edge Functions → Secrets:
+   - `STRIPE_SECRET_KEY`: your `sk_test_…` key
+   - `STRIPE_WEBHOOK_SECRET`: signing secret of the webhook "Convoy: subscriptions, style pack, ticket payments & refunds"
+   - `STRIPE_CONNECT_WEBHOOK_SECRET`: signing secret of the webhook "Convoy: organizer (connected account) payout status"
+   - optional `PLATFORM_FEE_PERCENT` (default 5)
+2. Stripe Dashboard → Settings → Connect → Platform profile: accept **loss liability** (required for marketplace accounts), and turn on **Radar for Platforms**.
+3. Test: Paywall → pay with card `4242 4242 4242 4242` → Pro unlocks within seconds; Profile → Manage subscription opens the portal.
+
+How it works: Stripe-hosted Checkout (7-day Pro trial, card required, once per user), Customer Portal for cancel/switch/card updates, and webhooks that recompute the user's `entitlements` rows (`source = 'stripe'`) from Stripe on every event. Tickets use destination charges to the organizer's Express account (transfers capability only, platform-owned fees and losses) with Managed Payments turned off for those sessions. Full refunds revoke the ticket or Style Pack.
+
+Store rules: digital subscriptions sold inside iOS/Android apps normally go through Apple/Google billing (RevenueCat, above). The app shows Stripe card checkout when store billing isn't configured or when `EXPO_PUBLIC_WEB_CHECKOUT=1`. Check the current App Store and Google Play rules for your storefronts before shipping both.
 
 ### 4. Affiliate links
 `EXPO_PUBLIC_AMAZON_TAG=yourtag-20` in `.env`. The disclosure line appears automatically.

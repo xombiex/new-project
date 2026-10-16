@@ -3,17 +3,24 @@ import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '@/lib/supabase';
 
 /**
- * Paid event tickets go through Stripe Checkout in the browser (real-world events are
- * allowed outside in-app purchase). Organizers get paid via Stripe Connect; Convoy keeps
- * a small platform fee. All Stripe calls happen in the `stripe` edge function.
+ * Everything Stripe goes through the `stripe` edge function and Stripe-hosted pages:
+ *   - web subscriptions / Style Pack (Checkout + Customer Portal), Convoy is the merchant
+ *   - event tickets (Checkout with destination charges to the organizer's connected account)
+ * Card details never touch the app.
  */
-async function openStripe(body: Record<string, unknown>): Promise<string | null> {
+async function callStripe(body: Record<string, unknown>): Promise<{ data?: any; error?: string }> {
   const { data, error } = await supabase.functions.invoke('stripe', { body });
   if (error) {
     const ctx = (error as { context?: Response }).context;
     const detail = ctx ? await ctx.json().catch(() => null) : null;
-    return detail?.error === 'payments not configured' ? 'Payments aren’t set up yet' : (detail?.error ?? error.message);
+    return { error: detail?.error === 'payments not configured' ? 'Payments aren’t set up yet' : (detail?.error ?? error.message) };
   }
+  return { data };
+}
+
+async function openStripe(body: Record<string, unknown>): Promise<string | null> {
+  const { data, error } = await callStripe(body);
+  if (error) return error;
   if (!data?.url) return 'Could not start checkout';
   // Closes itself when Stripe redirects back to convoy://stripe-return.
   await WebBrowser.openAuthSessionAsync(data.url, 'convoy://stripe-return');
@@ -26,6 +33,26 @@ export function setUpPayouts(clubId: string) {
 
 export function buyTicket(eventId: string) {
   return openStripe({ action: 'checkout', event_id: eventId });
+}
+
+// ─── Web billing ──────────────────────────────────────────────────────────
+
+export type WebPlanId = 'pro_monthly' | 'pro_yearly' | 'clubs_monthly' | 'style_pack';
+export type WebPlan = { amount: number; currency: string; interval: string | null; name: string };
+
+/** Live prices from Stripe (so the app never shows a stale price). */
+export async function fetchWebPlans(): Promise<Partial<Record<WebPlanId, WebPlan>>> {
+  const { data } = await callStripe({ action: 'plans' });
+  return data?.plans ?? {};
+}
+
+export function subscribeOnWeb(plan: WebPlanId) {
+  return openStripe({ action: 'subscribe', plan });
+}
+
+/** Stripe Customer Portal: cancel, switch monthly/yearly, update card, invoices. */
+export function openBillingPortal() {
+  return openStripe({ action: 'portal' });
 }
 
 export function formatPrice(cents: number, currency = 'usd') {

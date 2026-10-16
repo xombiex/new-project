@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import { subscribeOnWeb, type WebPlanId } from '@/lib/payments';
 import * as purchases from '@/lib/purchases';
 import { supabase } from '@/lib/supabase';
 
@@ -21,12 +22,16 @@ type ProState = {
   server: Entitlement[];
   /** development builds only: pretend to own entitlements to test gated features */
   simulated: Entitlement[];
+  /** true when something was bought through Stripe (manage it in the Customer Portal) */
+  webBilling: boolean;
   has: (e: Entitlement) => boolean;
   identify: (userId: string | null) => Promise<void>;
   refreshServer: () => Promise<void>;
   /** Returns null on success or cancel, otherwise an error message. */
   purchase: (packageId: string) => Promise<string | null>;
   restore: () => Promise<string | null>;
+  /** Stripe Checkout in the browser; resolves after the webhook has granted access (or times out). */
+  buyOnWeb: (plan: WebPlanId) => Promise<string | null>;
   setSimulated: (e: Entitlement, on: boolean) => void;
 };
 
@@ -50,6 +55,7 @@ export const usePro = create<ProState>()(
       device: [],
       server: [],
       simulated: [],
+      webBilling: false,
 
       has: (e) => {
         const { device, server, simulated } = get();
@@ -67,16 +73,16 @@ export const usePro = create<ProState>()(
       },
 
       refreshServer: async () => {
-        const { data, error } = await supabase.from('entitlements').select('entitlement, expires_at');
+        const { data, error } = await supabase.from('entitlements').select('entitlement, expires_at, source');
         if (error) {
           console.warn('Entitlement load failed', error.message);
           return;
         }
         const now = Date.now();
+        const active = data.filter((r) => r.expires_at == null || Date.parse(r.expires_at) > now);
         set({
-          server: known(
-            data.filter((r) => r.expires_at == null || Date.parse(r.expires_at) > now).map((r) => r.entitlement)
-          ),
+          server: known(active.map((r) => r.entitlement)),
+          webBilling: data.some((r) => r.source === 'stripe'),
         });
       },
 
@@ -104,6 +110,19 @@ export const usePro = create<ProState>()(
         }
       },
 
+      buyOnWeb: async (plan) => {
+        const before = new Set(get().server);
+        const err = await subscribeOnWeb(plan);
+        if (err) return err;
+        // The webhook usually lands within a second or two of returning from Checkout.
+        for (let i = 0; i < 6; i++) {
+          await get().refreshServer();
+          if (get().server.some((e) => !before.has(e))) break;
+          await new Promise((r) => setTimeout(r, 1500));
+        }
+        return null;
+      },
+
       setSimulated: (e, on) => {
         const rest = get().simulated.filter((x) => x !== e);
         set({ simulated: on ? [...rest, e] : rest });
@@ -113,7 +132,7 @@ export const usePro = create<ProState>()(
       name: 'convoy-pro',
       storage: createJSONStorage(() => AsyncStorage),
       // Cache last-known entitlements so unlocked features work offline.
-      partialize: ({ device, server, simulated }) => ({ device, server, simulated }),
+      partialize: ({ device, server, simulated, webBilling }) => ({ device, server, simulated, webBilling }),
     }
   )
 );
