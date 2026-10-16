@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Button, Segmented, TextField } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { SITE_URL } from '@/lib/legal';
 import { supabase } from '@/lib/supabase';
 
 export default function SignInScreen() {
@@ -25,7 +26,10 @@ export default function SignInScreen() {
     setNotice(null);
     const creds = { email: email.trim(), password };
     const { data, error } =
-      mode === 'in' ? await supabase.auth.signInWithPassword(creds) : await supabase.auth.signUp(creds);
+      mode === 'in'
+        ? await supabase.auth.signInWithPassword(creds)
+        : // The confirmation link opens the Convoy web app (signed in), not the admin portal.
+          await supabase.auth.signUp({ ...creds, options: { emailRedirectTo: Platform.OS === 'web' ? window.location.origin : SITE_URL } });
     setBusy(false);
     if (error) {
       setError(error.message);

@@ -16,7 +16,8 @@ export const supabase = createClient(url, key, {
     storage: AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    // On the web app, pick up the session from the email-confirmation link.
+    detectSessionInUrl: Platform.OS === 'web',
   },
 });
 

@@ -53,7 +53,7 @@ $('#auth-form').onsubmit = async (e) => {
   msg.className = 'msg';
   msg.textContent = '…';
   const creds = { email: $('#email').value.trim(), password: $('#password').value };
-  const { data, error } = signingUp ? await sb.auth.signUp(creds) : await sb.auth.signInWithPassword(creds);
+  const { data, error } = signingUp ? await sb.auth.signUp({ ...creds, options: { emailRedirectTo: `${location.origin}/admin/` } }) : await sb.auth.signInWithPassword(creds);
   if (error) {
     msg.className = 'msg err';
     msg.textContent = error.message;

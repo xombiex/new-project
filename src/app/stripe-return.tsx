@@ -6,6 +6,8 @@ import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
 
 const MESSAGES: Record<string, string> = {
+  subscribed: 'You’re all set. Your plan unlocks in a few seconds.',
+  portal: 'Subscription updated.',
   paid: 'Ticket confirmed. It can take a few seconds to show up.',
   cancel: 'Checkout cancelled. No charge was made.',
   return: 'Stripe is verifying your details. You can sell tickets once that’s done.',

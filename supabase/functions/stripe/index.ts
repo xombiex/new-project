@@ -12,7 +12,8 @@
 // Webhook (Stripe-Signature header): checkout.session.completed|async_payment_succeeded,
 //   customer.subscription.created|updated|deleted,
 //   charge.refunded, account.updated (connected accounts).
-// GET ?page=…                                       → 302 back into the app (convoy://stripe-return)
+// GET ?page=…[&to=web]                             → 302 back into the app (convoy://stripe-return) or the web app
+// Any POST may pass { web: true } so Stripe returns to the web app instead of the native one.
 //
 // Secrets: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_CONNECT_WEBHOOK_SECRET, optional PLATFORM_FEE_PERCENT
 // (default 5). Each is read from the function env first, else from Supabase Vault
@@ -23,6 +24,7 @@ let STRIPE_KEY: string | undefined;
 let WEBHOOK_SECRETS: string[] = [];
 const FEE_PERCENT = Number(Deno.env.get('PLATFORM_FEE_PERCENT') ?? '5');
 const SELF_URL = `${Deno.env.get('SUPABASE_URL')}/functions/v1/stripe`;
+const WEB_APP_URL = Deno.env.get('WEB_APP_URL') ?? 'https://convoy-drab.vercel.app';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TRIAL_DAYS = 7;
 
@@ -125,8 +127,9 @@ async function verifySignature(raw: string, header: string | null) {
  * Stripe needs https return URLs; Supabase won't serve HTML from functions, so bounce
  * straight back into the app. The app's auth-session browser closes on this redirect.
  */
-function backToApp(status: string) {
-  return new Response(null, { status: 302, headers: { Location: `convoy://stripe-return?status=${encodeURIComponent(status)}` } });
+function backToApp(status: string, web: boolean) {
+  const base = web ? `${WEB_APP_URL}/stripe-return` : 'convoy://stripe-return';
+  return new Response(null, { status: 302, headers: { Location: `${base}?status=${encodeURIComponent(status)}` } });
 }
 
 // ─── Web billing ─────────────────────────────────────────────────────────
@@ -165,7 +168,7 @@ async function plans() {
   return out;
 }
 
-async function subscribe(userId: string, email: string | undefined, planId: PlanId) {
+async function subscribe(userId: string, email: string | undefined, planId: PlanId, ret: string) {
   const plan = PLANS[planId];
   if (!plan) throw new HttpError(400, 'unknown plan');
   const customer = await customerFor(userId, email);
@@ -173,7 +176,7 @@ async function subscribe(userId: string, email: string | undefined, planId: Plan
   // Already subscribed on the web → send them to manage it instead of double-billing.
   if (await hasStripeEntitlement(userId, plan.entitlement)) {
     if (plan.mode === 'payment') throw new HttpError(409, 'you already own this');
-    return portal(customer.customer_id);
+    return portal(customer.customer_id, ret);
   }
 
   const price = await priceFor(plan.lookup);
@@ -182,8 +185,8 @@ async function subscribe(userId: string, email: string | undefined, planId: Plan
     client_reference_id: userId,
     line_items: [{ price: price.id, quantity: 1 }],
     metadata: { kind: planId === 'style_pack' ? 'style_pack' : 'subscription', user_id: userId, plan: planId },
-    success_url: `${SELF_URL}?page=subscribed`,
-    cancel_url: `${SELF_URL}?page=cancel`,
+    success_url: `${ret}subscribed`,
+    cancel_url: `${ret}cancel`,
   };
 
   const session =
@@ -207,8 +210,8 @@ async function subscribe(userId: string, email: string | undefined, planId: Plan
   return session.url as string;
 }
 
-async function portal(customerId: string) {
-  const session = await stripe('POST', 'billing_portal/sessions', { customer: customerId, return_url: `${SELF_URL}?page=portal` });
+async function portal(customerId: string, ret: string) {
+  const session = await stripe('POST', 'billing_portal/sessions', { customer: customerId, return_url: `${ret}portal` });
   return session.url as string;
 }
 
@@ -250,7 +253,7 @@ async function syncSubscriptions(customerId: string) {
 
 // ─── Event-ticket marketplace (Connect) ──────────────────────────────────
 
-async function onboard(me: string, clubId: string) {
+async function onboard(me: string, clubId: string, ret: string) {
   const { data: role } = await admin.from('club_members').select('role').eq('club_id', clubId).eq('user_id', me).maybeSingle();
   if (role?.role !== 'owner') throw new HttpError(403, 'only the club owner can set up payouts');
   let { data: payout } = await admin.from('club_payouts').select('stripe_account_id, charges_enabled').eq('club_id', clubId).maybeSingle();
@@ -282,14 +285,14 @@ async function onboard(me: string, clubId: string) {
   }
   const link = await stripe('POST', 'account_links', {
     account: payout.stripe_account_id,
-    refresh_url: `${SELF_URL}?page=refresh`,
-    return_url: `${SELF_URL}?page=return`,
+    refresh_url: `${ret}refresh`,
+    return_url: `${ret}return`,
     type: 'account_onboarding',
   });
   return link.url as string;
 }
 
-async function ticketCheckout(me: string, eventId: string) {
+async function ticketCheckout(me: string, eventId: string, ret: string) {
   const { data: ev } = await admin
     .from('club_events')
     .select('id, club_id, title, starts_at, price_cents, currency, capacity')
@@ -324,8 +327,8 @@ async function ticketCheckout(me: string, eventId: string) {
     },
     client_reference_id: me,
     metadata: meta,
-    success_url: `${SELF_URL}?page=paid`,
-    cancel_url: `${SELF_URL}?page=cancel`,
+    success_url: `${ret}paid`,
+    cancel_url: `${ret}cancel`,
     expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
   });
   return session.url as string;
@@ -396,7 +399,7 @@ Deno.serve(async (req) => {
   const url = new URL(req.url);
   if (req.method === 'GET') {
     const status = url.searchParams.get('page');
-    if (status && ['paid', 'cancel', 'return', 'refresh', 'subscribed', 'portal'].includes(status)) return backToApp(status);
+    if (status && ['paid', 'cancel', 'return', 'refresh', 'subscribed', 'portal'].includes(status)) return backToApp(status, url.searchParams.get('to') === 'web');
     return new Response('Not found', { status: 404 });
   }
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405);
@@ -420,21 +423,22 @@ Deno.serve(async (req) => {
     const user = auth?.user;
     if (!user) return json({ error: 'unauthorized' }, 401);
 
+    const ret = body.web === true ? `${SELF_URL}?to=web&page=` : `${SELF_URL}?page=`;
     switch (body.action) {
       case 'subscribe':
         if (typeof body.plan !== 'string' || !Object.hasOwn(PLANS, body.plan)) return json({ error: 'unknown plan' }, 400);
-        return json({ url: await subscribe(user.id, user.email, body.plan as PlanId) });
+        return json({ url: await subscribe(user.id, user.email, body.plan as PlanId, ret) });
       case 'portal': {
         const { data } = await admin.from('stripe_customers').select('customer_id').eq('user_id', user.id).maybeSingle();
         if (!data) return json({ error: 'no web subscription' }, 404);
-        return json({ url: await portal(data.customer_id) });
+        return json({ url: await portal(data.customer_id, ret) });
       }
       case 'connect_onboard':
         if (!UUID.test(body.club_id ?? '')) break;
-        return json({ url: await onboard(user.id, body.club_id) });
+        return json({ url: await onboard(user.id, body.club_id, ret) });
       case 'checkout':
         if (!UUID.test(body.event_id ?? '')) break;
-        return json({ url: await ticketCheckout(user.id, body.event_id) });
+        return json({ url: await ticketCheckout(user.id, body.event_id, ret) });
     }
     return json({ error: 'bad request' }, 400);
   } catch (e) {

@@ -1,4 +1,5 @@
 import * as WebBrowser from 'expo-web-browser';
+import { Platform } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
 
@@ -19,9 +20,15 @@ async function callStripe(body: Record<string, unknown>): Promise<{ data?: any; 
 }
 
 async function openStripe(body: Record<string, unknown>): Promise<string | null> {
-  const { data, error } = await callStripe(body);
+  const web = Platform.OS === 'web';
+  const { data, error } = await callStripe({ ...body, web });
   if (error) return error;
   if (!data?.url) return 'Could not start checkout';
+  // On the web app, Stripe returns to /stripe-return on this site.
+  if (web) {
+    window.location.assign(data.url);
+    return null;
+  }
   // Closes itself when Stripe redirects back to convoy://stripe-return.
   await WebBrowser.openAuthSessionAsync(data.url, 'convoy://stripe-return');
   return null;
