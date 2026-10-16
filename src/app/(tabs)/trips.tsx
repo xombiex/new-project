@@ -125,10 +125,12 @@ export default function DrivesScreen() {
         <View style={styles.sheetHeader}>
           <View style={{ flex: 1 }}>
             <ThemedText style={styles.title}>Drives</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {trips.length} {trips.length === 1 ? 'drive' : 'drives'} · {formatDistance(units, totals.distanceM)} ·{' '}
-              {formatDuration(totals.durationS)}
-            </ThemedText>
+            {history.length ? (
+              <ThemedText type="small" themeColor="textSecondary">
+                {trips.length} {trips.length === 1 ? 'drive' : 'drives'} · {formatDistance(units, totals.distanceM)} ·{' '}
+                {formatDuration(totals.durationS)}
+              </ThemedText>
+            ) : null}
           </View>
           <Pressable onPress={() => router.navigate('/profile')} accessibilityRole="button" accessibilityLabel="Profile">
             {profile ? (
@@ -141,48 +143,52 @@ export default function DrivesScreen() {
           </Pressable>
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chips}
-          style={styles.chipScroll}>
-          <Chip onPress={cyclePeriod} icon="calendar-blank-outline" trailing="chevron-down">
-            {PERIODS.find((p) => p.value === period)!.label}
-          </Chip>
-          {SORTS.map((s) => (
-            <Chip key={s.value} selected={s.value === sort} onPress={() => setSort(s.value)}>
-              {s.label}
-            </Chip>
-          ))}
-        </ScrollView>
+        {history.length === 0 ? (
+          <View style={styles.empty}>
+            <ThemedText themeColor="textSecondary" style={styles.emptyText}>
+              You haven&apos;t done any trips yet, start driving
+            </ThemedText>
+          </View>
+        ) : (
+          <>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chips}
+              style={styles.chipScroll}>
+              <Chip onPress={cyclePeriod} icon="calendar-blank-outline" trailing="chevron-down">
+                {PERIODS.find((p) => p.value === period)!.label}
+              </Chip>
+              {SORTS.map((s) => (
+                <Chip key={s.value} selected={s.value === sort} onPress={() => setSort(s.value)}>
+                  {s.label}
+                </Chip>
+              ))}
+            </ScrollView>
 
-        <FlatList
-          data={trips}
-          keyExtractor={(t) => t.id}
-          contentContainerStyle={{ paddingBottom: Spacing.three }}
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <MaterialCommunityIcons name="road-variant" size={36} color={theme.textSecondary} />
-              <ThemedText style={{ fontWeight: 700, fontSize: 17 }}>
-                {history.length ? 'No drives in this period' : 'No drives yet'}
-              </ThemedText>
-              <ThemedText themeColor="textSecondary" style={{ textAlign: 'center' }}>
-                {history.length
-                  ? 'Try a longer time range.'
-                  : 'Tap Start trip on the Drive tab. Every route you record lights up this map.'}
-              </ThemedText>
-            </View>
-          }
-          renderItem={({ item, index }) => (
-            <DriveRow
-              trip={item}
-              units={units}
-              selected={item.id === selected}
-              divider={index > 0}
-              onPress={() => onPressTrip(item)}
+            <FlatList
+              data={trips}
+              keyExtractor={(t) => t.id}
+              contentContainerStyle={{ paddingBottom: Spacing.three }}
+              ListEmptyComponent={
+                <View style={styles.empty}>
+                  <ThemedText themeColor="textSecondary" style={styles.emptyText}>
+                    No drives in this time range
+                  </ThemedText>
+                </View>
+              }
+              renderItem={({ item, index }) => (
+                <DriveRow
+                  trip={item}
+                  units={units}
+                  selected={item.id === selected}
+                  divider={index > 0}
+                  onPress={() => onPressTrip(item)}
+                />
+              )}
             />
-          )}
-        />
+          </>
+        )}
       </View>
     </View>
   );
@@ -312,5 +318,6 @@ const styles = StyleSheet.create({
   speed: { alignItems: 'center', minWidth: 56 },
   speedValue: { fontSize: 30, lineHeight: 34, fontWeight: 800, fontVariant: ['tabular-nums'] },
   speedUnit: { fontSize: 12, fontWeight: 600, letterSpacing: 0.5 },
-  empty: { alignItems: 'center', gap: Spacing.two, padding: Spacing.five },
+  empty: { alignItems: 'center', paddingHorizontal: Spacing.four, paddingVertical: Spacing.five },
+  emptyText: { fontSize: 17, textAlign: 'center' },
 });
