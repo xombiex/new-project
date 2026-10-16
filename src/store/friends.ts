@@ -1,9 +1,11 @@
 import { create } from 'zustand';
 
 import { onLocation } from '@/lib/location';
+import { inZone } from '@/lib/privacy';
 import { supabase } from '@/lib/supabase';
 import type { LocationSample } from '@/lib/trip-recorder';
 import type { Profile } from '@/store/auth';
+import { useSettings } from '@/store/settings';
 
 export type Friendship = {
   other: Profile;
@@ -76,8 +78,11 @@ export const useFriends = create<FriendsState>()((set, get) => {
         return;
       }
       if (Date.now() - lastUpload < UPLOAD_INTERVAL_MS) return;
+      const sample = samples[samples.length - 1];
+      // Inside a privacy zone friends keep seeing the last position from outside it.
+      if (inZone([sample.lng, sample.lat], useSettings.getState().privacyZones)) return;
       lastUpload = Date.now();
-      void upload(samples[samples.length - 1], until);
+      void upload(sample, until);
     });
   }
 

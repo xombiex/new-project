@@ -189,6 +189,20 @@ export default function ProfileScreen() {
       </Card>
 
       <SectionTitle>Privacy</SectionTitle>
+      <Pressable onPress={() => router.push('/privacy-zones')} accessibilityRole="button">
+        <Card style={styles.row}>
+          <MaterialCommunityIcons name="shield-home-outline" size={24} color={theme.accent} />
+          <View style={{ flex: 1 }}>
+            <ThemedText style={{ fontWeight: 700 }}>Privacy zones</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              {settings.privacyZones.length
+                ? `${settings.privacyZones.length} zone${settings.privacyZones.length === 1 ? '' : 's'} hidden from shared routes`
+                : 'Hide your home or work from shared routes'}
+            </ThemedText>
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={22} color={theme.textSecondary} />
+        </Card>
+      </Pressable>
       <Card style={{ gap: Spacing.two }}>
         <ThemedText type="small" themeColor="textSecondary">
           • Group drive positions are sent live to drive members only and are not stored on our servers.{'\n'}• Friends

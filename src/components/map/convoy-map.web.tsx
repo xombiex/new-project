@@ -1,6 +1,6 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-import { LngLatBounds, Map as MLMap, Marker, setWorkerUrl } from 'maplibre-gl';
+import { LngLatBounds, Map as MLMap, Marker, setWorkerUrl, type GeoJSONSource } from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -56,19 +56,35 @@ export function ConvoyMap({ style, lines = [], people = [], destination, fit, pa
   useEffect(() => {
     const m = map.current;
     if (!loaded || !m) return;
-    for (const id of added.current) {
-      for (const layer of m.getStyle().layers ?? []) if (layer.id.startsWith(`${id}-`)) m.removeLayer(layer.id);
-      if (m.getSource(id)) m.removeSource(id);
-    }
-    added.current = [];
-    for (const line of lines) {
-      const id = `line-${line.id}`;
-      m.addSource(id, { type: 'geojson', data: lineFeature(line) });
-      for (const l of lineLayers(line, glow)) {
-        m.addLayer({ id: `${id}-${l.suffix}`, type: 'line', source: id, layout: l.layout as any, paint: l.paint as any });
+    const sync = () => {
+      if (!m.isStyleLoaded()) {
+        m.once('idle', sync);
+        return;
       }
-      added.current.push(id);
-    }
+      const wanted = new Set(lines.map((l) => `line-${l.id}`));
+      // Remove lines that went away.
+      for (const id of added.current.filter((x) => !wanted.has(x))) {
+        for (const layer of m.getStyle().layers ?? []) if (layer.id.startsWith(`${id}-`)) m.removeLayer(layer.id);
+        if (m.getSource(id)) m.removeSource(id);
+      }
+      // Update in place when possible (replay animates many times a second).
+      for (const line of lines) {
+        const id = `line-${line.id}`;
+        const source = m.getSource(id) as GeoJSONSource | undefined;
+        if (source) source.setData(lineFeature(line));
+        else m.addSource(id, { type: 'geojson', data: lineFeature(line) });
+        for (const l of lineLayers(line, glow)) {
+          const layerId = `${id}-${l.suffix}`;
+          if (m.getLayer(layerId)) {
+            for (const [k, v] of Object.entries(l.paint)) m.setPaintProperty(layerId, k as 'line-color', v as string);
+          } else {
+            m.addLayer({ id: layerId, type: 'line', source: id, layout: l.layout as any, paint: l.paint as any });
+          }
+        }
+      }
+      added.current = [...wanted];
+    };
+    sync();
   }, [loaded, lines, glow]);
 
   useEffect(() => {

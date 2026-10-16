@@ -59,6 +59,8 @@ export default function RootLayout() {
         <Stack.Screen name="trip/[id]" options={{ title: 'Trip' }} />
         <Stack.Screen name="paywall" options={{ presentation: 'modal' }} />
         <Stack.Screen name="profile" options={{ title: 'Profile' }} />
+        <Stack.Screen name="privacy-zones" options={{ title: 'Privacy zones' }} />
+        <Stack.Screen name="share/[id]" options={{ title: 'Share drive', presentation: 'modal' }} />
       </Stack>
     </ThemeProvider>
   );
