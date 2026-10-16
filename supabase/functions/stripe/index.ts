@@ -91,6 +91,11 @@ async function stripe(method: 'GET' | 'POST', path: string, params: Record<strin
     body: method === 'POST' ? form(params) : undefined,
   });
   const body = await res.json();
+  if (res.status === 401) {
+    // Key was rolled: drop the cached copy so the next request re-reads Vault.
+    STRIPE_KEY = undefined;
+    secretsLoadedAt = 0;
+  }
   if (!res.ok) throw new HttpError(502, body?.error?.message ?? 'Stripe error');
   return body;
 }
