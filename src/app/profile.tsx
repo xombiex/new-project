@@ -11,6 +11,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { GLOW_PRESETS, type GlowPreset } from '@/lib/glow';
 import { MAP_THEMES } from '@/lib/map-style';
 import { useAuth } from '@/store/auth';
+import { useNotificationSettings, type NotificationPrefs } from '@/store/notification-settings';
 import { useEntitled, usePro, type Entitlement } from '@/store/pro';
 import { useSettings } from '@/store/settings';
 import { useTrips } from '@/store/trips';
@@ -33,6 +34,7 @@ export default function ProfileScreen() {
   const { simulated, setSimulated } = usePro();
   const unsynced = useTrips((s) => s.history.filter((t) => !t.synced).length);
   const [perm, setPerm] = useState<PermissionSummary | null>(null);
+  const notif = useNotificationSettings();
 
   useFocusEffect(
     useCallback(() => {
@@ -166,6 +168,18 @@ export default function ProfileScreen() {
       <Card>
         <View style={styles.row}>
           <View style={{ flex: 1 }}>
+            <ThemedText style={{ fontWeight: 700 }}>Record drives automatically</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              Starts recording when you&apos;ve been driving for 20 seconds and stops after 5 minutes parked. Uses
+              low-power background location and needs &quot;Always&quot; location access.
+            </ThemedText>
+          </View>
+          <Switch value={settings.autoDetect} onValueChange={settings.setAutoDetect} />
+        </View>
+      </Card>
+      <Card>
+        <View style={styles.row}>
+          <View style={{ flex: 1 }}>
             <ThemedText style={{ fontWeight: 700 }}>Keep screen on while recording</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
               Uses more battery. Mount your phone; don&apos;t handle it while driving.
@@ -186,6 +200,30 @@ export default function ProfileScreen() {
           <Switch value={settings.reportAlerts} onValueChange={settings.setReportAlerts} />
         </View>
       </Card>
+
+      {session ? (
+        <>
+          <SectionTitle>Notifications</SectionTitle>
+          <Card style={{ gap: Spacing.three }}>
+            {(
+              [
+                ['friend_requests', 'Friend requests'],
+                ['drive_invites', 'Group drive invites'],
+                ['drive_activity', 'Drive activity (joins, arrivals, fell behind)'],
+                ['club_events', 'Club event reminders'],
+              ] as [keyof NotificationPrefs, string][]
+            ).map(([key, label]) => (
+              <View key={key} style={styles.row}>
+                <ThemedText style={{ flex: 1 }}>{label}</ThemedText>
+                <Switch value={notif.prefs[key]} onValueChange={(on) => void notif.set(key, on)} />
+              </View>
+            ))}
+            <ThemedText type="small" themeColor="textSecondary">
+              While you&apos;re recording or navigating, notifications arrive silently so they don&apos;t pop up over the map.
+            </ThemedText>
+          </Card>
+        </>
+      ) : null}
 
       <SectionTitle>Location access</SectionTitle>
       <Card style={{ gap: Spacing.three }}>

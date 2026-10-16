@@ -1,8 +1,8 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, Share, StyleSheet, Switch, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Switch, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ConvoyMap, type MapPerson } from '@/components/map/convoy-map';
@@ -54,8 +54,9 @@ function Hero() {
 
 function StartDrive() {
   const { create, join } = useDrive();
+  const params = useLocalSearchParams<{ code?: string }>();
   const [name, setName] = useState('');
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState(params.code?.toUpperCase() ?? '');
   const [busy, setBusy] = useState<'create' | 'join' | null>(null);
   const [error, setError] = useState<{ create?: string; join?: string }>({});
 
@@ -113,7 +114,7 @@ function ActiveDrive() {
   const theme = useTheme();
   const router = useRouter();
   const units = useSettings((s) => s.units);
-  const { drive, members, status, sharing, setSharing, leave, setDestination } = useDrive();
+  const { drive, members, status, sharing, setSharing, leave, setDestination, arrived } = useDrive();
   const myId = useAuth((s) => s.session?.user.id);
   const last = useTrips((s) => s.lastSample);
   const insets = useSafeAreaInsets();
@@ -168,10 +169,6 @@ function ActiveDrive() {
     return (a.distanceFromMeM ?? Infinity) - (b.distanceFromMeM ?? Infinity);
   });
   const behind = views.filter((v) => v.behind && v.id !== myId);
-
-  async function shareCode() {
-    await Share.share({ message: `Join my Convoy drive "${drive!.name}" with code ${drive!.code}` });
-  }
 
   function confirmLeave() {
     Alert.alert(
@@ -258,7 +255,7 @@ function ActiveDrive() {
           ) : null}
         </Card>
 
-        <SectionTitle action={<Button label="Invite" variant="ghost" onPress={shareCode} />}>
+        <SectionTitle action={<Button label="Invite" variant="ghost" onPress={() => router.push('/invite')} />}>
           {`Members · ${views.length}`}
         </SectionTitle>
         <Card style={{ paddingVertical: Spacing.one }}>
@@ -271,6 +268,7 @@ function ActiveDrive() {
               isOwner={v.id === drive.owner_id}
               units={units}
               now={now}
+              arrivedAt={arrived[v.id]}
               divider={i > 0}
             />
           ))}
@@ -308,6 +306,7 @@ function MemberRow({
   isOwner,
   units,
   now,
+  arrivedAt,
   divider,
 }: {
   member: Member | undefined;
@@ -316,6 +315,7 @@ function MemberRow({
   isOwner: boolean;
   units: 'imperial' | 'metric';
   now: number;
+  arrivedAt?: number;
   divider: boolean;
 }) {
   const theme = useTheme();
@@ -324,7 +324,11 @@ function MemberRow({
   const speed = pos?.speed != null && pos.speed >= 0 ? `${Math.round(speedIn(units, pos.speed))} ${speedUnitLabel(units)}` : null;
 
   let detail: string;
-  switch (view.status) {
+  if (arrivedAt) view = { ...view, behind: false, toDestinationM: null };
+  switch (arrivedAt ? 'arrived' : view.status) {
+    case 'arrived':
+      detail = `Arrived ${formatAgo(arrivedAt!, now)}`;
+      break;
     case 'live':
       detail = [speed, !isMe && view.distanceFromMeM != null ? `${formatDistance(units, view.distanceFromMeM)} away` : null]
         .filter(Boolean)

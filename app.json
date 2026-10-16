@@ -34,6 +34,12 @@
       "expo-dev-client",
       "@maplibre/maplibre-react-native",
       [
+        "expo-notifications",
+        {
+          "color": "#1E9BFF"
+        }
+      ],
+      [
         "expo-location",
         {
           "locationWhenInUsePermission": "Convoy uses your location to show you on the map, measure your speed, and record trips.",

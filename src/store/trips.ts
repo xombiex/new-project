@@ -24,11 +24,13 @@ export type SavedTrip = {
 type TripsState = {
   /** Trip currently being recorded, if any. */
   active: TripState | null;
+  /** true when the active trip was started by drive detection (so it may also end itself) */
+  activeAuto: boolean;
   /** Latest fix regardless of recording, for the speedometer. */
   lastSample: LocationSample | null;
   history: SavedTrip[];
   ingest: (samples: LocationSample[]) => void;
-  start: () => void;
+  start: (auto?: boolean) => void;
   finish: () => SavedTrip | null;
   discard: () => void;
   rename: (id: string, name: string, notes?: string | null) => void;
@@ -43,6 +45,7 @@ export const useTrips = create<TripsState>()(
   persist(
     (set, get) => ({
       active: null,
+      activeAuto: false,
       lastSample: null,
       history: [],
 
@@ -56,12 +59,12 @@ export const useTrips = create<TripsState>()(
         });
       },
 
-      start: () => set({ active: startTrip(Date.now()) }),
+      start: (auto = false) => set({ active: startTrip(Date.now()), activeAuto: auto }),
 
       finish: () => {
         const { active } = get();
         if (!active) return null;
-        set({ active: null });
+        set({ active: null, activeAuto: false });
         if (active.distanceM < MIN_TRIP_M) return null;
         const trip: SavedTrip = {
           id: Crypto.randomUUID(),
@@ -80,7 +83,7 @@ export const useTrips = create<TripsState>()(
         return trip;
       },
 
-      discard: () => set({ active: null }),
+      discard: () => set({ active: null, activeAuto: false }),
 
       rename: (id, name, notes) => {
         set({
@@ -128,7 +131,7 @@ export const useTrips = create<TripsState>()(
       name: 'convoy-trips',
       storage: createJSONStorage(() => AsyncStorage),
       // The live sample is transient; the in-progress trip survives app restarts.
-      partialize: ({ active, history }) => ({ active, history }),
+      partialize: ({ active, activeAuto, history }) => ({ active, activeAuto, history }),
     }
   )
 );

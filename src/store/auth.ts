@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js';
 import { create } from 'zustand';
 
+import { unregisterPush } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 import type { Vehicle } from '@/lib/vehicles';
 
@@ -75,6 +76,7 @@ export const useAuth = create<AuthState>()((set, get) => ({
   },
 
   signOut: async () => {
+    await unregisterPush();
     await supabase.auth.signOut();
     set({ session: null, profile: null });
   },

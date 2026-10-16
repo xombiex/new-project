@@ -19,6 +19,8 @@ type SettingsState = {
   privacyZones: PrivacyZone[];
   /** spoken warnings for road reports ahead */
   reportAlerts: boolean;
+  /** start/stop recording automatically when driving is detected */
+  autoDetect: boolean;
   setUnits: (units: Units) => void;
   setKeepScreenOn: (on: boolean) => void;
   setAppearance: (appearance: Appearance) => void;
@@ -27,6 +29,7 @@ type SettingsState = {
   addPrivacyZone: (zone: PrivacyZone) => void;
   removePrivacyZone: (id: string) => void;
   setReportAlerts: (on: boolean) => void;
+  setAutoDetect: (on: boolean) => void;
 };
 
 export const useSettings = create<SettingsState>()(
@@ -39,6 +42,7 @@ export const useSettings = create<SettingsState>()(
       mapTheme: 'auto',
       privacyZones: [],
       reportAlerts: true,
+      autoDetect: false,
       setUnits: (units) => set({ units }),
       setKeepScreenOn: (keepScreenOn) => set({ keepScreenOn }),
       setAppearance: (appearance) => set({ appearance }),
@@ -47,6 +51,7 @@ export const useSettings = create<SettingsState>()(
       addPrivacyZone: (zone) => set({ privacyZones: [...get().privacyZones, zone] }),
       removePrivacyZone: (id) => set({ privacyZones: get().privacyZones.filter((z) => z.id !== id) }),
       setReportAlerts: (reportAlerts) => set({ reportAlerts }),
+      setAutoDetect: (autoDetect) => set({ autoDetect }),
     }),
     { name: 'convoy-settings', storage: createJSONStorage(() => AsyncStorage) }
   )

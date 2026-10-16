@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import { onLocation } from '@/lib/location';
+import { notify } from '@/lib/notifications';
 import { inZone } from '@/lib/privacy';
 import { supabase } from '@/lib/supabase';
 import type { LocationSample } from '@/lib/trip-recorder';
@@ -138,6 +139,7 @@ export const useFriends = create<FriendsState>()((set, get) => {
       if (target.id === uid) return "That's you";
       const { error } = await supabase.from('friendships').insert({ requester_id: uid, addressee_id: target.id });
       if (error) return error.code === '23505' ? 'Request already sent' : error.message;
+      void notify({ type: 'friend_request', to: target.id });
       await get().refresh();
       return null;
     },
@@ -146,6 +148,7 @@ export const useFriends = create<FriendsState>()((set, get) => {
       const uid = await myId();
       if (!uid) return;
       await supabase.from('friendships').update({ status }).eq('requester_id', otherId).eq('addressee_id', uid);
+      if (status === 'accepted') void notify({ type: 'friend_accepted', to: otherId });
       await get().refresh();
     },
 

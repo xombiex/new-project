@@ -1,13 +1,19 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import * as Speech from 'expo-speech';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import { analyzeConvoy } from '@/lib/convoy';
 import { haversine } from '@/lib/geo';
 import { addReason, onLocation, removeReason } from '@/lib/location';
+import { notify } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 import type { LocationSample } from '@/lib/trip-recorder';
 import type { Profile } from '@/store/auth';
+import { useNavigation } from '@/store/navigation';
+import { useNotificationSettings } from '@/store/notification-settings';
+import { useTrips } from '@/store/trips';
 
 export type GroupDrive = {
   id: string;
@@ -43,6 +49,8 @@ type DriveState = {
   members: Record<string, Member>;
   status: ConnectionStatus;
   sharing: boolean;
+  /** member id → epoch ms they reached the destination */
+  arrived: Record<string, number>;
   create: (name: string, destination?: { name: string; lat: number; lng: number }) => Promise<string | null>;
   join: (code: string) => Promise<string | null>;
   resume: () => Promise<void>;
@@ -59,6 +67,12 @@ let channel: RealtimeChannel | null = null;
 let stopListening: (() => void) | null = null;
 let lastSent: LocationSample | null = null;
 let myId: string | null = null;
+let monitor: ReturnType<typeof setInterval> | null = null;
+let behindBefore = new Set<string>();
+
+/** Within this distance of the group destination counts as arrived. */
+const ARRIVED_M = 150;
+const MONITOR_MS = 10_000;
 
 function rpcError(message: string) {
   if (message.includes('drive not found')) return 'No active drive with that code';
@@ -145,6 +159,10 @@ export const useDrive = create<DriveState>()(
           .on('broadcast', { event: 'drive' }, () => {
             void refreshDrive(drive.id);
           })
+          .on('broadcast', { event: 'arrived' }, ({ payload }) => {
+            const from = (payload as { from?: string }).from;
+            if (from && get().members[from]) set({ arrived: { ...get().arrived, [from]: Date.now() } });
+          })
           .on('presence', { event: 'sync' }, () => {
             const online = new Set(Object.keys(ch.presenceState()));
             const members = { ...get().members };
@@ -168,6 +186,39 @@ export const useDrive = create<DriveState>()(
 
         stopListening = onLocation((samples) => send(samples[samples.length - 1]));
         if (get().sharing) await addReason('drive');
+        behindBefore = new Set();
+        monitor = setInterval(checkGroup, MONITOR_MS);
+      }
+
+      /** Periodic group checks: did I arrive? did anyone fall behind? */
+      function checkGroup() {
+        const { drive, members, arrived } = get();
+        const me = useTrips.getState().lastSample;
+        if (!drive || !myId) return;
+        const dest = drive.dest_lat != null && drive.dest_lng != null ? ([drive.dest_lng, drive.dest_lat] as [number, number]) : null;
+
+        if (dest && me && !arrived[myId] && haversine([me.lng, me.lat], dest) <= ARRIVED_M) {
+          set({ arrived: { ...arrived, [myId]: Date.now() } });
+          void channel?.send({ type: 'broadcast', event: 'arrived', payload: { from: myId } });
+          void notify({ type: 'arrived', drive_id: drive.id });
+        }
+
+        const views = analyzeConvoy(
+          Object.entries(members)
+            .filter(([id]) => !get().arrived[id])
+            .map(([id, m]) => ({ id, online: m.online, position: m.position })),
+          me ? [me.lng, me.lat] : null,
+          dest,
+          Date.now()
+        );
+        const behind = new Set(views.filter((v) => v.behind && v.id !== myId).map((v) => v.id));
+        const fresh = [...behind].filter((id) => !behindBefore.has(id));
+        behindBefore = behind;
+        // Spoken rather than shown, so nobody looks at the phone to read it.
+        if (fresh.length && useNotificationSettings.getState().prefs.drive_activity && !useNavigation.getState().muted) {
+          const names = fresh.map((id) => members[id]?.profile.display_name).filter(Boolean).join(' and ');
+          Speech.speak(`${names} ${fresh.length === 1 ? 'has' : 'have'} fallen behind.`, { language: 'en-US' });
+        }
       }
 
       async function refreshDrive(id: string) {
@@ -181,6 +232,8 @@ export const useDrive = create<DriveState>()(
       async function disconnect() {
         stopListening?.();
         stopListening = null;
+        if (monitor) clearInterval(monitor);
+        monitor = null;
         lastSent = null;
         if (channel) {
           const ch = channel;
@@ -197,6 +250,7 @@ export const useDrive = create<DriveState>()(
         members: {},
         status: 'idle',
         sharing: true,
+        arrived: {},
 
         create: async (name, destination) => {
           const { data, error } = await supabase.rpc('create_drive', {
@@ -206,6 +260,7 @@ export const useDrive = create<DriveState>()(
             p_dest_lng: destination?.lng ?? null,
           });
           if (error) return rpcError(error.message);
+          set({ arrived: {} });
           await connect(data as GroupDrive);
           return null;
         },
@@ -213,7 +268,9 @@ export const useDrive = create<DriveState>()(
         join: async (code) => {
           const { data, error } = await supabase.rpc('join_drive', { p_code: code });
           if (error) return rpcError(error.message);
+          set({ arrived: {} });
           await connect(data as GroupDrive);
+          void notify({ type: 'member_joined', drive_id: (data as GroupDrive).id });
           return null;
         },
 
@@ -270,7 +327,7 @@ export const useDrive = create<DriveState>()(
     {
       name: 'convoy-drive',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: ({ drive, sharing }) => ({ drive, sharing }),
+      partialize: ({ drive, sharing, arrived }) => ({ drive, sharing, arrived }),
     }
   )
 );
