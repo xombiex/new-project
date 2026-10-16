@@ -6,15 +6,7 @@
   "cleanUrls": true,
   "rewrites": [
     {
-      "source": "/admin",
-      "destination": "/__not_found"
-    },
-    {
-      "source": "/admin/:path*",
-      "destination": "/__not_found"
-    },
-    {
-      "source": "/:path*",
+      "source": "/((?!admin(?:/|$)).*)",
       "destination": "/"
     }
   ],
