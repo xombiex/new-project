@@ -8,6 +8,8 @@ import { useTheme } from '@/hooks/use-theme';
 
 import { lineFeature, lineLayers } from './line-style';
 import { useMapLook } from './use-map-look';
+import { useSteadyHeading } from './use-steady-heading';
+import { VEHICLE_IMAGES, VEHICLE_LAYOUT, vehicleSprite } from './vehicle-sprites';
 import type { ConvoyMapProps } from './types';
 
 export type { ConvoyMapProps, MapLine, MapMarker, MapPerson } from './types';
@@ -15,11 +17,43 @@ export type { ConvoyMapProps, MapLine, MapMarker, MapPerson } from './types';
 // Served from public/ (see scripts/copy-maplibre-worker.mjs).
 setWorkerUrl('/maplibre-gl-worker.mjs');
 
+const EMPTY = { type: 'FeatureCollection' as const, features: [] };
+
+/** Vehicle sprites + the symbol layers that draw them. Re-run after every style (re)load. */
+async function addVehicleLayers(m: MLMap) {
+  await Promise.all(
+    Object.keys(VEHICLE_IMAGES).map(async (name) => {
+      if (m.hasImage(name)) return;
+      // @3x renders copied to public/vehicles, so sprites stay sharp on high-density screens.
+      const img = await m.loadImage(`/vehicles/${name.replace('vehicle-', '')}.png`);
+      if (!m.hasImage(name)) m.addImage(name, img.data, { pixelRatio: 3 });
+    })
+  );
+  for (const id of ['people', 'me']) {
+    if (!m.getSource(id)) m.addSource(id, { type: 'geojson', data: EMPTY });
+    if (!m.getLayer(`${id}-vehicles`)) {
+      m.addLayer({
+        id: `${id}-vehicles`,
+        type: 'symbol',
+        source: id,
+        layout: { ...VEHICLE_LAYOUT, 'icon-image': ['get', 'sprite'], 'icon-rotate': ['get', 'heading'] } as any,
+        paint: { 'icon-opacity': ['get', 'opacity'] },
+      });
+    }
+  }
+}
+
+const point = (coord: [number, number], sprite: string, heading: number, opacity = 1) => ({
+  type: 'Feature' as const,
+  geometry: { type: 'Point' as const, coordinates: coord },
+  properties: { sprite, heading, opacity },
+});
+
 /**
- * Browser build of the map (maplibre-gl JS) for UI work in `npm run web`. Same tiles and
- * line styles as the native map; no GPS follow mode.
+ * Browser build of the map (maplibre-gl JS). Same tiles, line styles and 3D vehicle sprites as
+ * the native map; follows the driver until they pan away.
  */
-export function ConvoyMap({ style, lines = [], people = [], markers: pins = [], destination, fit, padding }: ConvoyMapProps) {
+export function ConvoyMap({ style, follow = false, me, lines = [], people = [], markers: pins = [], destination, fit, padding }: ConvoyMapProps) {
   const { styleUrl, glow } = useMapLook();
   const theme = useTheme();
   // A plain div: maplibre's CSS sets `position: relative` on its container, which would
@@ -29,6 +63,10 @@ export function ConvoyMap({ style, lines = [], people = [], markers: pins = [], 
   const added = useRef<string[]>([]);
   const markers = useRef<Marker[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [vehiclesReady, setVehiclesReady] = useState(false);
+  const following = useRef(follow);
+  const centeredOnce = useRef(false);
+  const myHeading = useSteadyHeading(me?.heading);
 
   useEffect(() => {
     const m = new MLMap({
@@ -38,7 +76,12 @@ export function ConvoyMap({ style, lines = [], people = [], markers: pins = [], 
       zoom: 3,
       attributionControl: { compact: true },
     });
-    m.on('load', () => setLoaded(true));
+    m.on('load', () => {
+      setLoaded(true);
+      void addVehicleLayers(m).then(() => setVehiclesReady(true));
+    });
+    // Panning by hand stops follow mode (like the native recenter behavior).
+    m.on('dragstart', () => (following.current = false));
     map.current = m;
     // Tabs mount hidden (0×0); keep the canvas in sync with the container's real size.
     const observer = new ResizeObserver(() => m.resize());
@@ -48,6 +91,8 @@ export function ConvoyMap({ style, lines = [], people = [], markers: pins = [], 
       m.remove();
       // A theme change rebuilds the map; layers and markers get re-added once it loads.
       setLoaded(false);
+      setVehiclesReady(false);
+      centeredOnce.current = false;
       added.current = [];
       markers.current = [];
     };
@@ -95,19 +140,21 @@ export function ConvoyMap({ style, lines = [], people = [], markers: pins = [], 
       const el = document.createElement('div');
       el.textContent = p.name.slice(0, 1).toUpperCase();
       Object.assign(el.style, {
-        width: '32px',
-        height: '32px',
-        borderRadius: '16px',
-        border: '3px solid #fff',
+        width: '30px',
+        height: '30px',
+        borderRadius: '15px',
+        border: `3px solid ${p.color}`,
+        boxShadow: '0 0 0 2px #fff',
         background: p.color,
         color: '#fff',
-        font: '700 14px system-ui',
+        font: '700 13px system-ui',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         opacity: p.stale ? '0.45' : '1',
       });
-      return new Marker({ element: el }).setLngLat(p.coord).addTo(m);
+      // Floats above the vehicle sprite drawn by the people-vehicles layer.
+      return new Marker({ element: el, anchor: 'bottom', offset: [0, -16] }).setLngLat(p.coord).addTo(m);
     });
     for (const pin of pins) {
       const el = document.createElement('div');
@@ -117,6 +164,34 @@ export function ConvoyMap({ style, lines = [], people = [], markers: pins = [], 
     }
     if (destination) markers.current.push(new Marker({ color: theme.danger }).setLngLat(destination).addTo(m));
   }, [loaded, people, pins, destination, theme.danger]);
+
+  // Vehicle sprites: other drivers and me.
+  useEffect(() => {
+    const m = map.current;
+    if (!vehiclesReady || !m) return;
+    (m.getSource('people') as GeoJSONSource | undefined)?.setData({
+      type: 'FeatureCollection',
+      features: people.map((p) => point(p.coord, vehicleSprite(p.vehicle), p.heading ?? 0, p.stale ? 0.45 : 1)),
+    });
+    (m.getSource('me') as GeoJSONSource | undefined)?.setData(
+      me ? { type: 'FeatureCollection', features: [point(me.coord, vehicleSprite(me.vehicle), myHeading)] } : EMPTY
+    );
+  }, [vehiclesReady, people, me, myHeading]);
+
+  // Follow the driver: jump in on the first fix, then glide along until they pan away.
+  const meKey = me ? `${me.coord[0].toFixed(6)},${me.coord[1].toFixed(6)}` : null;
+  useEffect(() => {
+    const m = map.current;
+    if (!loaded || !m || !me) return;
+    const pad = { top: padding?.top ?? 0, bottom: padding?.bottom ?? 0, left: 0, right: 0 };
+    if (!centeredOnce.current) {
+      centeredOnce.current = true;
+      if (follow || !fit) m.jumpTo({ center: me.coord, zoom: 16, padding: pad });
+      return;
+    }
+    if (follow && following.current) m.easeTo({ center: me.coord, padding: pad, duration: 900 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, meKey]);
 
   const fitKey = fit?.key;
   useEffect(() => {

@@ -75,6 +75,34 @@ async function requestBackgroundPermission(): Promise<boolean> {
   return status === 'granted';
 }
 
+/**
+ * expo-location's web watcher tags updates with the browser's watch id but looks listeners up by
+ * its own counter, so after a stop/start the two drift apart and updates are dropped. Use the
+ * Geolocation API directly instead.
+ */
+function watchInBrowser(): Location.LocationSubscription {
+  const id = navigator.geolocation.watchPosition(
+    (pos) =>
+      emit([
+        toSample({
+          coords: {
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            altitude: pos.coords.altitude,
+            accuracy: pos.coords.accuracy,
+            altitudeAccuracy: pos.coords.altitudeAccuracy,
+            heading: pos.coords.heading,
+            speed: pos.coords.speed,
+          },
+          timestamp: pos.timestamp,
+        }),
+      ]),
+    (err) => console.warn('Browser location error', err.message),
+    { enableHighAccuracy: true, maximumAge: 1000 }
+  );
+  return { remove: () => navigator.geolocation.clearWatch(id) };
+}
+
 async function stopAll() {
   watch?.remove();
   watch = null;
@@ -143,10 +171,13 @@ async function apply() {
       mode = 'off';
       return;
     }
-    watch = await Location.watchPositionAsync(
-      { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 1000, distanceInterval: 2 },
-      (loc) => emit([toSample(loc)])
-    );
+    watch =
+      Platform.OS === 'web'
+        ? watchInBrowser()
+        : await Location.watchPositionAsync(
+            { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 1000, distanceInterval: 2 },
+            (loc) => emit([toSample(loc)])
+          );
     mode = 'foreground';
   }
 }

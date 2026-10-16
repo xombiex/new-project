@@ -53,6 +53,7 @@ export default function DriveScreen() {
   const drive = useDrive((s) => s.drive);
   const members = useDrive((s) => s.members);
   const myId = useAuth((s) => s.session?.user.id);
+  const myVehicle = useAuth((s) => s.profile?.vehicle);
   const [now, setNow] = useState(Date.now());
 
   // GPS on while this tab is visible; trips/drives/navigation keep it on in the background separately.
@@ -99,6 +100,7 @@ export default function DriveScreen() {
           coord: [m.position!.lng, m.position!.lat],
           heading: m.position!.heading,
           icon: vehicleIcon(m.profile.vehicle),
+          vehicle: m.profile.vehicle,
           stale: !m.online || now - m.position!.t > MEMBER_STALE_MS,
         })),
     [members, myId, now]
@@ -179,6 +181,7 @@ export default function DriveScreen() {
       <ConvoyMap
         style={StyleSheet.absoluteFill}
         follow
+        me={lastSample ? { coord: [lastSample.lng, lastSample.lat], heading: lastSample.heading, vehicle: myVehicle } : null}
         lines={lines}
         people={people}
         markers={markers}

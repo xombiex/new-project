@@ -194,6 +194,7 @@ function ActiveDrive() {
   const club = useClubs((c) => c.mine.find((x) => x.id === drive?.club_id));
   const myId = useAuth((s) => s.session?.user.id);
   const last = useTrips((s) => s.lastSample);
+  const myVehicle = useAuth((s) => s.profile?.vehicle);
   const insets = useSafeAreaInsets();
   const [now, setNow] = useState(Date.now());
 
@@ -232,6 +233,7 @@ function ActiveDrive() {
             coord: [m.position!.lng, m.position!.lat],
             heading: m.position!.heading,
             icon: vehicleIcon(m.profile.vehicle),
+            vehicle: m.profile.vehicle,
             stale: v.status !== 'live',
           };
         }),
@@ -263,6 +265,7 @@ function ActiveDrive() {
       <ConvoyMap
         style={{ height: 300 + insets.top }}
         padding={{ top: insets.top }}
+        me={me ? { coord: me, heading: last?.heading ?? null, vehicle: myVehicle } : null}
         people={people}
         destination={destination}
         fit={{

@@ -2,15 +2,17 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   Camera,
   GeoJSONSource,
+  Images,
   Layer,
   Map,
   Marker,
   UserLocation,
   type CameraRef,
   type LineLayerSpecification,
+  type SymbolLayerSpecification,
   type TrackUserLocation,
 } from '@maplibre/maplibre-react-native';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/ui';
@@ -19,6 +21,8 @@ import { useTheme } from '@/hooks/use-theme';
 
 import { lineFeature, lineLayers } from './line-style';
 import { useMapLook } from './use-map-look';
+import { useSteadyHeading } from './use-steady-heading';
+import { VEHICLE_IMAGES, VEHICLE_LAYOUT, vehicleSprite } from './vehicle-sprites';
 import type { ConvoyMapProps } from './types';
 
 export type { ConvoyMapProps, MapLine, MapMarker, MapPerson } from './types';
@@ -27,6 +31,7 @@ export function ConvoyMap({
   style,
   follow = false,
   showUser = true,
+  me,
   lines = [],
   people = [],
   markers = [],
@@ -38,6 +43,19 @@ export function ConvoyMap({
   const theme = useTheme();
   const camera = useRef<CameraRef>(null);
   const [tracking, setTracking] = useState<TrackUserLocation | undefined>(follow ? 'course' : undefined);
+  const myHeading = useSteadyHeading(me?.heading);
+  const peopleData = useMemo(
+    () => ({
+      type: 'FeatureCollection' as const,
+      features: people.map((p) => ({
+        type: 'Feature' as const,
+        id: p.id,
+        geometry: { type: 'Point' as const, coordinates: p.coord },
+        properties: { sprite: vehicleSprite(p.vehicle), heading: p.heading ?? 0, opacity: p.stale ? 0.45 : 1 },
+      })),
+    }),
+    [people]
+  );
   const edge = { top: (padding?.top ?? 0) + 40, bottom: (padding?.bottom ?? 0) + 40, left: 40, right: 40 };
 
   useEffect(() => setTracking(follow ? 'course' : undefined), [follow]);
@@ -75,6 +93,8 @@ export function ConvoyMap({
           onTrackUserLocationChange={(e) => setTracking(e.nativeEvent.trackUserLocation ?? undefined)}
         />
 
+        <Images images={VEHICLE_IMAGES} />
+
         {lines.map((line) => (
           <GeoJSONSource key={line.id} id={`line-${line.id}`} data={lineFeature(line)}>
             {lineLayers(line, glow).map((l) => (
@@ -103,28 +123,37 @@ export function ConvoyMap({
           </Marker>
         ) : null}
 
+        <GeoJSONSource id="people" data={peopleData}>
+          <Layer
+            type="symbol"
+            id="people-vehicles"
+            layout={{ ...VEHICLE_LAYOUT, 'icon-image': ['get', 'sprite'], 'icon-rotate': ['get', 'heading'] } as SymbolLayerSpecification['layout']}
+            paint={{ 'icon-opacity': ['get', 'opacity'] }}
+          />
+        </GeoJSONSource>
+
         {people.map((p) => (
-          <Marker key={p.id} id={`person-${p.id}`} lngLat={p.coord} anchor="center">
+          <Marker key={p.id} id={`person-${p.id}`} lngLat={p.coord} anchor="bottom" offset={[0, -14]}>
             <View style={[styles.person, p.stale && { opacity: 0.45 }]}>
-              {p.heading != null && !p.stale ? (
-                <View style={[styles.headingWrap, { transform: [{ rotate: `${p.heading}deg` }] }]}>
-                  <MaterialCommunityIcons name="navigation" size={16} color={p.color} />
-                </View>
-              ) : null}
-              <View style={styles.avatarRing}>
-                {p.icon ? (
-                  <View style={[styles.vehicle, { backgroundColor: p.color }]}>
-                    <MaterialCommunityIcons name={p.icon as 'car'} size={18} color="#fff" />
-                  </View>
-                ) : (
-                  <Avatar name={p.name} color={p.color} size={32} />
-                )}
+              <View style={[styles.avatarRing, { borderColor: p.color }]}>
+                <Avatar name={p.name} color={p.color} size={30} />
               </View>
+              <View style={[styles.pinTip, { borderTopColor: p.color }]} />
             </View>
           </Marker>
         ))}
 
-        {showUser ? <UserLocation heading animated /> : null}
+        {showUser ? (
+          <UserLocation animated>
+            {/* Replaces the default blue dot with the driver's 3D vehicle, nose along the heading. */}
+            <Layer
+              type="symbol"
+              id="me-vehicle"
+              source="mlrn-user-location"
+              layout={{ ...VEHICLE_LAYOUT, 'icon-image': vehicleSprite(me?.vehicle), 'icon-rotate': myHeading } as SymbolLayerSpecification['layout']}
+            />
+          </UserLocation>
+        ) : null}
       </Map>
 
       {follow && tracking == null ? (
@@ -142,11 +171,10 @@ export function ConvoyMap({
 
 const styles = StyleSheet.create({
   container: { overflow: 'hidden' },
-  person: { width: 52, height: 52, alignItems: 'center', justifyContent: 'center' },
-  headingWrap: { ...StyleSheet.absoluteFill, alignItems: 'center' },
-  avatarRing: { borderRadius: 20, borderWidth: 3, borderColor: '#fff' },
+  person: { alignItems: 'center' },
+  avatarRing: { borderRadius: 20, borderWidth: 3, backgroundColor: '#fff' },
+  pinTip: { width: 0, height: 0, borderLeftWidth: 6, borderRightWidth: 6, borderTopWidth: 7, borderLeftColor: 'transparent', borderRightColor: 'transparent', marginTop: -1 },
   reportPin: { width: 34, height: 34, borderRadius: 17, borderWidth: 2, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-  vehicle: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   recenter: {
     position: 'absolute',
     right: Spacing.three,

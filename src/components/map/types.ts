@@ -21,6 +21,8 @@ export type MapPerson = {
   heading: number | null;
   /** MaterialCommunityIcons name; falls back to initials */
   icon?: string;
+  /** Profile vehicle (car, sport, suv…), drawn as a 3D sprite under the avatar */
+  vehicle?: string;
   /** dimmed when the position is old or the person is offline */
   stale?: boolean;
 };
@@ -39,6 +41,8 @@ export type ConvoyMapProps = {
   /** Keep the camera on the user (driving mode). The user can pan away; a recenter button appears. */
   follow?: boolean;
   showUser?: boolean;
+  /** The signed-in driver, drawn as their 3D vehicle instead of a blue dot. */
+  me?: { coord: LngLat; heading: number | null; vehicle?: string | null } | null;
   lines?: MapLine[];
   people?: MapPerson[];
   markers?: MapMarker[];
