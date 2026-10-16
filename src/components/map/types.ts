@@ -19,6 +19,8 @@ export type MapPerson = {
   color: string;
   coord: LngLat;
   heading: number | null;
+  /** MaterialCommunityIcons name; falls back to initials */
+  icon?: string;
   /** dimmed when the position is old or the person is offline */
   stale?: boolean;
 };

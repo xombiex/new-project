@@ -2,12 +2,14 @@ import type { Session } from '@supabase/supabase-js';
 import { create } from 'zustand';
 
 import { supabase } from '@/lib/supabase';
+import type { Vehicle } from '@/lib/vehicles';
 
 export type Profile = {
   id: string;
   username: string;
   display_name: string;
   avatar_color: string;
+  vehicle: Vehicle;
 };
 
 type AuthState = {
@@ -16,7 +18,7 @@ type AuthState = {
   profile: Profile | null;
   init: () => () => void;
   loadProfile: () => Promise<void>;
-  saveProfile: (p: Pick<Profile, 'username' | 'display_name' | 'avatar_color'>) => Promise<string | null>;
+  saveProfile: (p: Pick<Profile, 'username' | 'display_name' | 'avatar_color' | 'vehicle'>) => Promise<string | null>;
   signOut: () => Promise<void>;
 };
 
@@ -45,7 +47,7 @@ export const useAuth = create<AuthState>()((set, get) => ({
     if (!uid) return;
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, username, display_name, avatar_color')
+      .select('id, username, display_name, avatar_color, vehicle')
       .eq('id', uid)
       .maybeSingle();
     if (error) console.warn('Profile load failed', error.message);
@@ -60,11 +62,12 @@ export const useAuth = create<AuthState>()((set, get) => ({
     const { data, error } = await supabase
       .from('profiles')
       .upsert(row)
-      .select('id, username, display_name, avatar_color')
+      .select('id, username, display_name, avatar_color, vehicle')
       .single();
     if (error) {
       if (error.code === '23505') return 'That username is taken';
       if (error.code === '23514') return 'Usernames are 3–20 lowercase letters, numbers or underscores';
+      if (error.message.includes('style pack')) return 'That vehicle icon is part of the Style Pack';
       return error.message;
     }
     set({ profile: data });

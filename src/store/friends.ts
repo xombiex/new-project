@@ -43,7 +43,7 @@ const UPLOAD_INTERVAL_MS = 60_000;
 let lastUpload = 0;
 let stopUploads: (() => void) | null = null;
 
-const PROFILE_COLS = 'id, username, display_name, avatar_color';
+const PROFILE_COLS = 'id, username, display_name, avatar_color, vehicle';
 
 async function myId() {
   const { data } = await supabase.auth.getSession();

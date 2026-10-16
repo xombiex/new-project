@@ -14,6 +14,7 @@ import { analyzeConvoy, type ConvoyMemberView } from '@/lib/convoy';
 import { formatDistance, speedIn, speedUnitLabel, type LngLat } from '@/lib/geo';
 import { addReason, removeReason } from '@/lib/location';
 import { formatAgo } from '@/lib/time';
+import { vehicleIcon } from '@/lib/vehicles';
 import { useAuth } from '@/store/auth';
 import { useDrive, type Member } from '@/store/drive';
 import { useSettings } from '@/store/settings';
@@ -152,6 +153,7 @@ function ActiveDrive() {
             color: m.profile.avatar_color,
             coord: [m.position!.lng, m.position!.lat],
             heading: m.position!.heading,
+            icon: vehicleIcon(m.profile.vehicle),
             stale: v.status !== 'live',
           };
         }),

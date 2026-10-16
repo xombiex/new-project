@@ -103,7 +103,13 @@ export function ConvoyMap({
                 </View>
               ) : null}
               <View style={styles.avatarRing}>
-                <Avatar name={p.name} color={p.color} size={32} />
+                {p.icon ? (
+                  <View style={[styles.vehicle, { backgroundColor: p.color }]}>
+                    <MaterialCommunityIcons name={p.icon as 'car'} size={18} color="#fff" />
+                  </View>
+                ) : (
+                  <Avatar name={p.name} color={p.color} size={32} />
+                )}
               </View>
             </View>
           </Marker>
@@ -130,6 +136,7 @@ const styles = StyleSheet.create({
   person: { width: 52, height: 52, alignItems: 'center', justifyContent: 'center' },
   headingWrap: { ...StyleSheet.absoluteFill, alignItems: 'center' },
   avatarRing: { borderRadius: 20, borderWidth: 3, borderColor: '#fff' },
+  vehicle: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   recenter: {
     position: 'absolute',
     right: Spacing.three,

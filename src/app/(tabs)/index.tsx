@@ -15,6 +15,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { formatDistance, formatDuration, speedIn, speedUnitLabel } from '@/lib/geo';
 import { addReason, removeReason } from '@/lib/location';
 import { averageSpeedMps } from '@/lib/trip-recorder';
+import { vehicleIcon } from '@/lib/vehicles';
 import { useAuth } from '@/store/auth';
 import { useDrive } from '@/store/drive';
 import { useNav } from '@/store/nav';
@@ -80,6 +81,7 @@ export default function DriveScreen() {
           color: m.profile.avatar_color,
           coord: [m.position!.lng, m.position!.lat],
           heading: m.position!.heading,
+          icon: vehicleIcon(m.profile.vehicle),
           stale: !m.online || now - m.position!.t > MEMBER_STALE_MS,
         })),
     [members, myId, now]

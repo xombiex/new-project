@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
@@ -6,7 +7,9 @@ import { ThemedText } from '@/components/themed-text';
 import { Avatar, Button, TextField } from '@/components/ui';
 import { AvatarColors, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { VEHICLES, type Vehicle } from '@/lib/vehicles';
 import { useAuth } from '@/store/auth';
+import { useEntitled } from '@/store/pro';
 
 export default function ProfileSetupScreen() {
   const theme = useTheme();
@@ -15,12 +18,14 @@ export default function ProfileSetupScreen() {
   const [username, setUsername] = useState(profile?.username ?? '');
   const [displayName, setDisplayName] = useState(profile?.display_name ?? '');
   const [color, setColor] = useState(profile?.avatar_color ?? AvatarColors[0]);
+  const [vehicle, setVehicle] = useState<Vehicle>(profile?.vehicle ?? 'car');
+  const cosmetics = useEntitled('cosmetics');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function save() {
     setBusy(true);
-    const err = await saveProfile({ username, display_name: displayName, avatar_color: color });
+    const err = await saveProfile({ username, display_name: displayName, avatar_color: color, vehicle });
     setBusy(false);
     if (err) setError(err);
     else router.back();
@@ -69,6 +74,39 @@ export default function ProfileSetupScreen() {
             }}
           />
         ))}
+      </View>
+      <ThemedText type="smallBold" themeColor="textSecondary">
+        Vehicle on the convoy map
+      </ThemedText>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two }}>
+        {VEHICLES.map((v) => {
+          const selected = v.value === vehicle;
+          const locked = v.premium && !cosmetics;
+          return (
+            <Pressable
+              key={v.value}
+              onPress={() =>
+                locked ? router.push({ pathname: '/paywall', params: { offering: 'cosmetics' } }) : setVehicle(v.value)
+              }
+              accessibilityRole="button"
+              accessibilityLabel={`${v.label}${locked ? ', locked' : ''}`}
+              accessibilityState={{ selected }}
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: 26,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: selected ? color : theme.backgroundSelected,
+                opacity: locked ? 0.5 : 1,
+              }}>
+              <MaterialCommunityIcons name={v.icon as 'car'} size={26} color={selected ? '#fff' : theme.text} />
+              {locked ? (
+                <MaterialCommunityIcons name="lock" size={12} color={theme.text} style={{ position: 'absolute', bottom: 4, right: 6 }} />
+              ) : null}
+            </Pressable>
+          );
+        })}
       </View>
       <Button
         label="Save"
