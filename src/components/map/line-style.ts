@@ -1,4 +1,5 @@
 import type { LngLat } from '@/lib/geo';
+import type { GlowPalette } from '@/lib/glow';
 
 import type { MapLine } from './types';
 
@@ -23,14 +24,14 @@ export function lineFeature(line: MapLine): GeoJSON.Feature {
 }
 
 /** Layer stack for a line, bottom to top. */
-export function lineLayers(line: MapLine): LineLayerDef[] {
+export function lineLayers(line: MapLine, glow: GlowPalette): LineLayerDef[] {
   const w = line.width ?? 6;
   const o = line.opacity ?? 1;
   if (line.variant === 'glow') {
     return [
-      { suffix: 'haze', layout: ROUND, paint: { 'line-color': '#E0263C', 'line-width': w * 4, 'line-blur': w * 3, 'line-opacity': 0.35 * o } },
-      { suffix: 'glow', layout: ROUND, paint: { 'line-color': '#FF8A1F', 'line-width': w * 1.8, 'line-blur': w * 0.8, 'line-opacity': 0.75 * o } },
-      { suffix: 'core', layout: ROUND, paint: { 'line-color': '#FFF1DC', 'line-width': w * 0.55, 'line-opacity': 0.9 * o } },
+      { suffix: 'haze', layout: ROUND, paint: { 'line-color': glow.haze, 'line-width': w * 4, 'line-blur': w * 3, 'line-opacity': 0.35 * o } },
+      { suffix: 'glow', layout: ROUND, paint: { 'line-color': glow.glow, 'line-width': w * 1.8, 'line-blur': w * 0.8, 'line-opacity': 0.75 * o } },
+      { suffix: 'core', layout: ROUND, paint: { 'line-color': glow.core, 'line-width': w * 0.55, 'line-opacity': 0.9 * o } },
     ];
   }
   return [

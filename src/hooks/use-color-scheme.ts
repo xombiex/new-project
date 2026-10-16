@@ -1,7 +1,11 @@
-/**
- * Convoy ships dark-only for now (night-driving friendly, matches the map).
- * Everything reads the scheme through this hook, so adding a light mode later is a one-line change.
- */
+import { useColorScheme as useSystemColorScheme } from 'react-native';
+
+import { useSettings } from '@/store/settings';
+
+/** The scheme the app renders in: the user's choice, or the system's when set to "system". */
 export function useColorScheme(): 'light' | 'dark' {
-  return 'dark';
+  const appearance = useSettings((s) => s.appearance);
+  const system = useSystemColorScheme();
+  if (appearance !== 'system') return appearance;
+  return system === 'light' ? 'light' : 'dark';
 }

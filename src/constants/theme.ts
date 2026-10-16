@@ -9,19 +9,21 @@ import { Platform } from 'react-native';
 
 export const Colors = {
   light: {
-    text: '#0B1220',
-    background: '#F3F5F9',
+    text: '#0A0A0B',
+    background: '#F2F3F5',
     backgroundElement: '#FFFFFF',
-    backgroundSelected: '#E4E8EF',
-    textSecondary: '#5B6576',
-    border: '#DCE1E9',
-    accent: '#2563EB',
+    backgroundSelected: '#EBEDF0',
+    textSecondary: '#6B7280',
+    border: 'rgba(10,10,11,0.08)',
+    accent: '#0A84FF',
     accentText: '#FFFFFF',
     success: '#16A34A',
     warning: '#D97706',
-    danger: '#DC2626',
-    speed: '#E8890C',
-    chip: '#E4E8EF',
+    danger: '#E5372B',
+    speed: '#F07A0A',
+    chip: 'rgba(255,255,255,0.75)',
+    /** tint laid over the blurred map for floating panels */
+    glass: 'rgba(255,255,255,0.62)',
   },
   dark: {
     text: '#FFFFFF',
@@ -39,6 +41,8 @@ export const Colors = {
     speed: '#FFA630',
     /** unselected filter chips */
     chip: '#17181B',
+    /** tint laid over the blurred map for floating panels */
+    glass: 'rgba(17,18,20,0.78)',
   },
 } as const;
 

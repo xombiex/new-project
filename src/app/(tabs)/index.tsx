@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Glass } from '@/components/glass';
 import { ConvoyMap, type MapLine, type MapPerson } from '@/components/map/convoy-map';
 import { Speedometer } from '@/components/speedometer';
 import { ThemedText } from '@/components/themed-text';
@@ -132,7 +133,7 @@ export default function DriveScreen() {
       {/* Top: search or current destination */}
       <View style={[styles.top, { paddingTop: insets.top + Spacing.two }]} pointerEvents="box-none">
         {nav.destination ? (
-          <View style={[styles.destCard, { backgroundColor: theme.backgroundElement }]}>
+          <Glass style={styles.destCard}>
             <View style={{ flex: 1 }}>
               <ThemedText numberOfLines={1} style={{ fontWeight: 700 }}>
                 {nav.destination.name}
@@ -166,14 +167,16 @@ export default function DriveScreen() {
             <Pressable onPress={nav.clear} accessibilityRole="button" accessibilityLabel="Clear destination" hitSlop={12}>
               <MaterialCommunityIcons name="close-circle" size={28} color={theme.textSecondary} />
             </Pressable>
-          </View>
+          </Glass>
         ) : (
           <Pressable
             onPress={() => router.push({ pathname: '/search', params: { purpose: 'route' } })}
             accessibilityRole="search"
-            style={[styles.search, { backgroundColor: theme.backgroundElement }]}>
-            <MaterialCommunityIcons name="magnify" size={22} color={theme.textSecondary} />
-            <ThemedText themeColor="textSecondary">Where to?</ThemedText>
+            style={styles.searchWrap}>
+            <Glass style={styles.search}>
+              <MaterialCommunityIcons name="magnify" size={22} color={theme.textSecondary} />
+              <ThemedText themeColor="textSecondary">Where to?</ThemedText>
+            </Glass>
           </Pressable>
         )}
 
@@ -191,11 +194,7 @@ export default function DriveScreen() {
       </View>
 
       {/* Bottom: speed + trip controls */}
-      <View
-        style={[
-          styles.panel,
-          { backgroundColor: theme.backgroundElement, paddingBottom: BottomTabInset + Spacing.three, borderColor: theme.border },
-        ]}>
+      <Glass style={[styles.panel, { paddingBottom: BottomTabInset + Spacing.three }]}>
         <Speedometer sample={lastSample} units={units} stale={stale} />
 
         {active ? (
@@ -220,15 +219,15 @@ export default function DriveScreen() {
             style={{ alignSelf: 'stretch', marginTop: Spacing.three }}
           />
         )}
-      </View>
+      </Glass>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   top: { position: 'absolute', left: Spacing.three, right: Spacing.three, gap: Spacing.two, alignItems: 'flex-start' },
+  searchWrap: { alignSelf: 'stretch' },
   search: {
-    alignSelf: 'stretch',
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,

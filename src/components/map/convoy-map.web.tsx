@@ -4,11 +4,10 @@ import { LngLatBounds, Map as MLMap, Marker, setWorkerUrl } from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
-import { MAP_STYLE_DARK, MAP_STYLE_LIGHT } from '@/lib/map-style';
 
 import { lineFeature, lineLayers } from './line-style';
+import { useMapLook } from './use-map-look';
 import type { ConvoyMapProps } from './types';
 
 export type { ConvoyMapProps, MapLine, MapPerson } from './types';
@@ -21,7 +20,7 @@ setWorkerUrl('/maplibre-gl-worker.mjs');
  * line styles as the native map; no GPS follow mode.
  */
 export function ConvoyMap({ style, lines = [], people = [], destination, fit, padding }: ConvoyMapProps) {
-  const scheme = useColorScheme();
+  const { styleUrl, glow } = useMapLook();
   const theme = useTheme();
   // A plain div: maplibre's CSS sets `position: relative` on its container, which would
   // override react-native-web's class-based absolute fill.
@@ -34,7 +33,7 @@ export function ConvoyMap({ style, lines = [], people = [], destination, fit, pa
   useEffect(() => {
     const m = new MLMap({
       container: container.current!,
-      style: scheme === 'dark' ? MAP_STYLE_DARK : MAP_STYLE_LIGHT,
+      style: styleUrl,
       center: [-98, 39],
       zoom: 3,
       attributionControl: { compact: true },
@@ -47,8 +46,12 @@ export function ConvoyMap({ style, lines = [], people = [], destination, fit, pa
     return () => {
       observer.disconnect();
       m.remove();
+      // A theme change rebuilds the map; layers and markers get re-added once it loads.
+      setLoaded(false);
+      added.current = [];
+      markers.current = [];
     };
-  }, [scheme]);
+  }, [styleUrl]);
 
   useEffect(() => {
     const m = map.current;
@@ -61,12 +64,12 @@ export function ConvoyMap({ style, lines = [], people = [], destination, fit, pa
     for (const line of lines) {
       const id = `line-${line.id}`;
       m.addSource(id, { type: 'geojson', data: lineFeature(line) });
-      for (const l of lineLayers(line)) {
+      for (const l of lineLayers(line, glow)) {
         m.addLayer({ id: `${id}-${l.suffix}`, type: 'line', source: id, layout: l.layout as any, paint: l.paint as any });
       }
       added.current.push(id);
     }
-  }, [loaded, lines]);
+  }, [loaded, lines, glow]);
 
   useEffect(() => {
     const m = map.current;

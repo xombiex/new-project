@@ -18,7 +18,7 @@ export default function ProfileScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { session, profile, signOut } = useAuth();
-  const { units, setUnits, keepScreenOn, setKeepScreenOn } = useSettings();
+  const { units, setUnits, keepScreenOn, setKeepScreenOn, appearance, setAppearance } = useSettings();
   const unsynced = useTrips((s) => s.history.filter((t) => !t.synced).length);
   const [perm, setPerm] = useState<PermissionSummary | null>(null);
 
@@ -50,6 +50,17 @@ export default function ProfileScreen() {
           <Button label="Sign in or create account" onPress={() => router.push('/sign-in')} />
         </Card>
       )}
+
+      <SectionTitle>Appearance</SectionTitle>
+      <Segmented
+        options={[
+          { value: 'system', label: 'System' },
+          { value: 'light', label: 'Light' },
+          { value: 'dark', label: 'Dark' },
+        ]}
+        value={appearance}
+        onChange={setAppearance}
+      />
 
       <SectionTitle>Units</SectionTitle>
       <Segmented

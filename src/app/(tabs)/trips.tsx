@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Glass } from '@/components/glass';
 import { ConvoyMap, type MapLine } from '@/components/map/convoy-map';
 import { RouteThumbnail } from '@/components/route-thumbnail';
 import { ThemedText } from '@/components/themed-text';
@@ -112,16 +113,12 @@ export default function DrivesScreen() {
         padding={{ top: insets.top + 60, bottom: sheetHeight + BottomTabInset }}
       />
 
-      <View style={[styles.brand, { top: insets.top + Spacing.two, backgroundColor: theme.backgroundElement }]}>
+      <Glass style={[styles.brand, { top: insets.top + Spacing.two }]}>
         <MaterialCommunityIcons name="car-sports" size={22} color={theme.text} />
         <ThemedText style={styles.brandText}>Convoy</ThemedText>
-      </View>
+      </Glass>
 
-      <View
-        style={[
-          styles.sheet,
-          { height: sheetHeight, bottom: BottomTabInset + Spacing.two, backgroundColor: theme.backgroundElement, borderColor: theme.border },
-        ]}>
+      <Glass style={[styles.sheet, { height: sheetHeight, bottom: BottomTabInset + Spacing.two }]} intensity={50}>
         <View style={styles.sheetHeader}>
           <View style={{ flex: 1 }}>
             <ThemedText style={styles.title}>Drives</ThemedText>
@@ -189,7 +186,7 @@ export default function DrivesScreen() {
             />
           </>
         )}
-      </View>
+      </Glass>
     </View>
   );
 }
@@ -283,7 +280,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two + 2,
     borderRadius: Radius.pill,
-    opacity: 0.94,
   },
   brandText: { fontSize: 18, fontWeight: 700 },
   sheet: {
@@ -291,10 +287,7 @@ const styles = StyleSheet.create({
     left: Spacing.two,
     right: Spacing.two,
     borderRadius: 32,
-    borderWidth: StyleSheet.hairlineWidth,
     paddingTop: Spacing.four,
-    overflow: 'hidden',
-    opacity: 0.97,
   },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.four, gap: Spacing.three },
   title: { fontSize: 34, lineHeight: 40, fontWeight: 800, letterSpacing: -0.5 },

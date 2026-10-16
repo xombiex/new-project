@@ -15,11 +15,10 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
-import { MAP_STYLE_DARK, MAP_STYLE_LIGHT } from '@/lib/map-style';
 
 import { lineFeature, lineLayers } from './line-style';
+import { useMapLook } from './use-map-look';
 import type { ConvoyMapProps } from './types';
 
 export type { ConvoyMapProps, MapLine, MapPerson } from './types';
@@ -34,7 +33,7 @@ export function ConvoyMap({
   fit,
   padding,
 }: ConvoyMapProps) {
-  const scheme = useColorScheme();
+  const { styleUrl, glow } = useMapLook();
   const theme = useTheme();
   const camera = useRef<CameraRef>(null);
   const [tracking, setTracking] = useState<TrackUserLocation | undefined>(follow ? 'course' : undefined);
@@ -62,7 +61,7 @@ export function ConvoyMap({
     <View style={[styles.container, style]}>
       <Map
         style={StyleSheet.absoluteFill}
-        mapStyle={scheme === 'dark' ? MAP_STYLE_DARK : MAP_STYLE_LIGHT}
+        mapStyle={styleUrl}
         compass={false}
         logo={false}
         attribution
@@ -77,7 +76,7 @@ export function ConvoyMap({
 
         {lines.map((line) => (
           <GeoJSONSource key={line.id} id={`line-${line.id}`} data={lineFeature(line)}>
-            {lineLayers(line).map((l) => (
+            {lineLayers(line, glow).map((l) => (
               <Layer
                 key={l.suffix}
                 id={`line-${line.id}-${l.suffix}`}
