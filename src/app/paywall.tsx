@@ -3,6 +3,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { LegalLinks } from '@/components/legal-links';
 import { ThemedText } from '@/components/themed-text';
 import { Button, Card } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
@@ -244,9 +245,10 @@ export default function PaywallScreen() {
             <Button label="Continue" size="lg" loading={busy} disabled={!selected} onPress={onBuy} />
             <Button label="Restore purchases" variant="ghost" disabled={busy} onPress={onRestore} />
             <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
-              Subscriptions renew automatically until cancelled in your App Store or Google Play settings. Cancel at
-              least 24 hours before renewal to avoid being charged.
+              Subscriptions renew automatically until cancelled. Cancel in your App Store or Google Play settings (or
+              Profile → Manage subscription for web purchases) at least 24 hours before renewal to avoid being charged.
             </ThemedText>
+            <LegalLinks />
           </View>
         )}
       </ScrollView>

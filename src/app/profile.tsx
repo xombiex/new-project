@@ -2,14 +2,16 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 
+import { LegalLinks } from '@/components/legal-links';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar, Button, Card, SectionTitle, Segmented } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { GLOW_PRESETS, type GlowPreset } from '@/lib/glow';
 import { openBillingPortal } from '@/lib/payments';
+import { supabase } from '@/lib/supabase';
 import { MAP_THEMES } from '@/lib/map-style';
 import { useAuth } from '@/store/auth';
 import { useNotificationSettings, type NotificationPrefs } from '@/store/notification-settings';
@@ -307,12 +309,51 @@ export default function ProfileScreen() {
       ) : null}
 
       {session ? <Button label="Sign out" variant="ghost" onPress={() => void signOut()} /> : null}
+      {session ? <DeleteAccountButton onDeleted={signOut} /> : null}
+
+      <LegalLinks />
 
       <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
         Map data © OpenStreetMap contributors · Tiles by OpenFreeMap
       </ThemedText>
     </ScrollView>
   );
+}
+
+const DELETE_TITLE = 'Delete your account?';
+const DELETE_BODY =
+  'This permanently deletes your profile, synced trips, friends, drives and clubs. It cannot be undone. ' +
+  'App Store or Google Play subscriptions must be cancelled separately in the store.';
+
+function DeleteAccountButton({ onDeleted }: { onDeleted: () => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+
+  async function run() {
+    setBusy(true);
+    const { error } = await supabase.rpc('delete_my_account');
+    setBusy(false);
+    if (error) {
+      if (Platform.OS === 'web') window.alert(error.message);
+      else Alert.alert('Could not delete account', error.message);
+      return;
+    }
+    await onDeleted().catch(() => {});
+  }
+
+  function confirm() {
+    if (Platform.OS === 'web') {
+      if (window.confirm(`${DELETE_TITLE}
+
+${DELETE_BODY}`)) void run();
+      return;
+    }
+    Alert.alert(DELETE_TITLE, DELETE_BODY, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete account', style: 'destructive', onPress: () => void run() },
+    ]);
+  }
+
+  return <Button label="Delete account" variant="ghost" loading={busy} onPress={confirm} />;
 }
 
 function PermissionRow({ label, granted }: { label: string; granted: boolean | undefined }) {

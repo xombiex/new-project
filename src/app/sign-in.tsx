@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 
+import { LegalLinks } from '@/components/legal-links';
 import { ThemedText } from '@/components/themed-text';
 import { Button, Segmented, TextField } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
@@ -85,10 +86,15 @@ export default function SignInScreen() {
           />
         </View>
         {mode === 'up' ? (
-          <ThemedText type="small" themeColor="textSecondary">
-            Passwords must be at least 8 characters.
-          </ThemedText>
-        ) : null}
+          <>
+            <ThemedText type="small" themeColor="textSecondary">
+              Passwords must be at least 8 characters.
+            </ThemedText>
+            <LegalLinks prefix="By creating an account you agree to the" style={{ textAlign: 'left' }} />
+          </>
+        ) : (
+          <LegalLinks style={{ textAlign: 'left' }} />
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );

@@ -38,6 +38,8 @@
   .logo-mark { width: 34px; height: 34px; border-radius: 10px; background: var(--accent); display: grid; place-items: center; }
   .logo-mark img { width: 26px; height: auto; display: block; }
   .msg { font-size: 14px; }
+  .legal { margin: 0; font-size: 12px; text-align: center; }
+  .legal a { color: var(--accent); }
   .msg.err { color: var(--danger); } .msg.ok { color: var(--ok); }
 
   /* shell */
@@ -101,6 +103,7 @@
     <button class="primary" type="submit" id="auth-submit">Sign in</button>
     <button class="ghost" type="button" id="auth-toggle">New here? Create an account</button>
     <div class="msg" id="auth-msg"></div>
+    <p class="muted legal">By using Convoy you agree to the <a href="./terms" target="_blank">Terms of Service</a> and <a href="./privacy" target="_blank">Privacy Policy</a>.</p>
   </form>
 </section>
 
