@@ -266,6 +266,19 @@ export default function ProfileScreen() {
         ) : null}
       </Card>
 
+      <Pressable onPress={() => router.push('/gear')} accessibilityRole="button">
+        <Card style={styles.row}>
+          <MaterialCommunityIcons name="toolbox-outline" size={24} color={theme.accent} />
+          <View style={{ flex: 1 }}>
+            <ThemedText style={{ fontWeight: 700 }}>Driving gear</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              Mounts, chargers, radios and safety kit
+            </ThemedText>
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={22} color={theme.textSecondary} />
+        </Card>
+      </Pressable>
+
       {__DEV__ ? (
         <>
           <SectionTitle>Developer: simulate purchases</SectionTitle>

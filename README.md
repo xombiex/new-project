@@ -1,92 +1,130 @@
 # Convoy
 
-Group drives, live location sharing and a real-time speedometer, for iOS and Android.
+Group drives, live location sharing, turn-by-turn navigation and a real-time speedometer, for iOS and Android.
 
-## What works (MVP)
+## Features
 
-| Feature | Notes |
-|---|---|
-| Live map + speedometer | MPH or km/h, GPS accuracy indicator, "signal lost" state |
-| Trip recording | Time, distance, moving time, average and top speed, route. Works signed out and runs in the background |
-| Trip history | Week/month/all-time totals, per-trip map, rename, notes, share, delete; backed up to your account when signed in |
-| Search + routing | Address/place search, driving routes with alternatives, ETA |
-| Accounts + profiles | Email/password, username, map color |
-| Friends | Requests by username, accept/block/remove, time-boxed last-known location sharing (1h / 8h / 24h) |
-| Group drives | Create, join by 6-character code, live shared map (~2s updates), member speed and distance, "fell behind" / "signal lost" / offline status, shared destination, pause sharing, leave/end |
+| Area | What it does | Free / paid |
+|---|---|---|
+| Drive | Live map, big speedometer, trip recording, voice turn-by-turn navigation with rerouting | Free |
+| Road reports | 2-tap reports (crash, hazard, police, closure…), map pins, still-there voting, spoken alerts ahead | Free |
+| Drives | Heat-trail map of every drive, sort/filter, route thumbnails, trip detail | Free |
+| Trip extras | Share cards (Night/Day free; Neon/Minimal Pro), replay (Pro), GPX export (Pro) | Mixed |
+| Stats | Weekly chart, streaks, achievements (free); monthly/yearly charts + personal records (Pro) | Mixed |
+| Friends | Requests, time-boxed last-known location sharing, privacy zones | Free |
+| Group drives | Live shared map, fell-behind alerts, arrivals, invites by push. Hosts: 6 people free, 50 with Pro, 100 for club drives | Mixed |
+| Clubs | Permanent clubs, scheduled events, RSVPs, one-tap club drives, event reminders, paid tickets | Clubs plan |
+| Look | Light / dark / system, glow colors, map styles, vehicle icons | Style pack or Pro |
+| Auto-detect | Optional: records drives automatically (low-power background location) | Free |
+| Gear | Curated driving gear with affiliate links | Free |
 
-Not built yet: turn-by-turn voice guidance, road reports, push notifications, automatic trip detection, live traffic.
+Not included: live traffic (no legitimate free source; community reports cover incidents).
 
-## Stack (all free tiers)
+## Money
+
+| Product | Suggested price | RevenueCat entitlement |
+|---|---|---|
+| Convoy Pro | $3.99 / month or $29.99 / year | `pro` (includes `cosmetics`) |
+| Convoy Clubs | $14.99 / month | `club` (includes `pro`) |
+| Style Pack | $2.99 one-time | `cosmetics` |
+| Event tickets | Set by organizer | Stripe Connect, Convoy keeps `PLATFORM_FEE_PERCENT` (default 5%) |
+| Gear | — | Amazon Associates commission |
+
+Joining drives is always free, since every drive pulls in new users.
+
+## Stack and running costs
 
 | Need | Service | Cost |
 |---|---|---|
-| App | Expo SDK 58 + Expo Router, TypeScript, Zustand | Free |
-| Map | MapLibre React Native + [OpenFreeMap](https://openfreemap.org) tiles | Free, no key |
-| Search | [Photon](https://photon.komoot.io) (OpenStreetMap) | Free, fair-use |
-| Routing | [OSRM](https://project-osrm.org) public server | Free, fair-use (demo server) |
-| Backend | Supabase: Auth, Postgres with RLS, Realtime | Free tier (pauses after 7 idle days) |
-
-Search and routing URLs are env vars, so moving to a self-hosted or paid instance is a config change (see `.env.example`).
-
-**Before a public launch:** the public OSRM server is meant for light use only. Switch `EXPO_PUBLIC_OSRM_URL` to a self-hosted OSRM, OpenRouteService (free key, 2,000 routes/day), or a paid router. Supabase Pro ($25/mo) removes the idle pause.
-
-**Store accounts:** Apple Developer $99/yr, Google Play $25 one-time.
+| App | Expo SDK 58, Expo Router, TypeScript, Zustand | Free |
+| Map | MapLibre + OpenFreeMap tiles | Free, no key |
+| Search / routing | Photon / OSRM public servers | Free (fair use). Switch via env vars before launch |
+| Backend | Supabase: Auth, Postgres + RLS, Realtime, Edge Functions, pg_cron | Free tier, then $25/mo Pro |
+| Purchases | RevenueCat | Free until $2.5k/mo revenue |
+| Push | Expo push service | Free |
+| Tickets | Stripe Connect | Stripe fees per transaction |
 
 ## Running it
 
-The map and background location are native modules, so this needs a **development build**. Expo Go won't work.
+Background location, maps, purchases and push are native, so this needs a **development build**. Expo Go won't work.
 
 ```bash
 npm install
-npx expo run:android      # Android Studio / emulator or USB device
-npx expo run:ios          # macOS + Xcode only
+npx expo run:android      # emulator or USB device
+npx expo run:ios          # macOS + Xcode
 ```
 
-No Mac? Build iOS in the cloud with EAS (free tier: limited builds/month):
+No Mac: `npm i -g eas-cli && eas build --profile development --platform ios`.
+
+`npm run web` renders the UI in a browser (real map via maplibre-gl, no GPS or purchases) for layout work.
 
 ```bash
-npm install -g eas-cli
-eas build --profile development --platform ios
-```
-
-After the first build, `npm start` serves JS changes to the installed dev app.
-
-`npm run web` renders the UI in a browser for layout work, using maplibre-gl with the same tiles and route styles (no GPS there).
-
-### Checks
-
-```bash
-npm test           # unit tests (trip math, convoy status)
+npm test           # 47 unit tests: trip math, convoy, stats, navigation, reports, auto-detect, GPX, privacy
 npm run typecheck
 ```
 
-### Supabase
+## Turning the paid / connected parts on
 
-The project is already provisioned. `.env` holds the public URL and publishable key (safe to ship; access control is enforced by row-level security). The schema lives in `supabase/migrations/`.
+Everything works without these; each section lights up when its keys exist.
 
-For quick testing, turn off **Authentication → Providers → Email → Confirm email** in the Supabase dashboard. The free tier only sends a few confirmation emails per hour. Turn it back on (with custom SMTP) before launch.
+### 1. Push notifications
+1. `eas init` (adds the EAS project id that push tokens need).
+2. Android: `eas credentials` → add FCM V1 service account key. iOS: EAS sets up APNs during the build.
+
+### 2. In-app purchases (RevenueCat)
+1. Create the products in App Store Connect and Google Play (table above).
+2. In RevenueCat: add both apps, create entitlements `pro`, `club`, `cosmetics`, and offerings `default` (Pro monthly + yearly), `clubs`, `cosmetics`.
+3. Put the public SDK keys in `.env`: `EXPO_PUBLIC_REVENUECAT_IOS_KEY`, `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`.
+4. In Supabase → Edge Functions → Secrets add `REVENUECAT_SECRET_KEY` (RevenueCat secret API key) and `REVENUECAT_WEBHOOK_AUTH` (any long random string).
+5. In RevenueCat → Integrations → Webhooks: URL `https://qdcdveoidmnwqnabfuvd.supabase.co/functions/v1/revenuecat-webhook`, Authorization header = the same random string.
+
+In development builds, Profile → "Developer: simulate purchases" unlocks features locally without buying. Server-enforced limits still need a real purchase.
+
+### 3. Paid event tickets (Stripe Connect)
+1. Enable Connect (Express) in Stripe.
+2. Supabase secrets: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, optional `PLATFORM_FEE_PERCENT`.
+3. Stripe webhooks → endpoint `https://qdcdveoidmnwqnabfuvd.supabase.co/functions/v1/stripe`:
+   - `checkout.session.completed` (your account)
+   - `account.updated` (enable "Listen to events on connected accounts")
+
+Club owners then tap "Set up payouts" on their club page. Refunds are handled in the Stripe dashboard.
+
+### 4. Affiliate links
+`EXPO_PUBLIC_AMAZON_TAG=yourtag-20` in `.env`. The disclosure line appears automatically.
+
+### 5. Email confirmation
+For testing, Supabase → Authentication → Email → turn off "Confirm email". Turn it back on with custom SMTP before launch.
 
 ## Architecture
 
 ```
 src/
-  app/                 screens (Expo Router)
-    (tabs)/            Drive, Convoy, Friends, Trips, Profile
-    search.tsx         place search (route or group destination)
-    trip/[id].tsx      trip detail
-  components/          UI kit, speedometer, map (native + web placeholder)
+  app/                    screens (Expo Router)
+    (tabs)/               Drive · Convoy · Friends · Drives · Stats
+    profile, paywall, privacy-zones, share/[id], trip/[id], report, invite,
+    club/new, club/[id], event/new, event/[id], gear, stripe-return
+  components/             UI kit, glass panels, map (native + web), speedometer, charts, share card
   lib/
-    location.ts        single owner of GPS: foreground watch vs background task
-    trip-recorder.ts   pure trip math (filters jitter, glitches, gaps)  ← tested
-    convoy.ts          member status / fell-behind logic                 ← tested
-    places.ts          Photon search + OSRM routing
-  store/               Zustand stores (trips, drive, friends, auth, nav, settings)
-supabase/migrations/   database schema + RLS
+    location.ts           single GPS owner: off / foreground / precise background / low-power background
+    trip-recorder.ts      trip math (jitter, glitches, gaps)                   ← tested
+    navigation.ts         snapping, prompts, off-route, arrival                ← tested
+    instructions.ts       OSRM steps → spoken English                          ← tested
+    convoy.ts             fell-behind / signal-lost logic                      ← tested
+    stats.ts, achievements.ts                                                  ← tested
+    reports.ts            reports-ahead detection                              ← tested
+    auto-trip.ts          drive start/stop detection                           ← tested
+    gpx.ts, privacy.ts, replay.ts                                              ← tested
+    purchases.ts          RevenueCat wrapper (web stub)
+    notifications.ts      push registration, quiet-while-driving, notify()
+    payments.ts           Stripe checkout / payouts via edge function
+  store/                  Zustand stores
+supabase/
+  migrations/             schema, RLS, functions, cron
+  functions/              revenuecat-webhook · notify · stripe
 ```
 
-**Location modes:** features register a reason (`map`, `trip`, `drive`) and `lib/location.ts` picks the cheapest GPS mode. GPS is off when nothing needs it, a foreground watch runs while a map is on screen, and background updates (with a persistent notification) run only during a trip or group drive.
-
-**Privacy model:**
-- Group positions go over a private Supabase Realtime channel (`drive:<id>`). RLS on `realtime.messages` limits it to drive members, and positions are never written to the database.
-- Friends see one last-known row (`user_locations`), only while `share_until` is in the future, and the row is deleted when you stop sharing.
-- Trips are private to their owner.
+### Security model
+- Every table has row-level security. Users read their own data, friends see shared locations, members see their drives and clubs.
+- Anything that grants something (entitlements, paid tickets, report votes, club creation, drive size) is decided on the server: SQL functions or edge functions, never the client.
+- Live group positions travel over private Realtime channels and are never stored. Road reports never expose who posted them.
+- Edge functions verify callers (user JWT, RevenueCat auth header, Stripe signature, or a vault-stored cron secret) and validate every id.

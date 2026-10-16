@@ -15,7 +15,8 @@ async function openStripe(body: Record<string, unknown>): Promise<string | null>
     return detail?.error === 'payments not configured' ? 'Payments aren’t set up yet' : (detail?.error ?? error.message);
   }
   if (!data?.url) return 'Could not start checkout';
-  await WebBrowser.openBrowserAsync(data.url);
+  // Closes itself when Stripe redirects back to convoy://stripe-return.
+  await WebBrowser.openAuthSessionAsync(data.url, 'convoy://stripe-return');
   return null;
 }
 
