@@ -58,6 +58,7 @@ export default function RootLayout() {
         <Stack.Screen name="search" options={{ presentation: 'modal', title: 'Search' }} />
         <Stack.Screen name="trip/[id]" options={{ title: 'Trip' }} />
         <Stack.Screen name="paywall" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="profile" options={{ title: 'Profile' }} />
       </Stack>
     </ThemeProvider>
   );

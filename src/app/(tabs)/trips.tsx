@@ -129,7 +129,7 @@ export default function DrivesScreen() {
               </ThemedText>
             ) : null}
           </View>
-          <Pressable onPress={() => router.navigate('/profile')} accessibilityRole="button" accessibilityLabel="Profile">
+          <Pressable onPress={() => router.push('/profile')} accessibilityRole="button" accessibilityLabel="Profile">
             {profile ? (
               <Avatar name={profile.display_name} color={profile.avatar_color} size={48} />
             ) : (
