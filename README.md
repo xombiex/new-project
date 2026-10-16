@@ -110,7 +110,7 @@ For testing, Supabase → Authentication → Email → turn off "Confirm email".
 - live drives (end them), clubs, road-report moderation
 - an audit log of every admin action
 
-Hosted on **Vercel** (project `convoy`): every push to `main` redeploys it. `vercel.json` publishes only `admin/`, skips the app build, and sets strict security headers (CSP, no framing, noindex). Vercel Authentication stays on as an extra lock, so only your Vercel account can open the `*.vercel.app` URLs. Run it locally with `npm run admin` (http://localhost:8092).
+Hosted on **Vercel** (project `convoy`): every push to `main` runs `scripts/build-web.mjs`, which publishes the Convoy web app at the root, `web/` (terms, privacy, 404) as static pages, and the admin portal at a **secret path** taken from the `ADMIN_PATH` Vercel environment variable (never committed; this repo is public). `/admin` returns a 404. To move the portal, change `ADMIN_PATH` in Vercel and redeploy; unset it to take the portal offline. Run it locally with `npm run admin` (http://localhost:8092).
 
 Access: sign in with a Convoy account whose email is in `private.admin_emails` **and confirmed**. All admin powers are `admin_*` database functions that check that on the server; the page itself holds no secrets.
 

@@ -4,14 +4,15 @@
   "buildCommand": "node scripts/build-web.mjs",
   "outputDirectory": "dist",
   "cleanUrls": true,
-  "redirects": [
+  "rewrites": [
     {
       "source": "/admin",
-      "destination": "/admin/",
-      "permanent": true
-    }
-  ],
-  "rewrites": [
+      "destination": "/__not_found"
+    },
+    {
+      "source": "/admin/:path*",
+      "destination": "/__not_found"
+    },
     {
       "source": "/:path*",
       "destination": "/"
@@ -53,31 +54,6 @@
         {
           "key": "Cache-Control",
           "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
-    {
-      "source": "/admin/(.*)",
-      "headers": [
-        {
-          "key": "Content-Security-Policy",
-          "value": "default-src 'none'; script-src 'self' https://cdn.jsdelivr.net; connect-src https://qdcdveoidmnwqnabfuvd.supabase.co wss://qdcdveoidmnwqnabfuvd.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "no-referrer"
-        },
-        {
-          "key": "Permissions-Policy",
-          "value": "camera=(), microphone=(), geolocation=(), payment=()"
-        },
-        {
-          "key": "X-Robots-Tag",
-          "value": "noindex, nofollow"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "no-store"
         }
       ]
     }

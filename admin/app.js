@@ -1,4 +1,5 @@
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+// supabase.js (UMD) is copied next to this file at build time / by `npm run admin`.
+const { createClient } = window.supabase;
 
 // Public project settings (same publishable key the app ships with; all admin power is
 // enforced server-side by the admin_* database functions).
@@ -53,7 +54,7 @@ $('#auth-form').onsubmit = async (e) => {
   msg.className = 'msg';
   msg.textContent = '…';
   const creds = { email: $('#email').value.trim(), password: $('#password').value };
-  const { data, error } = signingUp ? await sb.auth.signUp({ ...creds, options: { emailRedirectTo: `${location.origin}/admin/` } }) : await sb.auth.signInWithPassword(creds);
+  const { data, error } = signingUp ? await sb.auth.signUp({ ...creds, options: { emailRedirectTo: new URL('./', document.baseURI).href } }) : await sb.auth.signInWithPassword(creds);
   if (error) {
     msg.className = 'msg err';
     msg.textContent = error.message;

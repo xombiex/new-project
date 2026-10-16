@@ -62,7 +62,7 @@
     "test": "vitest run",
     "lint": "expo lint",
     "postinstall": "node scripts/copy-maplibre-worker.mjs",
-    "admin": "npx --yes serve admin --listen 8092",
+    "admin": "node scripts/serve-admin.mjs",
     "build:web": "node scripts/build-web.mjs"
   },
   "private": true

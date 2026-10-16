@@ -44,3 +44,4 @@ example
 
 # copied from node_modules on install
 public/maplibre-gl-worker.mjs
+admin/supabase.js

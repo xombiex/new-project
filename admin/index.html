@@ -3,9 +3,11 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<meta name="referrer" content="no-referrer" />
 <title>Convoy</title>
-<link rel="icon" type="image/png" href="/admin/favicon.png" />
-<link rel="apple-touch-icon" href="/admin/apple-touch-icon.png" />
+<link rel="icon" type="image/png" href="./favicon.png" />
+<link rel="apple-touch-icon" href="./apple-touch-icon.png" />
 <style>
   :root {
     --bg: #000; --panel: #111214; --panel-2: #1c1d21; --border: #232428; --text: #fff; --muted: #a1a1aa;
@@ -96,7 +98,7 @@
 <!-- Sign in / create account -->
 <section id="auth" class="auth hidden">
   <form class="auth-card" id="auth-form">
-    <div class="logo"><div class="logo-mark"><img src="/admin/logo.png" alt="" /></div>Convoy</div>
+    <div class="logo"><div class="logo-mark"><img src="./logo.png" alt="" /></div>Convoy</div>
     <p class="muted" id="auth-sub" style="margin:0">Sign in with your Convoy account.</p>
     <input id="email" type="email" placeholder="Email" autocomplete="email" required />
     <input id="password" type="password" placeholder="Password (8+ characters)" autocomplete="current-password" minlength="8" required />
@@ -110,7 +112,7 @@
 <!-- Signed in, not an admin -->
 <section id="denied" class="auth hidden">
   <div class="auth-card">
-    <div class="logo"><div class="logo-mark"><img src="/admin/logo.png" alt="" /></div>Convoy</div>
+    <div class="logo"><div class="logo-mark"><img src="./logo.png" alt="" /></div>Convoy</div>
     <p style="margin:0">This account isn’t an admin.</p>
     <p class="muted" style="margin:0">If it should be, make sure the email address is confirmed (check your inbox for the Supabase email) and that it’s on the admin list.</p>
     <button id="denied-out">Sign out</button>
@@ -120,7 +122,7 @@
 <!-- Portal -->
 <div id="app" class="shell hidden">
   <nav>
-    <div class="logo"><div class="logo-mark"><img src="/admin/logo.png" alt="" /></div>Convoy</div>
+    <div class="logo"><div class="logo-mark"><img src="./logo.png" alt="" /></div>Convoy</div>
     <button data-view="overview" class="active">Overview</button>
     <button data-view="users">Users</button>
     <button data-view="drives">Live drives</button>
@@ -137,6 +139,7 @@
 <div id="drawer-root"></div>
 <div id="toast" class="toast hidden"></div>
 
-<script type="module" src="/admin/app.js"></script>
+<script src="./supabase.js"></script>
+<script type="module" src="./app.js"></script>
 </body>
 </html>
