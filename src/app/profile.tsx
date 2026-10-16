@@ -175,6 +175,18 @@ export default function ProfileScreen() {
         </View>
       </Card>
 
+      <Card>
+        <View style={styles.row}>
+          <View style={{ flex: 1 }}>
+            <ThemedText style={{ fontWeight: 700 }}>Spoken road report alerts</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              Hear about crashes, hazards and closures reported ahead.
+            </ThemedText>
+          </View>
+          <Switch value={settings.reportAlerts} onValueChange={settings.setReportAlerts} />
+        </View>
+      </Card>
+
       <SectionTitle>Location access</SectionTitle>
       <Card style={{ gap: Spacing.three }}>
         <PermissionRow label="While using the app" granted={perm?.foreground} />

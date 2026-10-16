@@ -17,6 +17,8 @@ type SettingsState = {
   mapTheme: MapTheme;
   /** kept on this device only */
   privacyZones: PrivacyZone[];
+  /** spoken warnings for road reports ahead */
+  reportAlerts: boolean;
   setUnits: (units: Units) => void;
   setKeepScreenOn: (on: boolean) => void;
   setAppearance: (appearance: Appearance) => void;
@@ -24,6 +26,7 @@ type SettingsState = {
   setMapTheme: (mapTheme: MapTheme) => void;
   addPrivacyZone: (zone: PrivacyZone) => void;
   removePrivacyZone: (id: string) => void;
+  setReportAlerts: (on: boolean) => void;
 };
 
 export const useSettings = create<SettingsState>()(
@@ -35,6 +38,7 @@ export const useSettings = create<SettingsState>()(
       glow: 'ember',
       mapTheme: 'auto',
       privacyZones: [],
+      reportAlerts: true,
       setUnits: (units) => set({ units }),
       setKeepScreenOn: (keepScreenOn) => set({ keepScreenOn }),
       setAppearance: (appearance) => set({ appearance }),
@@ -42,6 +46,7 @@ export const useSettings = create<SettingsState>()(
       setMapTheme: (mapTheme) => set({ mapTheme }),
       addPrivacyZone: (zone) => set({ privacyZones: [...get().privacyZones, zone] }),
       removePrivacyZone: (id) => set({ privacyZones: get().privacyZones.filter((z) => z.id !== id) }),
+      setReportAlerts: (reportAlerts) => set({ reportAlerts }),
     }),
     { name: 'convoy-settings', storage: createJSONStorage(() => AsyncStorage) }
   )

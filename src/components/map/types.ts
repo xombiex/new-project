@@ -25,6 +25,15 @@ export type MapPerson = {
   stale?: boolean;
 };
 
+export type MapMarker = {
+  id: string;
+  coord: LngLat;
+  /** MaterialCommunityIcons name */
+  icon: string;
+  color: string;
+  onPress?: () => void;
+};
+
 export type ConvoyMapProps = {
   style?: StyleProp<ViewStyle>;
   /** Keep the camera on the user (driving mode). The user can pan away; a recenter button appears. */
@@ -32,6 +41,7 @@ export type ConvoyMapProps = {
   showUser?: boolean;
   lines?: MapLine[];
   people?: MapPerson[];
+  markers?: MapMarker[];
   destination?: LngLat | null;
   /** Fit the camera to these points whenever the key changes (e.g. a trip route). */
   fit?: { key: string; points: LngLat[] } | null;

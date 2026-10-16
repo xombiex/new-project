@@ -9,12 +9,12 @@ import type { LocationSample } from '@/lib/trip-recorder';
  * ("reasons"); this module picks the cheapest mode that satisfies all of them:
  *   - nothing      → GPS off
  *   - 'map' only   → foreground watch (stops when the app is backgrounded by the OS)
- *   - trip / drive → background updates with a persistent notification
+ *   - trip / drive / nav → background updates with a persistent notification
  */
-export type TrackingReason = 'map' | 'trip' | 'drive';
+export type TrackingReason = 'map' | 'trip' | 'drive' | 'nav';
 
 const TASK = 'convoy-location';
-const BACKGROUND_REASONS: TrackingReason[] = ['trip', 'drive'];
+const BACKGROUND_REASONS: TrackingReason[] = ['trip', 'drive', 'nav'];
 
 type Listener = (samples: LocationSample[]) => void;
 const listeners = new Set<Listener>();
@@ -104,7 +104,9 @@ async function apply() {
         notificationTitle: 'Convoy is using your location',
         notificationBody: reasons.has('drive')
           ? 'Sharing your location with your group drive.'
-          : 'Recording your trip.',
+          : reasons.has('nav')
+            ? 'Navigating to your destination.'
+            : 'Recording your trip.',
         notificationColor: '#3B82F6',
         killServiceOnDestroy: true,
       },

@@ -1,4 +1,5 @@
 import type { LngLat } from '@/lib/geo';
+import type { OsrmStep } from '@/lib/instructions';
 
 /**
  * Free, keyless OpenStreetMap services. Both public endpoints are fair-use only;
@@ -52,20 +53,27 @@ export type Route = {
   distanceM: number;
   durationS: number;
   geometry: LngLat[];
+  /** turn-by-turn maneuvers (single leg) */
+  steps: OsrmStep[];
 };
 
 /** Driving routes, best first (includes alternatives when the router finds them). */
 export async function getRoutes(from: LngLat, to: LngLat, signal?: AbortSignal): Promise<Route[]> {
   const coords = `${from[0]},${from[1]};${to[0]},${to[1]}`;
   const res = await fetch(
-    `${OSRM_URL}/route/v1/driving/${coords}?overview=full&geometries=geojson&alternatives=true`,
+    `${OSRM_URL}/route/v1/driving/${coords}?overview=full&geometries=geojson&alternatives=true&steps=true`,
     { signal }
   );
   if (!res.ok) throw new Error(`Routing failed (${res.status})`);
   const json: {
     code: string;
-    routes: { distance: number; duration: number; geometry: { coordinates: LngLat[] } }[];
+    routes: { distance: number; duration: number; geometry: { coordinates: LngLat[] }; legs: { steps: OsrmStep[] }[] }[];
   } = await res.json();
   if (json.code !== 'Ok') throw new Error(json.code === 'NoRoute' ? 'No driving route found' : 'Routing failed');
-  return json.routes.map((r) => ({ distanceM: r.distance, durationS: r.duration, geometry: r.geometry.coordinates }));
+  return json.routes.map((r) => ({
+    distanceM: r.distance,
+    durationS: r.duration,
+    geometry: r.geometry.coordinates,
+    steps: r.legs.flatMap((l) => l.steps),
+  }));
 }

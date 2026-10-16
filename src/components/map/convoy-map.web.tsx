@@ -10,7 +10,7 @@ import { lineFeature, lineLayers } from './line-style';
 import { useMapLook } from './use-map-look';
 import type { ConvoyMapProps } from './types';
 
-export type { ConvoyMapProps, MapLine, MapPerson } from './types';
+export type { ConvoyMapProps, MapLine, MapMarker, MapPerson } from './types';
 
 // Served from public/ (see scripts/copy-maplibre-worker.mjs).
 setWorkerUrl('/maplibre-gl-worker.mjs');
@@ -19,7 +19,7 @@ setWorkerUrl('/maplibre-gl-worker.mjs');
  * Browser build of the map (maplibre-gl JS) for UI work in `npm run web`. Same tiles and
  * line styles as the native map; no GPS follow mode.
  */
-export function ConvoyMap({ style, lines = [], people = [], destination, fit, padding }: ConvoyMapProps) {
+export function ConvoyMap({ style, lines = [], people = [], markers: pins = [], destination, fit, padding }: ConvoyMapProps) {
   const { styleUrl, glow } = useMapLook();
   const theme = useTheme();
   // A plain div: maplibre's CSS sets `position: relative` on its container, which would
@@ -109,8 +109,14 @@ export function ConvoyMap({ style, lines = [], people = [], destination, fit, pa
       });
       return new Marker({ element: el }).setLngLat(p.coord).addTo(m);
     });
+    for (const pin of pins) {
+      const el = document.createElement('div');
+      Object.assign(el.style, { width: '30px', height: '30px', borderRadius: '15px', border: '2px solid #fff', background: pin.color, cursor: 'pointer' });
+      if (pin.onPress) el.addEventListener('click', pin.onPress);
+      markers.current.push(new Marker({ element: el }).setLngLat(pin.coord).addTo(m));
+    }
     if (destination) markers.current.push(new Marker({ color: theme.danger }).setLngLat(destination).addTo(m));
-  }, [loaded, people, destination, theme.danger]);
+  }, [loaded, people, pins, destination, theme.danger]);
 
   const fitKey = fit?.key;
   useEffect(() => {

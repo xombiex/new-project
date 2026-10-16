@@ -61,6 +61,7 @@ export default function RootLayout() {
         <Stack.Screen name="profile" options={{ title: 'Profile' }} />
         <Stack.Screen name="privacy-zones" options={{ title: 'Privacy zones' }} />
         <Stack.Screen name="share/[id]" options={{ title: 'Share drive', presentation: 'modal' }} />
+        <Stack.Screen name="report" options={{ title: 'Report', presentation: 'formSheet', sheetAllowedDetents: [0.6, 1] }} />
       </Stack>
     </ThemeProvider>
   );

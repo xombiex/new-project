@@ -21,7 +21,7 @@ import { lineFeature, lineLayers } from './line-style';
 import { useMapLook } from './use-map-look';
 import type { ConvoyMapProps } from './types';
 
-export type { ConvoyMapProps, MapLine, MapPerson } from './types';
+export type { ConvoyMapProps, MapLine, MapMarker, MapPerson } from './types';
 
 export function ConvoyMap({
   style,
@@ -29,6 +29,7 @@ export function ConvoyMap({
   showUser = true,
   lines = [],
   people = [],
+  markers = [],
   destination,
   fit,
   padding,
@@ -88,6 +89,14 @@ export function ConvoyMap({
           </GeoJSONSource>
         ))}
 
+        {markers.map((mk) => (
+          <Marker key={mk.id} id={`marker-${mk.id}`} lngLat={mk.coord} anchor="center" onPress={mk.onPress}>
+            <View style={[styles.reportPin, { backgroundColor: mk.color }]}>
+              <MaterialCommunityIcons name={mk.icon as 'alert'} size={18} color="#fff" />
+            </View>
+          </Marker>
+        ))}
+
         {destination ? (
           <Marker id="destination" lngLat={destination} anchor="bottom">
             <MaterialCommunityIcons name="map-marker" size={44} color={theme.danger} />
@@ -136,6 +145,7 @@ const styles = StyleSheet.create({
   person: { width: 52, height: 52, alignItems: 'center', justifyContent: 'center' },
   headingWrap: { ...StyleSheet.absoluteFill, alignItems: 'center' },
   avatarRing: { borderRadius: 20, borderWidth: 3, borderColor: '#fff' },
+  reportPin: { width: 34, height: 34, borderRadius: 17, borderWidth: 2, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   vehicle: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   recenter: {
     position: 'absolute',
