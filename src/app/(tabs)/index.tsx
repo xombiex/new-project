@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { NavBanner, NavFooter } from '@/components/drive/nav-overlay';
 import { Glass } from '@/components/glass';
+import { LocationPrompt } from '@/components/location-prompt';
 import { ConvoyMap, type MapLine, type MapMarker, type MapPerson } from '@/components/map/convoy-map';
 import { Speedometer } from '@/components/speedometer';
 import { ThemedText } from '@/components/themed-text';
@@ -262,6 +263,8 @@ export default function DriveScreen() {
           ) : null}
         </View>
       )}
+
+      <LocationPrompt />
 
       {/* Report button floats above the panel */}
       <Pressable

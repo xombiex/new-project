@@ -174,6 +174,11 @@ export function removeReason(reason: TrackingReason) {
   return schedule();
 }
 
+/** Re-run mode selection, e.g. after the user grants permission from an in-app prompt. */
+export function refreshTracking() {
+  return schedule();
+}
+
 export function getTrackingMode() {
   return mode;
 }
