@@ -6,7 +6,7 @@
 <style>
   body { margin: 0; background: #2a2d33; color: #fff; font: 14px system-ui; }
   #grid { display: flex; flex-wrap: wrap; gap: 12px; padding: 12px; }
-  #grid canvas { background: repeating-conic-gradient(#3a3d44 0 25%, #30333a 0 50%) 0 0 / 16px 16px; border-radius: 8px; }
+  #grid canvas { max-width: 240px; height: auto; background: repeating-conic-gradient(#3a3d44 0 25%, #30333a 0 50%) 0 0 / 16px 16px; border-radius: 8px; }
   #status { padding: 12px; font-weight: 700; }
 </style>
 <script type="importmap">
@@ -203,12 +203,19 @@ const BUILD = {
   },
 };
 
+// ?view=side renders the garage showroom shots instead of the top-down map sprites.
+const VIEW = new URLSearchParams(location.search).get('view') === 'side' ? 'side' : 'top';
+const SIDE_W = 720;
+const SIDE_H = 360;
+
 function render(name, paint) {
+  const side = VIEW === 'side';
+  renderer.setSize(side ? SIDE_W : SIZE, side ? SIDE_H : SIZE);
   const scene = new THREE.Scene();
   scene.environment = envMap;
   scene.add(new THREE.HemisphereLight(0xffffff, 0x445066, 0.6));
   const sun = new THREE.DirectionalLight(0xffffff, 2.2);
-  sun.position.set(-4, 10, -3);
+  sun.position.set(side ? 4 : -4, 10, side ? -4 : -3);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
   sun.shadow.radius = 6;
@@ -224,16 +231,23 @@ function render(name, paint) {
   BUILD[name](g, M.paint(paint.hex), contrast);
   scene.add(g);
 
-  const camera = new THREE.PerspectiveCamera(24, 1, 1, 100);
-  // Slight tilt from behind shows the rear and the cabin's sides without fighting the map's rotation.
-  const tilt = THREE.MathUtils.degToRad(16);
-  camera.position.set(0, 15 * Math.cos(tilt), 15 * Math.sin(tilt));
-  camera.up.set(0, 0, -1);
-  camera.lookAt(0, 0, 0);
+  const camera = new THREE.PerspectiveCamera(side ? 20 : 24, side ? SIDE_W / SIDE_H : 1, 1, 100);
+  if (side) {
+    // Showroom: a low three-quarter view of the right side, nose pointing right.
+    camera.position.set(9.4, 2.3, -3.0);
+    camera.lookAt(0, 0.7, 0.05);
+  } else {
+    // Slight tilt from behind shows the rear and the cabin's sides without fighting the map's rotation.
+    const tilt = THREE.MathUtils.degToRad(16);
+    camera.position.set(0, 15 * Math.cos(tilt), 15 * Math.sin(tilt));
+    camera.up.set(0, 0, -1);
+    camera.lookAt(0, 0, 0);
+  }
   renderer.render(scene, camera);
 
   const out = document.createElement('canvas');
-  out.width = out.height = SIZE;
+  out.width = side ? SIDE_W : SIZE;
+  out.height = side ? SIDE_H : SIZE;
   out.getContext('2d').drawImage(renderer.domElement, 0, 0);
   return out;
 }
@@ -248,7 +262,7 @@ function scaled(src, size) {
 }
 
 async function save(canvas, name) {
-  const blob = await new Promise((r) => canvas.toBlob(r, 'image/png'));
+  const blob = await new Promise((r) => canvas.toBlob(r, name.endsWith('.webp') ? 'image/webp' : 'image/png', 0.9));
   const res = await fetch(`/save?name=${name}`, { method: 'POST', body: blob });
   if (!res.ok) throw new Error(`save ${name} failed`);
 }
@@ -264,8 +278,14 @@ const grid = document.getElementById('grid');
 for (const name of Object.keys(BUILD).filter((n) => !only || n === only)) {
   for (const [color, paint] of Object.entries(PAINTS)) {
     const big = render(name, paint);
-    grid.appendChild(scaled(big, 96));
     const file = `${name}-${color}`;
+    if (VIEW === 'side') {
+      // One sharp size, WebP to keep the app bundle small (81 cards).
+      grid.appendChild(big);
+      await save(big, `side-${file}@2x.webp`);
+      continue;
+    }
+    grid.appendChild(scaled(big, 96));
     await save(big, `${file}@3x.png`);
     await save(scaled(big, (SIZE * 2) / 3), `${file}@2x.png`);
     await save(scaled(big, SIZE / 3), `${file}.png`);

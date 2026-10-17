@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { type ReactNode, useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -58,7 +58,8 @@ const compare: Record<Sort, (a: SavedTrip, b: SavedTrip) => number> = {
   longest: (a, b) => b.distanceM - a.distanceM,
 };
 
-export default function DrivesScreen() {
+/** Drive history: every drive on a map plus the timeline. Lives in the Stats tab. */
+export function DrivesView({ toggle }: { toggle: ReactNode }) {
   const theme = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -145,10 +146,7 @@ export default function DrivesScreen() {
         padding={{ top: insets.top + 60, bottom: sheetHeight + BottomTabInset }}
       />
 
-      <Glass style={[styles.brand, { top: insets.top + Spacing.two }]}>
-        <MaterialCommunityIcons name="car-sports" size={22} color={theme.text} />
-        <ThemedText style={styles.brandText}>Convoy</ThemedText>
-      </Glass>
+      <View style={[styles.toggle, { top: insets.top + Spacing.two }]}>{toggle}</View>
 
       <Glass style={[styles.sheet, { height: sheetHeight, bottom: BottomTabInset + Spacing.two }]} intensity={50}>
         <View style={styles.sheetHeader}>
@@ -319,18 +317,8 @@ function DriveRow({
 }
 
 const styles = StyleSheet.create({
+  toggle: { position: 'absolute', left: Spacing.three, right: Spacing.three },
   month: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: Spacing.three, paddingTop: Spacing.three, paddingBottom: Spacing.one },
-  brand: {
-    position: 'absolute',
-    left: Spacing.three,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two + 2,
-    borderRadius: Radius.pill,
-  },
-  brandText: { fontSize: 18, fontWeight: 700 },
   sheet: {
     position: 'absolute',
     left: Spacing.two,

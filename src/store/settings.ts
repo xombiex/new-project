@@ -22,6 +22,9 @@ type SettingsState = {
   privacyZones: PrivacyZone[];
   /** spoken warnings for road reports ahead */
   reportAlerts: boolean;
+  /** Let friends see when I'm in the app */
+  shareOnline: boolean;
+  setShareOnline: (on: boolean) => void;
   /** start/stop recording automatically when driving is detected */
   autoDetect: boolean;
   setUnits: (units: Units) => void;
@@ -61,6 +64,8 @@ export const useSettings = create<SettingsState>()(
       mapTheme: 'auto',
       privacyZones: [],
       reportAlerts: true,
+      shareOnline: true,
+      setShareOnline: (shareOnline) => set({ shareOnline }),
       autoDetect: false,
       setUnits: (units) => set({ units }),
       setKeepScreenOn: (keepScreenOn) => set({ keepScreenOn }),

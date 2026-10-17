@@ -1,11 +1,13 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { type ReactNode, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { BarChart } from '@/components/bar-chart';
+import { DrivesView } from '@/components/drives-view';
+import { Glass } from '@/components/glass';
 import { ThemedText } from '@/components/themed-text';
-import { Avatar, Button, Card, Screen, Segmented, SectionTitle, Stat } from '@/components/ui';
+import { Avatar, Button, Card, Screen, SectionTitle, Segmented, Stat } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { evaluate } from '@/lib/achievements';
@@ -19,7 +21,30 @@ import { useTrips } from '@/store/trips';
 
 const PERIOD_NOUN: Record<Period, string> = { week: 'week', month: 'month', year: 'year' };
 
-export default function StatsScreen() {
+/** Stats tab: the overview, or your drive history on a map. Links can open drives with ?view=drives. */
+export default function StatsTab() {
+  const params = useLocalSearchParams<{ view?: string }>();
+  const [view, setView] = useState<'stats' | 'drives'>(params.view === 'drives' ? 'drives' : 'stats');
+  const toggle = <StatsToggle value={view} onChange={setView} floating={view === 'drives'} />;
+  return view === 'drives' ? <DrivesView toggle={toggle} /> : <StatsOverview toggle={toggle} />;
+}
+
+function StatsToggle({ value, onChange, floating }: { value: 'stats' | 'drives'; onChange: (v: 'stats' | 'drives') => void; floating: boolean }) {
+  const control = (
+    <Segmented
+      options={[
+        { value: 'stats', label: 'Stats' },
+        { value: 'drives', label: 'Drives' },
+      ]}
+      value={value}
+      onChange={onChange}
+    />
+  );
+  // Over the drives map it needs a backdrop to stay readable.
+  return floating ? <Glass style={{ borderRadius: Radius.lg, padding: 4 }}>{control}</Glass> : control;
+}
+
+function StatsOverview({ toggle }: { toggle: ReactNode }) {
   const theme = useTheme();
   const router = useRouter();
   const history = useTrips((s) => s.history);
@@ -60,6 +85,7 @@ export default function StatsScreen() {
           )}
         </Pressable>
       </View>
+      {toggle}
 
       <Segmented
         options={[

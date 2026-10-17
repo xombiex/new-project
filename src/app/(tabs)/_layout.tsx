@@ -25,9 +25,9 @@ export default function TabLayout() {
         <NativeTabs.Trigger.Label hidden>Friends</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf={{ default: 'person.2', selected: 'person.2.fill' }} md="person" />
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="trips">
-        <NativeTabs.Trigger.Label hidden>Drives</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf={{ default: 'map', selected: 'map.fill' }} md="route" />
+      <NativeTabs.Trigger name="garage">
+        <NativeTabs.Trigger.Label hidden>Garage</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf={{ default: 'car.side', selected: 'car.side.fill' }} md="garage" />
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="stats">
         <NativeTabs.Trigger.Label hidden>Stats</NativeTabs.Trigger.Label>

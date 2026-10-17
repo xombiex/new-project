@@ -5,12 +5,14 @@ import { useCallback, useState } from 'react';
 import { Alert, Platform, Pressable, RefreshControl, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { OnlineDot } from '@/components/online-status';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar, Button, Card, EmptyState, Screen, SectionTitle, TextField } from '@/components/ui';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDistance, haversine } from '@/lib/geo';
 import { SITE_URL } from '@/lib/legal';
+import { isOnline, presenceLabel } from '@/lib/presence';
 import { formatAgo } from '@/lib/time';
 import { useAuth } from '@/store/auth';
 import { useFriends, type Friendship } from '@/store/friends';
@@ -27,7 +29,7 @@ export default function FriendsScreen() {
   const theme = useTheme();
   const router = useRouter();
   const profile = useAuth((s) => s.profile);
-  const { friendships, locations, shareUntil, loading, refresh, request, respond, remove, startSharing, stopSharing } =
+  const { friendships, locations, presence, shareUntil, loading, refresh, request, respond, remove, startSharing, stopSharing } =
     useFriends();
   const units = useSettings((s) => s.units);
   const last = useTrips((s) => s.lastSample);
@@ -183,13 +185,17 @@ export default function FriendsScreen() {
             {friends.map((f, i) => (
               <Pressable
                 key={f.other.id}
+                onPress={() => router.push({ pathname: '/friend/[id]', params: { id: f.other.id } })}
                 onLongPress={() => confirmRemove(f)}
                 style={[styles.person, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border }]}>
-                <Avatar name={f.other.display_name} color={f.other.avatar_color} />
+                <View>
+                  <Avatar name={f.other.display_name} color={f.other.avatar_color} />
+                  <OnlineDot lastSeen={presence[f.other.id]} />
+                </View>
                 <View style={{ flex: 1 }}>
                   <ThemedText style={{ fontWeight: 700 }}>{f.other.display_name}</ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-                    {friendDetail(f)}
+                  <ThemedText type="small" numberOfLines={1} style={{ color: isOnline(presence[f.other.id]) ? theme.success : theme.textSecondary }}>
+                    {[presenceLabel(presence[f.other.id]).text, friendDetail(f)].filter(Boolean).join(' · ')}
                   </ThemedText>
                 </View>
                 {locations[f.other.id] ? <MaterialCommunityIcons name="map-marker" size={20} color={theme.success} /> : null}

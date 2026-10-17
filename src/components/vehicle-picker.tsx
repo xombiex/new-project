@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 
-import { vehicleImage, vehicleSprite } from '@/components/map/vehicle-sprites';
+import { sideImage } from '@/components/map/vehicle-sprites';
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -27,8 +27,7 @@ export function VehiclePicker({
     <View style={{ gap: Spacing.three }}>
       <View style={styles.hero}>
         <View style={[styles.heroPad, { backgroundColor: theme.backgroundSelected }]}>
-          {/* Turned sideways, showroom style; sprites face up (that's how they ride on the map). */}
-          <Image source={vehicleImage(vehicleSprite(vehicle, paint))} style={styles.heroImg} resizeMode="contain" accessibilityIgnoresInvertColors />
+          <Image source={sideImage(vehicle, paint)} style={styles.heroImg} resizeMode="contain" accessibilityIgnoresInvertColors />
         </View>
         <ThemedText type="smallBold">{VEHICLES.find((v) => v.value === vehicle)?.label}</ThemedText>
       </View>
@@ -61,7 +60,7 @@ export function VehiclePicker({
               accessibilityState={{ selected }}
               style={[styles.tile, { backgroundColor: theme.backgroundElement, borderColor: selected ? theme.accent : 'transparent' }]}>
               <Image
-                source={vehicleImage(vehicleSprite(v.value, paint))}
+                source={sideImage(v.value, paint)}
                 style={[styles.tileImg, locked && { opacity: 0.45 }]}
                 resizeMode="contain"
                 accessibilityIgnoresInvertColors
@@ -80,13 +79,12 @@ export function VehiclePicker({
 
 const styles = StyleSheet.create({
   hero: { alignItems: 'center', gap: Spacing.two },
-  heroPad: { width: '100%', maxWidth: 340, height: 150, borderRadius: Radius.lg, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  // Sprites sit small inside a square (room to rotate on the map), so previews scale them up.
-  heroImg: { width: 300, height: 300, transform: [{ rotate: '90deg' }] },
+  heroPad: { width: '100%', maxWidth: 360, borderRadius: Radius.lg, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  heroImg: { width: '100%', aspectRatio: 2 },
   swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, justifyContent: 'center' },
   swatch: { width: 32, height: 32, borderRadius: 16, borderWidth: 3 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   tile: { width: '31%', flexGrow: 1, alignItems: 'center', borderRadius: Radius.md, borderWidth: 2, paddingBottom: Spacing.two, overflow: 'hidden' },
-  tileImg: { width: 104, height: 104, marginTop: -4, marginBottom: -8 },
+  tileImg: { width: '100%', aspectRatio: 2, marginTop: 2 },
   lock: { position: 'absolute', top: 8, right: 8 },
 });

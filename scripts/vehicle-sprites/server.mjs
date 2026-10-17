@@ -17,13 +17,15 @@ createServer((req, res) => {
   }
   if (req.method === 'POST' && url.pathname === '/save') {
     const name = url.searchParams.get('name') ?? '';
-    if (!/^[a-z]+-[a-z]+(@[23]x)?\.png$/.test(name)) return res.writeHead(400).end('bad name');
+    if (!/^(side-)?[a-z]+-[a-z]+(@[23]x)?\.(png|webp)$/.test(name)) return res.writeHead(400).end('bad name');
     const chunks = [];
     req.on('data', (c) => chunks.push(c));
     req.on('end', () => {
       writeFileSync(join(out, name), Buffer.concat(chunks));
       // The web map loads the @3x render from public/vehicles/<name>.png.
       if (name.endsWith('@3x.png')) writeFileSync(join(web, name.replace('@3x', '')), Buffer.concat(chunks));
+      // Garage showroom shots: the web loads the same file from public/vehicles.
+      if (name.startsWith('side-')) writeFileSync(join(web, name.replace('@2x', '')), Buffer.concat(chunks));
       res.writeHead(204).end();
     });
     return;

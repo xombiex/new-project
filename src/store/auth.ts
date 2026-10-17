@@ -12,6 +12,8 @@ export type Profile = {
   avatar_color: string;
   vehicle: Vehicle;
   vehicle_color: Paint;
+  /** Garage car shown on the map (its body/paint are mirrored into vehicle/vehicle_color) */
+  primary_car_id?: string | null;
 };
 
 type AuthState = {
@@ -56,7 +58,7 @@ export const useAuth = create<AuthState>()((set, get) => ({
     set({ profileLoading: true });
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, username, display_name, avatar_color, vehicle, vehicle_color')
+      .select('id, username, display_name, avatar_color, vehicle, vehicle_color, primary_car_id')
       .eq('id', uid)
       .maybeSingle();
     if (error) console.warn('Profile load failed', error.message);
@@ -71,7 +73,7 @@ export const useAuth = create<AuthState>()((set, get) => ({
     const { data, error } = await supabase
       .from('profiles')
       .upsert(row)
-      .select('id, username, display_name, avatar_color, vehicle, vehicle_color')
+      .select('id, username, display_name, avatar_color, vehicle, vehicle_color, primary_car_id')
       .single();
     if (error) {
       if (error.code === '23505') return 'That username is taken';

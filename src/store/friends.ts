@@ -27,6 +27,8 @@ export type FriendLocation = {
 type FriendsState = {
   friendships: Friendship[];
   locations: Record<string, FriendLocation>;
+  /** friend id → epoch ms last seen in the app (only friends who share it) */
+  presence: Record<string, number>;
   /** epoch ms until which my last-known location is visible to friends; null = not sharing */
   shareUntil: number | null;
   loading: boolean;
@@ -44,7 +46,7 @@ const UPLOAD_INTERVAL_MS = 60_000;
 let lastUpload = 0;
 let stopUploads: (() => void) | null = null;
 
-const PROFILE_COLS = 'id, username, display_name, avatar_color, vehicle, vehicle_color';
+const PROFILE_COLS = 'id, username, display_name, avatar_color, vehicle, vehicle_color, primary_car_id';
 
 async function myId() {
   const { data } = await supabase.auth.getSession();
@@ -90,6 +92,7 @@ export const useFriends = create<FriendsState>()((set, get) => {
   return {
     friendships: [],
     locations: {},
+    presence: {},
     shareUntil: null,
     loading: false,
 
@@ -118,8 +121,14 @@ export const useFriends = create<FriendsState>()((set, get) => {
         .select('user_id, lat, lng, heading, speed_mps, updated_at')
         .neq('user_id', uid);
       const until = mine?.share_until ? Date.parse(mine.share_until) : null;
+      // Online status: RLS returns rows only for friends (and only if they share it).
+      const friendIds = friendships.filter((f) => f.status === 'accepted').map((f) => f.other.id);
+      const { data: seen } = friendIds.length
+        ? await supabase.from('presence').select('user_id, last_seen_at').in('user_id', friendIds)
+        : { data: [] as { user_id: string; last_seen_at: string }[] };
       set({
         friendships,
+        presence: Object.fromEntries((seen ?? []).map((p) => [p.user_id, Date.parse(p.last_seen_at)])),
         locations: Object.fromEntries((locs ?? []).map((l) => [l.user_id, l])),
         shareUntil: until && until > Date.now() ? until : null,
         loading: false,

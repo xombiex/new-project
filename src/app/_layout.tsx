@@ -9,6 +9,7 @@ import { useEffect } from 'react';
 
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { startPresence } from '@/lib/presence';
 import { registerForPush, setDrivingCheck } from '@/lib/notifications';
 import { useAuth } from '@/store/auth';
 import { useClubs } from '@/store/clubs';
@@ -17,6 +18,7 @@ import { useFriends } from '@/store/friends';
 import { useNavigation } from '@/store/navigation';
 import { useNotificationSettings } from '@/store/notification-settings';
 import { usePro } from '@/store/pro';
+import { useSettings } from '@/store/settings';
 import { useTrips } from '@/store/trips';
 
 SplashScreen.preventAutoHideAsync();
@@ -42,6 +44,11 @@ export default function RootLayout() {
   useEffect(() => {
     if (ready && session && !profile && !profileLoading && segments[0] !== 'profile-setup') router.push('/profile-setup');
   }, [ready, session, profile, profileLoading, segments, router]);
+
+  // Online status for friends: a heartbeat while the app is open (if the user shares it).
+  const shareOnline = useSettings((s) => s.shareOnline);
+  const signedIn = Boolean(profile);
+  useEffect(() => (signedIn ? startPresence(shareOnline) : undefined), [signedIn, shareOnline]);
 
   // Purchases follow the Supabase account (RevenueCat app user id = Supabase user id).
   const userId = session?.user.id ?? null;
@@ -91,7 +98,8 @@ export default function RootLayout() {
         <Stack.Screen name="event/new" options={{ title: 'New event', presentation: 'modal' }} />
         <Stack.Screen name="event/[id]" options={{ title: 'Event' }} />
         <Stack.Screen name="gear" options={{ title: 'Driving gear' }} />
-        <Stack.Screen name="garage" options={{ title: 'Garage' }} />
+        <Stack.Screen name="car/[id]" options={{ presentation: 'modal', title: 'Car' }} />
+        <Stack.Screen name="friend/[id]" options={{ title: 'Friend' }} />
         <Stack.Screen name="stripe-return" options={{ headerShown: false }} />
         <Stack.Screen name="invite" options={{ title: 'Invite to drive', presentation: 'modal' }} />
         <Stack.Screen name="report" options={{ title: 'Report', presentation: 'formSheet', sheetAllowedDetents: [0.6, 1] }} />

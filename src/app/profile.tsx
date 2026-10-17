@@ -214,6 +214,20 @@ export default function ProfileScreen() {
       </Card>
 
       {session ? (
+        <Card>
+          <View style={styles.row}>
+            <View style={{ flex: 1 }}>
+              <ThemedText style={{ fontWeight: 700 }}>Show when I’m online</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                Friends see a green dot while you have Convoy open, and when you were last active.
+              </ThemedText>
+            </View>
+            <Switch value={settings.shareOnline} onValueChange={settings.setShareOnline} />
+          </View>
+        </Card>
+      ) : null}
+
+      {session ? (
         <>
           <SectionTitle>Notifications</SectionTitle>
           <Card style={{ gap: Spacing.three }}>

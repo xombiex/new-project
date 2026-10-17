@@ -9,11 +9,11 @@ import { useTheme } from '@/hooks/use-theme';
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 /** Same tabs as the native layout. NativeTabs on web can only show text labels, so the web gets its own icon bar. */
-const TABS: { name: string; href: '/' | '/convoy' | '/friends' | '/trips' | '/stats'; label: string; icon: IconName; iconFocused: IconName }[] = [
+const TABS: { name: string; href: '/' | '/convoy' | '/friends' | '/garage' | '/stats'; label: string; icon: IconName; iconFocused: IconName }[] = [
   { name: 'index', href: '/', label: 'Drive', icon: 'speedometer', iconFocused: 'speedometer' },
   { name: 'convoy', href: '/convoy', label: 'Convoy', icon: 'car-multiple', iconFocused: 'car-multiple' },
   { name: 'friends', href: '/friends', label: 'Friends', icon: 'account-multiple-outline', iconFocused: 'account-multiple' },
-  { name: 'trips', href: '/trips', label: 'Drives', icon: 'map-outline', iconFocused: 'map' },
+  { name: 'garage', href: '/garage', label: 'Garage', icon: 'garage-variant', iconFocused: 'garage-variant' },
   { name: 'stats', href: '/stats', label: 'Stats', icon: 'trophy-outline', iconFocused: 'trophy' },
 ];
 
