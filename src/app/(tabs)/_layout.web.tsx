@@ -2,6 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { TabList, TabSlot, TabTrigger, Tabs, type TabTriggerSlotProps } from 'expo-router/ui';
 import { type ComponentProps } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/hooks/use-theme';
 
@@ -18,10 +19,12 @@ const TABS: { name: string; href: '/' | '/convoy' | '/friends' | '/trips' | '/st
 
 export default function WebTabLayout() {
   const theme = useTheme();
+  // iPhone home indicator: keep the tabs above it, with the bar's color running underneath.
+  const insets = useSafeAreaInsets();
   return (
     <Tabs style={{ flex: 1, backgroundColor: theme.background }}>
       <TabSlot style={{ flex: 1 }} />
-      <TabList style={[styles.bar, { backgroundColor: theme.backgroundElement, borderTopColor: theme.backgroundSelected }]}>
+      <TabList style={[styles.bar, { backgroundColor: theme.backgroundElement, borderTopColor: theme.backgroundSelected, paddingBottom: Math.max(8, insets.bottom) }]}>
         {TABS.map((t) => (
           <TabTrigger key={t.name} name={t.name} href={t.href} asChild>
             <TabButton label={t.label} icon={t.icon} iconFocused={t.iconFocused} />

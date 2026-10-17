@@ -12,11 +12,20 @@ cpSync('web', 'dist', { recursive: true });
 const HEAD = [
   '<link rel="manifest" href="/manifest.webmanifest" />',
   '<link rel="apple-touch-icon" href="/apple-touch-icon.png" />',
-  '<meta name="theme-color" content="#000000" />',
+  '<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />',
+  '<meta name="theme-color" media="(prefers-color-scheme: light)" content="#F2F3F5" />',
   '<meta name="mobile-web-app-capable" content="yes" />',
   '<meta name="apple-mobile-web-app-capable" content="yes" />',
-  '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />',
+  '<meta name="apple-mobile-web-app-status-bar-style" content="black" />',
   '<meta name="apple-mobile-web-app-title" content="Convoy" />',
+  // Pin the app to the whole screen and paint behind it in the app's colors, so no strip of
+  // white shows at the edges; stop the page itself from rubber-banding or zooming on double tap.
+  `<style>
+    html, body { background: #F2F3F5; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+    @media (prefers-color-scheme: dark) { html, body { background: #000; } }
+    body { touch-action: manipulation; -webkit-text-size-adjust: 100%; }
+    #root { position: fixed; inset: 0; height: auto; }
+  </style>`,
 ].join('');
 const indexHtml = readFileSync('dist/index.html', 'utf8')
   // Let the app draw under the notch; safe-area insets keep content clear of it.

@@ -21,6 +21,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useSettings } from '@/store/settings';
 
 import { lineFeature, lineLayers } from './line-style';
+import { poiLayers, styleHasPlaces } from './poi-layers';
 import { useMapLook } from './use-map-look';
 import { useSteadyHeading } from './use-steady-heading';
 import { VEHICLE_IMAGES, VEHICLE_LAYOUT, vehicleSprite } from './vehicle-sprites';
@@ -40,7 +41,8 @@ export function ConvoyMap({
   fit,
   padding,
 }: ConvoyMapProps) {
-  const { styleUrl, glow } = useMapLook();
+  const { styleUrl, glow, scheme } = useMapLook();
+  const places = useMemo(() => (styleHasPlaces(styleUrl) ? [] : poiLayers(scheme === 'dark')), [styleUrl, scheme]);
   const theme = useTheme();
   const lastCoord = useSettings((s) => s.lastCoord);
   const camera = useRef<CameraRef>(null);
@@ -96,6 +98,21 @@ export function ConvoyMap({
         />
 
         <Images images={VEHICLE_IMAGES} />
+
+        {/* Nearby places from the base map's own data, under routes and cars. */}
+        {places.map((l) => (
+          <Layer
+            key={l.id}
+            id={l.id}
+            type="symbol"
+            source={l.source}
+            source-layer={l['source-layer']}
+            minzoom={l.minzoom}
+            filter={l.filter as never}
+            layout={l.layout as SymbolLayerSpecification['layout']}
+            paint={l.paint as SymbolLayerSpecification['paint']}
+          />
+        ))}
 
         {lines.map((line) => (
           <GeoJSONSource key={line.id} id={`line-${line.id}`} data={lineFeature(line)}>

@@ -114,7 +114,7 @@ export function vehicleImage(sprite: VehicleSprite): ImageSourcePropType {
 /** Symbol layout shared by native and web: rotate with the map so the nose points along the heading. */
 export const VEHICLE_LAYOUT: NonNullable<SymbolLayerSpecification['layout']> = {
   // Chunky up close, smaller when zoomed out to a city view.
-  'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.9, 15, 1.5, 18, 2.1],
+  'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.65, 15, 1.05, 18, 1.45],
   'icon-rotation-alignment': 'map',
   'icon-pitch-alignment': 'map',
   'icon-allow-overlap': true,

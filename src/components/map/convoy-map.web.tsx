@@ -10,6 +10,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useSettings } from '@/store/settings';
 
 import { lineFeature, lineLayers } from './line-style';
+import { poiLayers, styleHasPlaces } from './poi-layers';
 import { useMapLook } from './use-map-look';
 import { useSteadyHeading } from './use-steady-heading';
 import { VEHICLE_IMAGES, VEHICLE_LAYOUT, vehicleSprite } from './vehicle-sprites';
@@ -49,7 +50,7 @@ const point = (coord: [number, number], sprite: string, heading: number, opacity
  * the native map; follows the driver until they pan away.
  */
 export function ConvoyMap({ style, follow = false, me, lines = [], people = [], markers: pins = [], destination, fit, padding }: ConvoyMapProps) {
-  const { styleUrl, glow } = useMapLook();
+  const { styleUrl, glow, scheme } = useMapLook();
   const theme = useTheme();
   // A plain div: maplibre's CSS sets `position: relative` on its container, which would
   // override react-native-web's class-based absolute fill.
@@ -77,6 +78,8 @@ export function ConvoyMap({ style, follow = false, me, lines = [], people = [], 
     });
     m.on('load', () => {
       setLoaded(true);
+      // Nearby places first, so routes and cars draw on top of them.
+      if (!styleHasPlaces(styleUrl)) for (const l of poiLayers(scheme === 'dark')) if (!m.getLayer(l.id)) m.addLayer(l as never);
       addVehicleLayers(m);
       setVehiclesReady(true);
     });
