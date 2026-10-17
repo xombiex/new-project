@@ -10,6 +10,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { registerForPush, setDrivingCheck } from '@/lib/notifications';
 import { useAuth } from '@/store/auth';
+import { useClubs } from '@/store/clubs';
 import { useDrive } from '@/store/drive';
 import { useFriends } from '@/store/friends';
 import { useNavigation } from '@/store/navigation';
@@ -26,7 +27,7 @@ export default function RootLayout() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
-  const { ready, session, profile } = useAuth();
+  const { ready, session, profile, profileLoading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
@@ -38,8 +39,8 @@ export default function RootLayout() {
 
   // Signed-in users must pick a username before using social features.
   useEffect(() => {
-    if (ready && session && !profile && segments[0] !== 'profile-setup') router.push('/profile-setup');
-  }, [ready, session, profile, segments, router]);
+    if (ready && session && !profile && !profileLoading && segments[0] !== 'profile-setup') router.push('/profile-setup');
+  }, [ready, session, profile, profileLoading, segments, router]);
 
   // Purchases follow the Supabase account (RevenueCat app user id = Supabase user id).
   const userId = session?.user.id ?? null;
@@ -63,7 +64,9 @@ export default function RootLayout() {
     if (!profile) return;
     void registerForPush(profile.id);
     void useNotificationSettings.getState().load();
-    void useTrips.getState().syncPending();
+    // Signing in on a new device (or the web app) brings your saved drives with you.
+    void useTrips.getState().syncPending().then(() => useTrips.getState().pullFromCloud());
+    void useClubs.getState().loadMine();
     void useFriends.getState().refresh();
     void useDrive.getState().resume();
   }, [profile]);

@@ -18,6 +18,8 @@ type AuthState = {
   ready: boolean;
   session: Session | null;
   profile: Profile | null;
+  /** true while the signed-in user's profile is being fetched */
+  profileLoading: boolean;
   init: () => () => void;
   loadProfile: () => Promise<void>;
   saveProfile: (p: Pick<Profile, 'username' | 'display_name' | 'avatar_color' | 'vehicle' | 'vehicle_color'>) => Promise<string | null>;
@@ -28,6 +30,7 @@ export const useAuth = create<AuthState>()((set, get) => ({
   ready: false,
   session: null,
   profile: null,
+  profileLoading: false,
 
   init: () => {
     supabase.auth.getSession().then(async ({ data }) => {
@@ -39,7 +42,10 @@ export const useAuth = create<AuthState>()((set, get) => ({
       const changedUser = session?.user.id !== get().session?.user.id;
       set({ session });
       if (!session) set({ profile: null });
-      else if (changedUser) void get().loadProfile();
+      else if (changedUser) {
+        set({ profileLoading: true });
+        void get().loadProfile();
+      }
     });
     return () => data.subscription.unsubscribe();
   },
@@ -47,13 +53,14 @@ export const useAuth = create<AuthState>()((set, get) => ({
   loadProfile: async () => {
     const uid = get().session?.user.id;
     if (!uid) return;
+    set({ profileLoading: true });
     const { data, error } = await supabase
       .from('profiles')
       .select('id, username, display_name, avatar_color, vehicle, vehicle_color')
       .eq('id', uid)
       .maybeSingle();
     if (error) console.warn('Profile load failed', error.message);
-    set({ profile: data ?? null });
+    set({ profile: data ?? null, profileLoading: false });
   },
 
   /** Returns an error message, or null on success. */

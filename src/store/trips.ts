@@ -36,6 +36,7 @@ type TripsState = {
   rename: (id: string, name: string, notes?: string | null) => void;
   remove: (id: string) => void;
   syncPending: () => Promise<void>;
+  pullFromCloud: () => Promise<void>;
 };
 
 /** Trips shorter than this are almost always accidental taps. */
@@ -98,6 +99,38 @@ export const useTrips = create<TripsState>()(
         const trip = get().history.find((t) => t.id === id);
         set({ history: get().history.filter((t) => t.id !== id) });
         if (trip?.synced) void supabase.from('trips').delete().eq('id', id);
+      },
+
+      /** Merge the account's cloud history into this device (new devices, the web app). */
+      pullFromCloud: async () => {
+        const { data: auth } = await supabase.auth.getSession();
+        if (!auth.session) return;
+        const { data, error } = await supabase
+          .from('trips')
+          .select('id, name, notes, started_at, ended_at, distance_m, moving_s, max_speed_mps, path')
+          .eq('user_id', auth.session.user.id)
+          .order('started_at', { ascending: false })
+          .limit(1000);
+        if (error || !data) {
+          if (error) console.warn('Trip download failed', error.message);
+          return;
+        }
+        const have = new Set(get().history.map((t) => t.id));
+        const incoming: SavedTrip[] = data
+          .filter((r) => !have.has(r.id))
+          .map((r) => ({
+            id: r.id,
+            name: r.name,
+            notes: r.notes,
+            startedAt: Date.parse(r.started_at),
+            endedAt: Date.parse(r.ended_at),
+            distanceM: r.distance_m,
+            movingS: r.moving_s,
+            maxSpeedMps: r.max_speed_mps,
+            path: r.path ?? [],
+            synced: true,
+          }));
+        if (incoming.length) set({ history: [...get().history, ...incoming].sort((a, b) => b.startedAt - a.startedAt) });
       },
 
       /** Upload unsynced trips when signed in. Safe to call repeatedly; failures retry next time. */

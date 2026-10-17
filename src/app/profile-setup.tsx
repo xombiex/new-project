@@ -8,6 +8,7 @@ import { Avatar, Button, TextField } from '@/components/ui';
 import { AvatarColors, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { VehiclePicker } from '@/components/vehicle-picker';
+import { goToMap } from '@/lib/go-to-map';
 import type { Paint, Vehicle } from '@/lib/vehicles';
 import { useAuth } from '@/store/auth';
 
@@ -15,6 +16,7 @@ export default function ProfileSetupScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { profile, saveProfile, signOut } = useAuth();
+  const [isNew] = useState(!profile);
   const [username, setUsername] = useState(profile?.username ?? '');
   const [displayName, setDisplayName] = useState(profile?.display_name ?? '');
   const [color, setColor] = useState(profile?.avatar_color ?? AvatarColors[0]);
@@ -28,6 +30,8 @@ export default function ProfileSetupScreen() {
     const err = await saveProfile({ username, display_name: displayName, avatar_color: color, vehicle, vehicle_color: paint });
     setBusy(false);
     if (err) setError(err);
+    // First-time setup ends on the map; editing an existing profile goes back to where you were.
+    else if (isNew) goToMap(router);
     else router.back();
   }
 
@@ -100,7 +104,7 @@ export default function ProfileSetupScreen() {
           variant="ghost"
           onPress={async () => {
             await signOut();
-            router.back();
+            goToMap(router);
           }}
         />
       ) : null}

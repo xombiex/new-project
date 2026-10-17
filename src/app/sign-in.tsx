@@ -8,6 +8,7 @@ import { Button, Segmented, TextField } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { SITE_URL } from '@/lib/legal';
+import { goToMap } from '@/lib/go-to-map';
 import { supabase } from '@/lib/supabase';
 
 export default function SignInScreen() {
@@ -40,7 +41,9 @@ export default function SignInScreen() {
       setMode('in');
       return;
     }
-    router.back();
+    // Signed in (or signed up with instant access): straight to the map. New accounts get the
+    // profile setup on top of it from the root layout.
+    goToMap(router);
   }
 
   return (
