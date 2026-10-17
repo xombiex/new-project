@@ -61,7 +61,7 @@ const point = (coord: [number, number], sprite: string, heading: number, opacity
  * the native map; follows the driver until they pan away.
  */
 export function ConvoyMap({ style, follow = false, me, cameras = [], tilt3d = false, lines = [], people = [], markers: pins = [], destination, fit, padding }: ConvoyMapProps) {
-  const { styleUrl, glow, scheme } = useMapLook();
+  const { styleUrl, style: mapStyle, variant, glow, scheme } = useMapLook();
   const theme = useTheme();
   // A plain div: maplibre's CSS sets `position: relative` on its container, which would
   // override react-native-web's class-based absolute fill.
@@ -86,7 +86,7 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], tilt3d = fa
   useEffect(() => {
     const m = new MLMap({
       container: container.current!,
-      style: styleUrl,
+      style: mapStyle,
       // Open where the driver was last seen; the first GPS fix takes over from there.
       center: useSettings.getState().lastCoord ?? [-98, 39],
       zoom: useSettings.getState().lastCoord ? 14 : 3,
@@ -97,7 +97,7 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], tilt3d = fa
       // Nearby places first, so routes and cars draw on top of them.
       if (!styleHasPlaces(styleUrl)) for (const l of poiLayers(scheme === 'dark')) if (!m.getLayer(l.id)) m.addLayer(l as never);
       // Raised buildings sit under cameras and cars; hidden unless the 3D view is on.
-      if (!m.getLayer('convoy-buildings-3d')) m.addLayer(buildingsLayer(scheme === 'dark') as never);
+      if (!m.getLayer('convoy-buildings-3d')) m.addLayer(buildingsLayer(scheme === 'dark', variant) as never);
       m.setLayoutProperty('convoy-buildings-3d', 'visibility', tilt3dRef.current ? 'visible' : 'none');
       addCameraLayer(m);
       addVehicleLayers(m);
@@ -106,6 +106,11 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], tilt3d = fa
     // 81 model × paint sprites: load each one only when a car on screen needs it. The @3x renders
     // live in public/vehicles so they stay sharp on high-density screens.
     m.on('styleimagemissing', ({ id }) => {
+      if (id.startsWith('blk-')) {
+        // Blocks theme textures (fill/line patterns), @3x pixel art from public/themes.
+        void m.loadImage(`/themes/blocks/${id.slice(4)}.png`).then((img) => !m.hasImage(id) && m.addImage(id, img.data, { pixelRatio: 3 }));
+        return;
+      }
       if (!id.startsWith('vehicle-') || !(id in VEHICLE_IMAGES)) return;
       void m.loadImage(`/vehicles/${id.replace('vehicle-', '')}.png`).then((img) => {
         if (!m.hasImage(id)) m.addImage(id, img.data, { pixelRatio: 3 });
@@ -130,7 +135,7 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], tilt3d = fa
       added.current = [];
       markers.current = [];
     };
-  }, [styleUrl]);
+  }, [mapStyle]);
 
   useEffect(() => {
     const m = map.current;

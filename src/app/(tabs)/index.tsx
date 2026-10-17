@@ -10,6 +10,7 @@ import { SpeedLimitSign } from '@/components/drive/speed-limit-sign';
 import { Glass } from '@/components/glass';
 import { LocationPrompt } from '@/components/location-prompt';
 import { ConvoyMap, type MapLine, type MapMarker, type MapPerson } from '@/components/map/convoy-map';
+import { useMapLook } from '@/components/map/use-map-look';
 import { Speedometer } from '@/components/speedometer';
 import { ThemedText } from '@/components/themed-text';
 import { Button, Stat } from '@/components/ui';
@@ -73,6 +74,7 @@ export default function DriveScreen() {
   const speedCameraAlerts = useSettings((s) => s.speedCameraAlerts);
   const showAlprCameras = useSettings((s) => s.showAlprCameras);
   const map3d = useSettings((s) => s.map3d);
+  const themeVariant = useMapLook().variant;
   const cameras = useMemo(
     () => allCameras.filter((c) => (c.kind === 'speed' ? speedCameraAlerts : showAlprCameras)),
     [allCameras, speedCameraAlerts, showAlprCameras]
@@ -332,7 +334,7 @@ export default function DriveScreen() {
 
             {speedLimit ? (
         <View style={[styles.limit, { bottom: panelHeight + BottomTabInset + Spacing.three }]} pointerEvents="none">
-          <SpeedLimitSign limit={speedLimit} units={units} speedMps={stale ? null : (lastSample?.speed ?? null)} />
+          <SpeedLimitSign limit={speedLimit} units={units} speedMps={stale ? null : (lastSample?.speed ?? null)} variant={themeVariant} />
         </View>
       ) : null}
 

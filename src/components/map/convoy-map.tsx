@@ -27,7 +27,7 @@ import { useMapLook } from './use-map-look';
 import { useSteadyHeading } from './use-steady-heading';
 import { buildingsLayer, TILT_3D } from './buildings';
 import { cameraFeatures } from './camera-features';
-import { CAMERA_IMAGES, CAMERA_LAYOUT, VEHICLE_IMAGES, VEHICLE_LAYOUT, vehicleSprite } from './vehicle-sprites';
+import { BLOCK_IMAGES, CAMERA_IMAGES, CAMERA_LAYOUT, VEHICLE_IMAGES, VEHICLE_LAYOUT, vehicleSprite } from './vehicle-sprites';
 import type { ConvoyMapProps } from './types';
 
 export type { ConvoyMapProps, MapLine, MapMarker, MapPerson } from './types';
@@ -46,7 +46,7 @@ export function ConvoyMap({
   fit,
   padding,
 }: ConvoyMapProps) {
-  const { styleUrl, glow, scheme } = useMapLook();
+  const { styleUrl, style: mapStyle, variant, glow, scheme } = useMapLook();
   const places = useMemo(() => (styleHasPlaces(styleUrl) ? [] : poiLayers(scheme === 'dark')), [styleUrl, scheme]);
   const theme = useTheme();
   const lastCoord = useSettings((s) => s.lastCoord);
@@ -90,7 +90,8 @@ export function ConvoyMap({
     <View style={[styles.container, style]}>
       <Map
         style={StyleSheet.absoluteFill}
-        mapStyle={styleUrl}
+        // The JSON for built themes uses maplibre-gl's copy of the style-spec types; same shape.
+        mapStyle={mapStyle as never}
         compass={false}
         logo={false}
         attribution
@@ -105,7 +106,7 @@ export function ConvoyMap({
           onTrackUserLocationChange={(e) => setTracking(e.nativeEvent.trackUserLocation ?? undefined)}
         />
 
-        <Images images={{ ...VEHICLE_IMAGES, ...CAMERA_IMAGES }} />
+        <Images images={{ ...VEHICLE_IMAGES, ...CAMERA_IMAGES, ...BLOCK_IMAGES }} />
 
         {tilt3d ? (
           <Layer
@@ -114,7 +115,7 @@ export function ConvoyMap({
             source="openmaptiles"
             source-layer="building"
             minzoom={15}
-            paint={buildingsLayer(scheme === 'dark').paint as FillExtrusionLayerSpecification['paint']}
+            paint={buildingsLayer(scheme === 'dark', variant).paint as FillExtrusionLayerSpecification['paint']}
           />
         ) : null}
 

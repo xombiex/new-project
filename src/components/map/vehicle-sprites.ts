@@ -111,6 +111,16 @@ export function vehicleImage(sprite: VehicleSprite): ImageSourcePropType {
   return Platform.OS === 'web' ? { uri: `/vehicles/${sprite.replace('vehicle-', '')}.png` } : VEHICLE_IMAGES[sprite];
 }
 
+/** "Blocks" theme textures, used as fill/line patterns (see lib/blocks-theme). */
+export const BLOCK_IMAGES = {
+  'blk-grass': require('../../../assets/themes/blocks/grass.png'),
+  'blk-concrete': require('../../../assets/themes/blocks/concrete.png'),
+  'blk-metal': require('../../../assets/themes/blocks/metal.png'),
+  'blk-water': require('../../../assets/themes/blocks/water.png'),
+  'blk-sand': require('../../../assets/themes/blocks/sand.png'),
+  'blk-dirt': require('../../../assets/themes/blocks/dirt.png'),
+} as const;
+
 /** Map icons for cameras (speed = orange, license-plate reader = purple). */
 export const CAMERA_IMAGES = {
   'cam-speed': require('../../../assets/cameras/speed.png'),
