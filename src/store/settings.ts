@@ -24,6 +24,18 @@ type SettingsState = {
   reportAlerts: boolean;
   /** Let friends see when I'm in the app */
   shareOnline: boolean;
+  /** Speed cameras on the map + heads-up when approaching one */
+  speedCameraAlerts: boolean;
+  setSpeedCameraAlerts: (on: boolean) => void;
+  /** License-plate (Flock/ALPR) cameras on the map + heads-up */
+  showAlprCameras: boolean;
+  setShowAlprCameras: (on: boolean) => void;
+  /** Prefer routes that pass the fewest license-plate cameras */
+  avoidAlprCameras: boolean;
+  setAvoidAlprCameras: (on: boolean) => void;
+  /** Tilted 3D view with raised buildings when zoomed in */
+  map3d: boolean;
+  setMap3d: (on: boolean) => void;
   setShareOnline: (on: boolean) => void;
   /** start/stop recording automatically when driving is detected */
   autoDetect: boolean;
@@ -41,16 +53,27 @@ type SettingsState = {
 /** Countries that post speeds in mph (US and territories, UK, a few others). Everyone else: km/h. */
 const MPH_REGIONS = new Set(['US', 'GB', 'LR', 'PR', 'VI', 'GU', 'AS', 'MP', 'UM', 'BS', 'BZ', 'KY', 'VG', 'AG', 'DM', 'GD', 'KN', 'LC', 'VC', 'MS', 'AI', 'TC', 'FK', 'SH', 'IM', 'JE', 'GG']);
 
-/** First-launch default only; a saved choice always wins (persist restores it over this). */
-function regionUnits(): Units {
+/** The phone's region (e.g. "US"), or null when the locale doesn't say. */
+function deviceRegion(): string | null {
   try {
     const locale = Intl.DateTimeFormat().resolvedOptions().locale;
-    const region = /[-_]([A-Z]{2})(?:[-_]|$)/.exec(locale)?.[1];
-    return region && !MPH_REGIONS.has(region) ? 'metric' : 'imperial';
+    return /[-_]([A-Z]{2})(?:[-_]|$)/.exec(locale)?.[1] ?? null;
   } catch {
-    return 'imperial';
+    return null;
   }
 }
+
+/** First-launch default only; a saved choice always wins (persist restores it over this). */
+function regionUnits(): Units {
+  const region = deviceRegion();
+  return region && !MPH_REGIONS.has(region) ? 'metric' : 'imperial';
+}
+
+/**
+ * Speed camera warnings are illegal to use while driving in a few countries (e.g. Germany and
+ * Switzerland), so they start off there. People can still turn them on; the Terms cover it.
+ */
+const CAMERA_ALERTS_OFF = new Set(['DE', 'CH', 'AT']);
 
 export const useSettings = create<SettingsState>()(
   persist(
@@ -65,6 +88,14 @@ export const useSettings = create<SettingsState>()(
       privacyZones: [],
       reportAlerts: true,
       shareOnline: true,
+      speedCameraAlerts: !CAMERA_ALERTS_OFF.has(deviceRegion() ?? ''),
+      setSpeedCameraAlerts: (speedCameraAlerts) => set({ speedCameraAlerts }),
+      showAlprCameras: true,
+      setShowAlprCameras: (showAlprCameras) => set({ showAlprCameras }),
+      avoidAlprCameras: false,
+      setAvoidAlprCameras: (avoidAlprCameras) => set({ avoidAlprCameras }),
+      map3d: true,
+      setMap3d: (map3d) => set({ map3d }),
       setShareOnline: (shareOnline) => set({ shareOnline }),
       autoDetect: false,
       setUnits: (units) => set({ units }),

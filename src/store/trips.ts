@@ -3,9 +3,14 @@ import * as Crypto from 'expo-crypto';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import { simplifyPath, type LngLat } from '@/lib/geo';
+import { type LngLat, simplifyIndices } from '@/lib/geo';
+import { keepSpeedChanges } from '@/lib/speed-bands';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/store/auth';
+import { useGarage } from '@/store/garage';
 import { addSample, startTrip, type LocationSample, type TripState } from '@/lib/trip-recorder';
+
+export type TripCar = { label: string; body: string; paint: string };
 
 export type SavedTrip = {
   id: string;
@@ -17,6 +22,13 @@ export type SavedTrip = {
   movingS: number;
   maxSpeedMps: number;
   path: LngLat[];
+  /** m/s per path point; missing on drives recorded before speed coloring existed */
+  speeds?: number[];
+  /** seconds in each 10 km/h bucket (see lib/speed-bands) */
+  speedHist?: number[];
+  /** the garage car it was driven in, as it was named at the time */
+  car?: TripCar | null;
+  role?: 'driver' | 'passenger';
   /** true once uploaded to the user's cloud history */
   synced: boolean;
 };
@@ -36,11 +48,21 @@ type TripsState = {
   rename: (id: string, name: string, notes?: string | null) => void;
   remove: (id: string) => void;
   syncPending: () => Promise<void>;
+  setRole: (id: string, role: 'driver' | 'passenger') => void;
   pullFromCloud: () => Promise<void>;
 };
 
 /** Trips shorter than this are almost always accidental taps. */
 const MIN_TRIP_M = 50;
+
+/** Snapshot of the garage car on the map, so the trip remembers what it was driven in. */
+function tripCar(): TripCar | null {
+  const profile = useAuth.getState().profile;
+  if (!profile) return null;
+  const car = useGarage.getState().cars.find((c) => c.id === profile.primary_car_id);
+  if (car) return { label: [car.year, car.make, car.model].filter(Boolean).join(' '), body: car.body, paint: car.paint };
+  return null;
+}
 
 export const useTrips = create<TripsState>()(
   persist(
@@ -76,7 +98,15 @@ export const useTrips = create<TripsState>()(
           distanceM: active.distanceM,
           movingS: Math.round(active.movingS),
           maxSpeedMps: active.maxSpeedMps,
-          path: simplifyPath(active.path),
+          // Simplify the route but keep each kept point's speed alongside it.
+          ...(() => {
+            const hasSpeeds = active.speeds?.length === active.path.length;
+            const keep = hasSpeeds ? keepSpeedChanges(simplifyIndices(active.path), active.speeds) : simplifyIndices(active.path);
+            return { path: keep.map((i) => active.path[i]), speeds: hasSpeeds ? keep.map((i) => Math.round(active.speeds[i] * 10) / 10) : undefined };
+          })(),
+          speedHist: active.speedHist?.map((s) => Math.round(s)),
+          car: tripCar(),
+          role: 'driver',
           synced: false,
         };
         set({ history: [trip, ...get().history] });
@@ -85,6 +115,11 @@ export const useTrips = create<TripsState>()(
       },
 
       discard: () => set({ active: null, activeAuto: false }),
+
+      setRole: (id, role) => {
+        set({ history: get().history.map((t) => (t.id === id ? { ...t, role, synced: false } : t)) });
+        void get().syncPending();
+      },
 
       rename: (id, name, notes) => {
         set({
@@ -107,7 +142,7 @@ export const useTrips = create<TripsState>()(
         if (!auth.session) return;
         const { data, error } = await supabase
           .from('trips')
-          .select('id, name, notes, started_at, ended_at, distance_m, moving_s, max_speed_mps, path')
+          .select('id, name, notes, started_at, ended_at, distance_m, moving_s, max_speed_mps, path, speeds, speed_hist, car_label, car_body, car_paint, role')
           .eq('user_id', auth.session.user.id)
           .order('started_at', { ascending: false })
           .limit(1000);
@@ -128,6 +163,10 @@ export const useTrips = create<TripsState>()(
             movingS: r.moving_s,
             maxSpeedMps: r.max_speed_mps,
             path: r.path ?? [],
+            speeds: r.speeds ?? undefined,
+            speedHist: r.speed_hist ?? undefined,
+            car: r.car_label ? { label: r.car_label, body: r.car_body ?? 'car', paint: r.car_paint ?? 'blue' } : null,
+            role: r.role === 'passenger' ? 'passenger' : 'driver',
             synced: true,
           }));
         if (incoming.length) set({ history: [...get().history, ...incoming].sort((a, b) => b.startedAt - a.startedAt) });
@@ -150,6 +189,12 @@ export const useTrips = create<TripsState>()(
             moving_s: t.movingS,
             max_speed_mps: t.maxSpeedMps,
             path: t.path,
+            speeds: t.speeds ?? null,
+            speed_hist: t.speedHist ?? null,
+            car_label: t.car?.label ?? null,
+            car_body: t.car?.body ?? null,
+            car_paint: t.car?.paint ?? null,
+            role: t.role ?? 'driver',
           }))
         );
         if (error) {

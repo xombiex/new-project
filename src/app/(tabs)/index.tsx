@@ -25,6 +25,7 @@ import { formatAgo } from '@/lib/time';
 import { averageSpeedMps } from '@/lib/trip-recorder';
 import { vehicleIcon } from '@/lib/vehicles';
 import { useAuth } from '@/store/auth';
+import { useCameras } from '@/store/cameras';
 import { useDrive } from '@/store/drive';
 import { useNav } from '@/store/nav';
 import { useNavigation } from '@/store/navigation';
@@ -67,6 +68,15 @@ export default function DriveScreen() {
   const navProgress = useNavigation((s) => s.progress);
   const navDestination = useNavigation((s) => s.destination);
   const reports = useReports((s) => s.reports);
+  const allCameras = useCameras((s) => s.cameras);
+  const cameraAheadNow = useCameras((s) => s.ahead);
+  const speedCameraAlerts = useSettings((s) => s.speedCameraAlerts);
+  const showAlprCameras = useSettings((s) => s.showAlprCameras);
+  const map3d = useSettings((s) => s.map3d);
+  const cameras = useMemo(
+    () => allCameras.filter((c) => (c.kind === 'speed' ? speedCameraAlerts : showAlprCameras)),
+    [allCameras, speedCameraAlerts, showAlprCameras]
+  );
   const drive = useDrive((s) => s.drive);
   const members = useDrive((s) => s.members);
   const myId = useAuth((s) => s.session?.user.id);
@@ -211,6 +221,8 @@ export default function DriveScreen() {
       <ConvoyMap
         style={StyleSheet.absoluteFill}
         follow
+        cameras={cameras}
+        tilt3d={map3d}
         me={lastSample ? { coord: [lastSample.lng, lastSample.lat], heading: lastSample.heading, vehicle: myVehicle, paint: myPaint } : null}
         lines={lines}
         people={people}
@@ -251,6 +263,11 @@ export default function DriveScreen() {
                         <ThemedText type="smallBold" style={{ color: i === nav.selected ? theme.accentText : theme.text }}>
                           {formatDuration(r.durationS)}
                         </ThemedText>
+                        {r.cameras && showAlprCameras ? (
+                          <ThemedText type="small" style={{ color: i === nav.selected ? theme.accentText : theme.textSecondary }}>
+                            {r.cameras.alpr === 0 ? 'No plate cams' : `${r.cameras.alpr} plate cam${r.cameras.alpr === 1 ? '' : 's'}`}
+                          </ThemedText>
+                        ) : null}
                       </Pressable>
                     ))}
                   </View>
@@ -299,7 +316,21 @@ export default function DriveScreen() {
 
       <LocationPrompt />
 
-      {speedLimit ? (
+      {cameraAheadNow ? (
+        <View style={[styles.cameraBanner, { top: insets.top + (navigating ? 150 : 80) }]} pointerEvents="none">
+          <View style={[styles.cameraPill, { backgroundColor: cameraAheadNow.camera.kind === 'speed' ? '#FF8A00' : '#8E5CFF' }]}>
+            <MaterialCommunityIcons name="cctv" size={18} color="#fff" />
+            <ThemedText style={styles.cameraText}>
+              {cameraAheadNow.camera.kind === 'speed'
+                ? `Speed camera${cameraAheadNow.camera.maxspeed ? ` · ${cameraAheadNow.camera.maxspeed}` : ''}`
+                : cameraAheadNow.camera.operator ?? 'License plate camera'}{' '}
+              · {formatDistance(units, cameraAheadNow.distanceM)}
+            </ThemedText>
+          </View>
+        </View>
+      ) : null}
+
+            {speedLimit ? (
         <View style={[styles.limit, { bottom: panelHeight + BottomTabInset + Spacing.three }]} pointerEvents="none">
           <SpeedLimitSign limit={speedLimit} units={units} speedMps={stale ? null : (lastSample?.speed ?? null)} />
         </View>
@@ -388,6 +419,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
   },
   limit: { position: 'absolute', left: Spacing.three },
+  cameraBanner: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
+  cameraPill: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: 999, borderWidth: 2, borderColor: '#fff' },
+  cameraText: { color: '#fff', fontWeight: 800 },
   reportBtn: {
     position: 'absolute',
     right: Spacing.three,

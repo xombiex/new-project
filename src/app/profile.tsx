@@ -213,6 +213,49 @@ export default function ProfileScreen() {
         </View>
       </Card>
 
+      <SectionTitle>Cameras</SectionTitle>
+      <Card style={{ gap: Spacing.three }}>
+        <View style={styles.row}>
+          <View style={{ flex: 1 }}>
+            <ThemedText style={{ fontWeight: 700 }}>Speed cameras</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              Show them on the map and get a heads-up before you reach one. Worldwide, from OpenStreetMap. Some countries don’t allow camera warnings while driving, so check your local rules.
+            </ThemedText>
+          </View>
+          <Switch value={settings.speedCameraAlerts} onValueChange={settings.setSpeedCameraAlerts} />
+        </View>
+        <View style={styles.row}>
+          <View style={{ flex: 1 }}>
+            <ThemedText style={{ fontWeight: 700 }}>License plate cameras</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              Flock and other plate readers mapped by the DeFlock community.
+            </ThemedText>
+          </View>
+          <Switch value={settings.showAlprCameras} onValueChange={settings.setShowAlprCameras} />
+        </View>
+        <View style={styles.row}>
+          <View style={{ flex: 1 }}>
+            <ThemedText style={{ fontWeight: 700 }}>Avoid plate cameras when routing</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              Picks the route option that passes the fewest. It may be slower, and it can only choose among the routes found.
+            </ThemedText>
+          </View>
+          <Switch value={settings.avoidAlprCameras} onValueChange={settings.setAvoidAlprCameras} />
+        </View>
+      </Card>
+
+      <Card>
+        <View style={styles.row}>
+          <View style={{ flex: 1 }}>
+            <ThemedText style={{ fontWeight: 700 }}>3D map</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              Tilts the map and raises buildings when you zoom in.
+            </ThemedText>
+          </View>
+          <Switch value={settings.map3d} onValueChange={settings.setMap3d} />
+        </View>
+      </Card>
+
       {session ? (
         <Card>
           <View style={styles.row}>

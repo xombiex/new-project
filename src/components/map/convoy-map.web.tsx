@@ -13,7 +13,9 @@ import { lineFeature, lineLayers } from './line-style';
 import { poiLayers, styleHasPlaces } from './poi-layers';
 import { useMapLook } from './use-map-look';
 import { useSteadyHeading } from './use-steady-heading';
-import { VEHICLE_IMAGES, VEHICLE_LAYOUT, vehicleSprite } from './vehicle-sprites';
+import { buildingsLayer, TILT_3D } from './buildings';
+import { cameraFeatures } from './camera-features';
+import { CAMERA_LAYOUT, VEHICLE_IMAGES, VEHICLE_LAYOUT, vehicleSprite } from './vehicle-sprites';
 import type { ConvoyMapProps } from './types';
 
 export type { ConvoyMapProps, MapLine, MapMarker, MapPerson } from './types';
@@ -24,6 +26,15 @@ setWorkerUrl('/maplibre-gl-worker.mjs');
 const EMPTY = { type: 'FeatureCollection' as const, features: [] };
 
 /** Symbol layers that draw vehicle sprites. Re-run after every style (re)load. */
+function addCameraLayer(m: MLMap) {
+  for (const kind of ['speed', 'alpr']) {
+    const id = `cam-${kind}`;
+    if (!m.hasImage(id)) void m.loadImage(`/cameras/${kind}.png`).then((img) => !m.hasImage(id) && m.addImage(id, img.data, { pixelRatio: 3 }));
+  }
+  if (!m.getSource('cameras')) m.addSource('cameras', { type: 'geojson', data: EMPTY });
+  if (!m.getLayer('cameras')) m.addLayer({ id: 'cameras', type: 'symbol', source: 'cameras', minzoom: 11, layout: CAMERA_LAYOUT as any });
+}
+
 function addVehicleLayers(m: MLMap) {
   for (const id of ['people', 'me']) {
     if (!m.getSource(id)) m.addSource(id, { type: 'geojson', data: EMPTY });
@@ -49,7 +60,7 @@ const point = (coord: [number, number], sprite: string, heading: number, opacity
  * Browser build of the map (maplibre-gl JS). Same tiles, line styles and 3D vehicle sprites as
  * the native map; follows the driver until they pan away.
  */
-export function ConvoyMap({ style, follow = false, me, lines = [], people = [], markers: pins = [], destination, fit, padding }: ConvoyMapProps) {
+export function ConvoyMap({ style, follow = false, me, cameras = [], tilt3d = false, lines = [], people = [], markers: pins = [], destination, fit, padding }: ConvoyMapProps) {
   const { styleUrl, glow, scheme } = useMapLook();
   const theme = useTheme();
   // A plain div: maplibre's CSS sets `position: relative` on its container, which would
@@ -64,6 +75,11 @@ export function ConvoyMap({ style, follow = false, me, lines = [], people = [], 
   const [followingUi, setFollowingUi] = useState(follow);
   const meRef = useRef(me);
   meRef.current = me;
+  const tilt3dRef = useRef(tilt3d);
+  tilt3dRef.current = tilt3d;
+  /** Where the car is drawn right now (it glides toward each new fix). */
+  const shown = useRef<{ coord: [number, number]; heading: number } | null>(null);
+  const glide = useRef<number | null>(null);
   const centeredOnce = useRef(false);
   const myHeading = useSteadyHeading(me?.heading);
 
@@ -80,6 +96,10 @@ export function ConvoyMap({ style, follow = false, me, lines = [], people = [], 
       setLoaded(true);
       // Nearby places first, so routes and cars draw on top of them.
       if (!styleHasPlaces(styleUrl)) for (const l of poiLayers(scheme === 'dark')) if (!m.getLayer(l.id)) m.addLayer(l as never);
+      // Raised buildings sit under cameras and cars; hidden unless the 3D view is on.
+      if (!m.getLayer('convoy-buildings-3d')) m.addLayer(buildingsLayer(scheme === 'dark') as never);
+      m.setLayoutProperty('convoy-buildings-3d', 'visibility', tilt3dRef.current ? 'visible' : 'none');
+      addCameraLayer(m);
       addVehicleLayers(m);
       setVehiclesReady(true);
     });
@@ -196,6 +216,12 @@ export function ConvoyMap({ style, follow = false, me, lines = [], people = [], 
     if (destination) markers.current.push(new Marker({ color: theme.danger }).setLngLat(destination).addTo(m));
   }, [loaded, people, pins, destination, theme.danger]);
 
+  useEffect(() => {
+    const m = map.current;
+    if (!vehiclesReady || !m) return;
+    (m.getSource('cameras') as GeoJSONSource | undefined)?.setData(cameraFeatures(cameras));
+  }, [vehiclesReady, cameras]);
+
   // Vehicle sprites: other drivers and me.
   useEffect(() => {
     const m = map.current;
@@ -204,10 +230,46 @@ export function ConvoyMap({ style, follow = false, me, lines = [], people = [], 
       type: 'FeatureCollection',
       features: people.map((p) => point(p.coord, vehicleSprite(p.vehicle, p.paint), p.heading ?? 0, p.stale ? 0.45 : 1)),
     });
-    (m.getSource('me') as GeoJSONSource | undefined)?.setData(
-      me ? { type: 'FeatureCollection', features: [point(me.coord, vehicleSprite(me.vehicle, me.paint), myHeading)] } : EMPTY
-    );
+    const src = m.getSource('me') as GeoJSONSource | undefined;
+    if (!src) return;
+    if (!me) {
+      shown.current = null;
+      src.setData(EMPTY);
+      return;
+    }
+    // Glide from where the car is drawn to the new fix over about a second (fixes arrive ~1/s),
+    // turning the short way round, instead of jumping once per GPS update.
+    const sprite = vehicleSprite(me.vehicle, me.paint);
+    const from = shown.current ?? { coord: me.coord, heading: myHeading };
+    const to = { coord: me.coord, heading: myHeading };
+    const turn = ((((to.heading - from.heading) % 360) + 540) % 360) - 180;
+    const far = Math.abs(from.coord[0] - to.coord[0]) + Math.abs(from.coord[1] - to.coord[1]) > 0.01; // >1 km: just jump
+    const start = performance.now();
+    const DURATION = far ? 0 : 950;
+    if (glide.current != null) cancelAnimationFrame(glide.current);
+    const step = (now: number) => {
+      const t = DURATION ? Math.min(1, (now - start) / DURATION) : 1;
+      const cur = {
+        coord: [from.coord[0] + (to.coord[0] - from.coord[0]) * t, from.coord[1] + (to.coord[1] - from.coord[1]) * t] as [number, number],
+        heading: from.heading + turn * t,
+      };
+      shown.current = cur;
+      src.setData({ type: 'FeatureCollection', features: [point(cur.coord, sprite, cur.heading)] });
+      if (t < 1) glide.current = requestAnimationFrame(step);
+    };
+    glide.current = requestAnimationFrame(step);
+    return () => {
+      if (glide.current != null) cancelAnimationFrame(glide.current);
+    };
   }, [vehiclesReady, people, me, myHeading]);
+
+  // 3D view: show buildings and lean the camera in (only while following you).
+  useEffect(() => {
+    const m = map.current;
+    if (!loaded || !m || !m.getLayer('convoy-buildings-3d')) return;
+    m.setLayoutProperty('convoy-buildings-3d', 'visibility', tilt3d ? 'visible' : 'none');
+    if (follow && following.current) m.easeTo({ pitch: tilt3d ? TILT_3D : 0, duration: 600 });
+  }, [loaded, tilt3d, follow]);
 
   // Follow the driver: jump in on the first fix, then glide along until they pan away.
   const meKey = me ? `${me.coord[0].toFixed(6)},${me.coord[1].toFixed(6)}` : null;
@@ -217,10 +279,11 @@ export function ConvoyMap({ style, follow = false, me, lines = [], people = [], 
     const pad = { top: padding?.top ?? 0, bottom: padding?.bottom ?? 0, left: 0, right: 0 };
     if (!centeredOnce.current) {
       centeredOnce.current = true;
-      if (follow || !fit) m.jumpTo({ center: me.coord, zoom: 16, padding: pad });
+      if (follow || !fit) m.jumpTo({ center: me.coord, zoom: 16, padding: pad, pitch: follow && tilt3d ? TILT_3D : 0 });
       return;
     }
-    if (follow && following.current) m.easeTo({ center: me.coord, padding: pad, duration: 900 });
+    // Linear and about as long as the gap between fixes, so the camera moves continuously with the car.
+    if (follow && following.current) m.easeTo({ center: me.coord, padding: pad, duration: 1000, easing: (t) => t });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, meKey]);
 
@@ -254,6 +317,7 @@ export function ConvoyMap({ style, follow = false, me, lines = [], people = [], 
               m.easeTo({
                 center: cur.coord,
                 zoom: Math.max(m.getZoom(), 15),
+                pitch: tilt3d ? TILT_3D : 0,
                 padding: { top: padding?.top ?? 0, bottom: padding?.bottom ?? 0, left: 0, right: 0 },
                 duration: 600,
               });

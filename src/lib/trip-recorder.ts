@@ -1,4 +1,5 @@
 import { haversine, type LngLat } from '@/lib/geo';
+import { HIST_BUCKETS, histBucket } from '@/lib/speed-bands';
 
 export type LocationSample = {
   lat: number;
@@ -19,6 +20,10 @@ export type TripState = {
   movingS: number;
   maxSpeedMps: number;
   path: LngLat[];
+  /** m/s at each path point (colors the route by speed) */
+  speeds: number[];
+  /** seconds moving in each 10 km/h bucket (speed distribution) */
+  speedHist: number[];
   last: LocationSample | null;
   /** last sample accepted into the path/distance */
   lastAccepted: LocationSample | null;
@@ -34,7 +39,7 @@ const MAX_PLAUSIBLE_MPS = 100;
 const MAX_GAP_S = 30;
 
 export function startTrip(now: number): TripState {
-  return { startedAt: now, distanceM: 0, movingS: 0, maxSpeedMps: 0, path: [], last: null, lastAccepted: null };
+  return { startedAt: now, distanceM: 0, movingS: 0, maxSpeedMps: 0, path: [], speeds: [], speedHist: new Array(HIST_BUCKETS).fill(0), last: null, lastAccepted: null };
 }
 
 export function isAccurate(s: LocationSample) {
@@ -56,7 +61,7 @@ export function addSample(state: TripState, sample: LocationSample): TripState {
 
   const prev = state.lastAccepted;
   if (!prev) {
-    return { ...next, path: [point], lastAccepted: sample };
+    return { ...next, path: [point], speeds: [reportedSpeed(sample) ?? 0], lastAccepted: sample };
   }
 
   const dt = (sample.timestamp - prev.timestamp) / 1000;
@@ -70,10 +75,16 @@ export function addSample(state: TripState, sample: LocationSample): TripState {
   const jitterFloor = Math.max(5, (sample.accuracy ?? 10) * 0.5);
   if (speed < MOVING_MPS && dist < jitterFloor) return next;
 
+  const moving = speed >= MOVING_MPS && dt <= MAX_GAP_S;
+  // Trips persisted before these fields existed resume with empty ones.
+  const speedHist = (state.speedHist ?? new Array(HIST_BUCKETS).fill(0)).slice();
+  if (moving) speedHist[histBucket(Math.min(speed, MAX_PLAUSIBLE_MPS))] += dt;
   return {
     ...next,
     distanceM: state.distanceM + dist,
-    movingS: state.movingS + (speed >= MOVING_MPS && dt <= MAX_GAP_S ? dt : 0),
+    movingS: state.movingS + (moving ? dt : 0),
+    speeds: [...(state.speeds ?? []), Math.min(speed, MAX_PLAUSIBLE_MPS)],
+    speedHist,
     maxSpeedMps: Math.max(state.maxSpeedMps, Math.min(speed, MAX_PLAUSIBLE_MPS)),
     path: [...state.path, point],
     lastAccepted: sample,

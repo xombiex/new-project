@@ -111,6 +111,20 @@ export function vehicleImage(sprite: VehicleSprite): ImageSourcePropType {
   return Platform.OS === 'web' ? { uri: `/vehicles/${sprite.replace('vehicle-', '')}.png` } : VEHICLE_IMAGES[sprite];
 }
 
+/** Map icons for cameras (speed = orange, license-plate reader = purple). */
+export const CAMERA_IMAGES = {
+  'cam-speed': require('../../../assets/cameras/speed.png'),
+  'cam-alpr': require('../../../assets/cameras/alpr.png'),
+} as const;
+
+/** Camera dots: small when zoomed out, readable up close; never hidden by labels. */
+export const CAMERA_LAYOUT: NonNullable<SymbolLayerSpecification['layout']> = {
+  'icon-image': ['match', ['get', 'kind'], 'alpr', 'cam-alpr', 'cam-speed'],
+  'icon-size': ['interpolate', ['linear'], ['zoom'], 11, 0.7, 16, 1.1],
+  'icon-allow-overlap': true,
+  'icon-ignore-placement': true,
+};
+
 /** Garage showroom renders (three-quarter side view, nose right), one per body and paint. */
 const SIDE_IMAGES: Record<string, ImageSourcePropType> = {
   'car-blue': require('../../../assets/vehicles/side-car-blue.webp'),

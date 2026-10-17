@@ -1,5 +1,6 @@
 import type { StyleProp, ViewStyle } from 'react-native';
 
+import type { Camera } from '@/lib/cameras';
 import type { LngLat } from '@/lib/geo';
 
 export type MapLine = {
@@ -45,6 +46,10 @@ export type ConvoyMapProps = {
   /** Keep the camera on the user (driving mode). The user can pan away; a recenter button appears. */
   follow?: boolean;
   showUser?: boolean;
+  /** Speed and license-plate cameras to draw (from OpenStreetMap) */
+  cameras?: Camera[];
+  /** Tilt into a 3D view with raised buildings when zoomed in */
+  tilt3d?: boolean;
   /** The signed-in driver, drawn as their 3D vehicle instead of a blue dot. */
   me?: { coord: LngLat; heading: number | null; vehicle?: string | null; paint?: string | null } | null;
   lines?: MapLine[];

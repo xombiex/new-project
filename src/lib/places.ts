@@ -55,13 +55,16 @@ export type Route = {
   geometry: LngLat[];
   /** turn-by-turn maneuvers (single leg) */
   steps: OsrmStep[];
+  /** cameras along this route, when known */
+  cameras?: { speed: number; alpr: number };
 };
 
 /** Driving routes, best first (includes alternatives when the router finds them). */
 export async function getRoutes(from: LngLat, to: LngLat, signal?: AbortSignal): Promise<Route[]> {
   const coords = `${from[0]},${from[1]};${to[0]},${to[1]}`;
   const res = await fetch(
-    `${OSRM_URL}/route/v1/driving/${coords}?overview=full&geometries=geojson&alternatives=true&steps=true`,
+    // Up to 3 alternatives: more choices for camera-avoiding routes.
+    `${OSRM_URL}/route/v1/driving/${coords}?overview=full&geometries=geojson&alternatives=3&steps=true`,
     { signal }
   );
   if (!res.ok) throw new Error(`Routing failed (${res.status})`);

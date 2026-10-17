@@ -65,7 +65,12 @@ export function bearing(a: LngLat, b: LngLat): number {
  * equirectangular projection (accurate enough at trip scale).
  */
 export function simplifyPath(points: LngLat[], toleranceM = 8): LngLat[] {
-  if (points.length <= 2) return points.slice();
+  return simplifyIndices(points, toleranceM).map((i) => points[i]);
+}
+
+/** Indices of the points `simplifyPath` keeps, so parallel arrays (speeds) can follow along. */
+export function simplifyIndices(points: LngLat[], toleranceM = 8): number[] {
+  if (points.length <= 2) return points.map((_, i) => i);
   const lat0 = toRad(points[0][1]);
   const project = ([lng, lat]: LngLat) => [
     toRad(lng) * Math.cos(lat0) * EARTH_RADIUS_M,
@@ -99,5 +104,7 @@ export function simplifyPath(points: LngLat[], toleranceM = 8): LngLat[] {
       stack.push([start, index], [index, end]);
     }
   }
-  return points.filter((_, i) => keep[i]);
+  const out: number[] = [];
+  for (let i = 0; i < points.length; i++) if (keep[i]) out.push(i);
+  return out;
 }

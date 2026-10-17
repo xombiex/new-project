@@ -8,6 +8,7 @@ import {
   Marker,
   UserLocation,
   type CameraRef,
+  type FillExtrusionLayerSpecification,
   type LineLayerSpecification,
   type SymbolLayerSpecification,
   type TrackUserLocation,
@@ -24,7 +25,9 @@ import { lineFeature, lineLayers } from './line-style';
 import { poiLayers, styleHasPlaces } from './poi-layers';
 import { useMapLook } from './use-map-look';
 import { useSteadyHeading } from './use-steady-heading';
-import { VEHICLE_IMAGES, VEHICLE_LAYOUT, vehicleSprite } from './vehicle-sprites';
+import { buildingsLayer, TILT_3D } from './buildings';
+import { cameraFeatures } from './camera-features';
+import { CAMERA_IMAGES, CAMERA_LAYOUT, VEHICLE_IMAGES, VEHICLE_LAYOUT, vehicleSprite } from './vehicle-sprites';
 import type { ConvoyMapProps } from './types';
 
 export type { ConvoyMapProps, MapLine, MapMarker, MapPerson } from './types';
@@ -34,6 +37,8 @@ export function ConvoyMap({
   follow = false,
   showUser = true,
   me,
+  cameras = [],
+  tilt3d = false,
   lines = [],
   people = [],
   markers = [],
@@ -48,6 +53,7 @@ export function ConvoyMap({
   const camera = useRef<CameraRef>(null);
   const [tracking, setTracking] = useState<TrackUserLocation | undefined>(follow ? 'course' : undefined);
   const myHeading = useSteadyHeading(me?.heading);
+  const cameraData = useMemo(() => cameraFeatures(cameras), [cameras]);
   const peopleData = useMemo(
     () => ({
       type: 'FeatureCollection' as const,
@@ -93,11 +99,24 @@ export function ConvoyMap({
           ref={camera}
           initialViewState={lastCoord ? { center: lastCoord, zoom: 15 } : { zoom: 3 }}
           trackUserLocation={tracking}
+          // 3D view: lean the camera in while following you; flat for overviews and fitted routes.
+          pitch={tilt3d && tracking ? TILT_3D : 0}
           padding={{ top: edge.top, bottom: edge.bottom, left: 0, right: 0 }}
           onTrackUserLocationChange={(e) => setTracking(e.nativeEvent.trackUserLocation ?? undefined)}
         />
 
-        <Images images={VEHICLE_IMAGES} />
+        <Images images={{ ...VEHICLE_IMAGES, ...CAMERA_IMAGES }} />
+
+        {tilt3d ? (
+          <Layer
+            id="convoy-buildings-3d"
+            type="fill-extrusion"
+            source="openmaptiles"
+            source-layer="building"
+            minzoom={15}
+            paint={buildingsLayer(scheme === 'dark').paint as FillExtrusionLayerSpecification['paint']}
+          />
+        ) : null}
 
         {/* Nearby places from the base map's own data, under routes and cars. */}
         {places.map((l) => (
@@ -141,6 +160,10 @@ export function ConvoyMap({
             <MaterialCommunityIcons name="map-marker" size={44} color={theme.danger} />
           </Marker>
         ) : null}
+
+        <GeoJSONSource id="cameras" data={cameraData}>
+          <Layer type="symbol" id="cameras" minzoom={11} layout={CAMERA_LAYOUT as SymbolLayerSpecification['layout']} />
+        </GeoJSONSource>
 
         <GeoJSONSource id="people" data={peopleData}>
           <Layer
