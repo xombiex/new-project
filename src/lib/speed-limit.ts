@@ -4,7 +4,9 @@ import { haversine, type LngLat } from '@/lib/geo';
  * Posted speed limits from OpenStreetMap `maxspeed` tags, fetched through the free Overpass API.
  * Point EXPO_PUBLIC_OVERPASS_URL at a self-hosted Overpass (or a paid host) once usage grows.
  */
-const OVERPASS_URL = process.env.EXPO_PUBLIC_OVERPASS_URL ?? 'https://overpass-api.de/api/interpreter';
+const OVERPASS_URLS = process.env.EXPO_PUBLIC_OVERPASS_URL
+  ? [process.env.EXPO_PUBLIC_OVERPASS_URL]
+  : ['https://overpass-api.de/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
 
 /** Roads cars drive on. Paths, tracks and footways are left out so they can't be matched. */
 const CAR_ROADS =
@@ -87,15 +89,31 @@ type OverpassWay = { id: number; tags?: Record<string, string>; geometry?: { lat
 
 export async function fetchRoads(center: LngLat, radiusM: number, signal?: AbortSignal): Promise<Road[]> {
   const [lng, lat] = center;
-  const query = `[out:json][timeout:10];way(around:${radiusM},${lat.toFixed(6)},${lng.toFixed(6)})[highway~"^(${CAR_ROADS})$"];out tags geom;`;
-  const res = await fetch(OVERPASS_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `data=${encodeURIComponent(query)}`,
-    signal,
-  });
-  if (!res.ok) throw new Error(`Overpass ${res.status}`);
-  const json = (await res.json()) as { elements: OverpassWay[] };
+  // A bounding box is much quicker for Overpass than an `around:` radius search.
+  const dLat = radiusM / 110_574;
+  const dLng = radiusM / (111_320 * Math.cos((lat * Math.PI) / 180));
+  const box = `${(lat - dLat).toFixed(5)},${(lng - dLng).toFixed(5)},${(lat + dLat).toFixed(5)},${(lng + dLng).toFixed(5)}`;
+  const query = `[out:json][timeout:15];way[highway~"^(${CAR_ROADS})$"](${box});out tags geom;`;
+  let json: { elements: OverpassWay[] } | null = null;
+  let lastError: unknown = null;
+  // If the main server is busy, try the next one.
+  for (const url of OVERPASS_URLS) {
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `data=${encodeURIComponent(query)}`,
+        signal,
+      });
+      if (!res.ok) throw new Error(`Overpass ${res.status}`);
+      json = (await res.json()) as { elements: OverpassWay[] };
+      break;
+    } catch (e) {
+      if (signal?.aborted) throw e;
+      lastError = e;
+    }
+  }
+  if (!json) throw lastError instanceof Error ? lastError : new Error('Overpass unavailable');
   return json.elements
     .filter((w) => w.geometry && w.geometry.length > 1)
     .map((w) => ({

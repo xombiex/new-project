@@ -52,10 +52,41 @@ async function overpass(query: string, signal?: AbortSignal): Promise<Camera[]> 
 
 const filters = (area: string) => `node["highway"="speed_camera"](${area});node["man_made"="surveillance"]["surveillance:type"="ALPR"](${area});`;
 
+/** 1°×1° cache cells (see supabase/functions/cameras) covering a box. */
+export function cellsForBox([w, s, e, n]: [number, number, number, number]): string[] {
+  const out: string[] = [];
+  for (let lat = Math.floor(s); lat <= Math.floor(n); lat++) for (let lng = Math.floor(w); lng <= Math.floor(e); lng++) out.push(`${lat},${lng}`);
+  return out;
+}
+
+type CachedRow = { osm_id: number; kind: CameraKind; lat: number; lng: number; maxspeed: string | null; operator: string | null; direction: number | null };
+
 /**
- * Every camera in the square around a point. A bounding box is far quicker for Overpass than an
- * `around:` radius search with these tag filters (seconds instead of most of a minute).
+ * Cameras from Convoy's shared cache (a Supabase edge function filled from Overpass per area), so
+ * after the first driver in an area it's about a second instead of most of a minute. Falls back to
+ * asking Overpass directly if the cache can't answer.
  */
+async function fromCache(cells: string[], signal?: AbortSignal): Promise<Camera[]> {
+  const res = await fetch(`${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/cameras`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: process.env.EXPO_PUBLIC_SUPABASE_KEY ?? '' },
+    body: JSON.stringify({ cells }),
+    signal,
+  });
+  if (!res.ok) throw new Error(`camera cache ${res.status}`);
+  const json = (await res.json()) as { cameras: CachedRow[]; failed: string[] };
+  if (json.failed?.length) throw new Error('camera cache refresh failed');
+  return json.cameras.map((r) => ({
+    id: r.osm_id,
+    kind: r.kind,
+    coord: [r.lng, r.lat],
+    maxspeed: r.maxspeed ?? undefined,
+    operator: r.operator ?? undefined,
+    direction: r.direction ?? undefined,
+  }));
+}
+
+/** Every camera in the square around a point. */
 export function fetchCamerasAround(center: LngLat, radiusM: number, signal?: AbortSignal) {
   const dLat = radiusM / 110_574;
   const dLng = radiusM / (111_320 * Math.cos((center[1] * Math.PI) / 180));
@@ -63,7 +94,21 @@ export function fetchCamerasAround(center: LngLat, radiusM: number, signal?: Abo
 }
 
 /** Every camera inside a bounding box [west, south, east, north]. */
-export function fetchCamerasInBox([w, s, e, n]: [number, number, number, number], signal?: AbortSignal) {
+export async function fetchCamerasInBox(box: [number, number, number, number], signal?: AbortSignal): Promise<Camera[]> {
+  const cells = cellsForBox(box);
+  if (cells.length <= 6) {
+    try {
+      const [w, s, e, n] = box;
+      return (await fromCache(cells, signal)).filter(({ coord: [lng, lat] }) => lng >= w && lng <= e && lat >= s && lat <= n);
+    } catch (err) {
+      if (signal?.aborted) throw err;
+      // fall through to Overpass
+    }
+  }
+  return overpassBox(box, signal);
+}
+
+function overpassBox([w, s, e, n]: [number, number, number, number], signal?: AbortSignal) {
   const area = `${s.toFixed(5)},${w.toFixed(5)},${n.toFixed(5)},${e.toFixed(5)}`;
   return overpass(`[out:json][timeout:40];(${filters(area)});out body;`, signal);
 }

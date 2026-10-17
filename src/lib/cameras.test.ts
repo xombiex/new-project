@@ -27,3 +27,10 @@ describe('camerasOnRoute', () => {
     expect(camerasOnRoute(route, cams)).toEqual({ alpr: 1, speed: 1 });
   });
 });
+
+describe('cellsForBox', () => {
+  it('lists the 1° cells a box touches', async () => {
+    const { cellsForBox } = await import('./cameras');
+    expect(cellsForBox([-82.6, 27.8, -82.3, 28.1])).toEqual(['27,-83', '28,-83']);
+  });
+});
