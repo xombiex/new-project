@@ -1,0 +1,18 @@
+/* Site footer shared by the landing page, legal pages and 404. */
+.site-footer { border-top: 1px solid #1d2027; background: #000; color: #9aa1ab; font: 14px/1.6 -apple-system, "Segoe UI", system-ui, sans-serif; padding: 40px 16px 48px; }
+.site-footer .inner { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; }
+.site-footer .disclaimer { background: #0e1014; border: 1px solid #1d2027; border-radius: 14px; padding: 16px 22px; color: #b8bec7; font-size: 15px; line-height: 1.6; }
+.site-footer nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 0; font-size: 16px; font-weight: 600; }
+.site-footer nav a { color: #e6e8eb; text-decoration: none; padding: 0 14px; }
+.site-footer nav a + a { border-left: 1.5px solid #3a3e46; }
+.site-footer nav a:hover { color: #fff; text-decoration: underline; }
+.site-footer .fine { font-size: 13.5px; color: #8a919b; margin: 0; }
+.site-footer .fine a { color: #b8bec7; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .site-footer.adapt { background: #f5f6f8; border-top-color: #e6e8ec; color: #5b6370; }
+  :root:not([data-theme="dark"]) .site-footer.adapt .disclaimer { background: #fff; border-color: #e6e8ec; color: #3d434c; }
+  :root:not([data-theme="dark"]) .site-footer.adapt nav a { color: #0a0a0b; }
+  :root:not([data-theme="dark"]) .site-footer.adapt nav a + a { border-left-color: #c9cdd3; }
+  :root:not([data-theme="dark"]) .site-footer.adapt .fine,
+  :root:not([data-theme="dark"]) .site-footer.adapt .fine a { color: #5b6370; }
+}

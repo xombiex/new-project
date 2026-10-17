@@ -7,13 +7,14 @@
 <meta name="description" content="How Convoy collects, uses and protects your information." />
 <link rel="icon" type="image/png" href="./favicon.png" />
 <link rel="stylesheet" href="./legal.css" />
+<link rel="stylesheet" href="/footer.css" />
 </head>
 <body>
 <header><div class="bar"><img src="./apple-touch-icon.png" alt="" />Convoy
   <nav><a href="./terms">Terms</a><a href="./privacy" aria-current="page">Privacy</a></nav></div></header>
 <main>
 <h1>Privacy Policy</h1>
-<p class="updated">Effective October 16, 2026</p>
+<p class="updated">Last updated October 17, 2026</p>
 
 <div class="summary">
   <p>The short version:</p>
@@ -32,11 +33,12 @@
   <thead><tr><th>What</th><th>Details</th><th>Why</th></tr></thead>
   <tbody>
     <tr><td>Account</td><td>Email address, password (stored hashed by our auth provider), sign-in times</td><td>Create and secure your account, send account emails</td></tr>
-    <tr><td>Profile</td><td>Username, display name, avatar color, vehicle (make, model, year), units and theme preferences</td><td>Show you to friends and drive members</td></tr>
+    <tr><td>Profile</td><td>Username, display name, avatar color, the body style and paint shown on the map, units and theme preferences</td><td>Show you to friends and drive members</td></tr>
     <tr><td>Precise location</td><td>GPS position, speed and heading. See <a href="#location">section 2</a></td><td>Map, speedometer, trips, navigation, group drives</td></tr>
     <tr><td>Garage</td><td>Cars you add: make, model, year, nickname, body style and paint, and which one is shown on the map</td><td>Your garage, visible to you and your accepted friends</td></tr>
     <tr><td>Online status</td><td>When you last had the app open (a check-in every couple of minutes while it's open). Turn off with <em>Show when I'm online</em></td><td>Show accepted friends whether you're online</td></tr>
-    <tr><td>Trips</td><td>Route, distance, duration, top and average speed, name</td><td>Trip history and stats</td></tr>
+    <tr><td>Trips</td><td>Route, distance, duration, top and average speed, speed at points along the route and time spent in speed ranges, the garage car you drove, whether you were the driver or a passenger, and the name and notes you add</td><td>Trip history, speed-colored routes and stats</td></tr>
+    <tr><td>Leaderboards</td><td>Weekly and monthly totals from trips where you were the driver: distance, number of drives and days driven. Never routes, times or speeds. Turn off with <em>Show me on leaderboards</em></td><td>Rank you among your accepted friends</td></tr>
     <tr><td>Social</td><td>Friends and requests, drives you create or join, clubs, events and RSVPs</td><td>Social and group features</td></tr>
     <tr><td>Road reports</td><td>Report type, location, time, and votes</td><td>Warn nearby drivers (shown without your name)</td></tr>
     <tr><td>Notifications</td><td>Push token for your device</td><td>Send invites, friend requests and event reminders</td></tr>
@@ -52,6 +54,7 @@
   <li><strong>In the background</strong>, location is used only while you’re recording a trip, navigating, sharing with a group drive, or have <em>automatic drive detection</em> turned on. Your phone shows an indicator when this is happening, and you can turn it off in Convoy or your device settings.</li>
   <li><strong>Group drives:</strong> your live position is sent over an encrypted connection to the members of that drive only, while you share. <strong>These live positions are not saved on our servers.</strong></li>
   <li><strong>Friends:</strong> if you start sharing with friends, your last-known position is stored so they can see it. It is deleted when you stop sharing.</li>
+  <li><strong>Speed limits and cameras:</strong> during a trip, the area around you is sent to the Overpass API to look up nearby roads. Camera locations come from our own cache: the app asks our server for cameras in your general area (cells of roughly 100 km), and we don’t record who asked.</li>
   <li><strong>Search and routes:</strong> when you search for a place or start navigation, the search text or start and end points are sent to the map services listed in section 4. Map tiles are loaded from OpenFreeMap.</li>
 </ul>
 
@@ -88,6 +91,7 @@
 <h2 id="choices">6. Your choices and rights</h2>
 <ul>
   <li><strong>Location and notifications:</strong> change them any time in Convoy or your device settings.</li>
+  <li><strong>Sharing with friends:</strong> turn off <em>Show when I’m online</em> or <em>Show me on leaderboards</em> in Profile at any time. Friends then stop seeing that information.</li>
   <li><strong>Edit</strong> your profile, delete trips, remove friends, leave drives and clubs in the app.</li>
   <li><strong>Delete your account</strong> in <em>Profile → Delete account</em>. This permanently removes your account and associated data, except records we must keep by law. Cancel any App Store or Google Play subscription separately in the store.</li>
   <li>Depending on where you live (for example the EU, UK or California), you may have the right to access, correct, delete or port your data, and to object to or restrict certain processing. Contact us using the details below. We won’t discriminate against you for using these rights. You can also complain to your local data protection authority.</li>
@@ -106,6 +110,12 @@
 <p>We’ll post updates here and change the effective date. If a change is material, we’ll tell you in the app or by email before it takes effect.</p>
 <p>Questions or requests: <strong>[OPERATOR LEGAL NAME]</strong>, <strong>[CONTACT EMAIL]</strong>, <strong>[MAILING ADDRESS]</strong>.</p>
 </main>
-<footer><div>© 2026 Convoy · <a href="./terms">Terms</a> · <a href="./privacy">Privacy</a></div></footer>
+<footer class="site-footer adapt"><div class="inner">
+  <div class="disclaimer">Convoy is a drive tracker and group driving app. We do not promote or encourage speeding, street racing, or any unsafe or illegal driving. Always follow posted speed limits and local traffic laws, and keep your hands off your phone while you drive.</div>
+  <nav><a href="/about">Home</a><a href="/about#features">Features</a><a href="/">Open Convoy</a></nav>
+  <nav><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav>
+  <p class="fine">Copyright © 2026 Convoy. All rights reserved. Convoy is not affiliated with any vehicle manufacturer; vehicle names are trademarks of their owners, and the 3D cars are generic illustrations.</p>
+  <p class="fine">Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> (ODbL), map tiles by <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a>. License-plate camera locations mapped by the <a href="https://deflock.me" target="_blank" rel="noopener">DeFlock</a> community.</p>
+</div></footer>
 </body>
 </html>
