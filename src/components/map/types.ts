@@ -25,6 +25,8 @@ export type MapPerson = {
   vehicle?: string;
   /** Paint color of that vehicle */
   paint?: string;
+  /** Short live label shown in a bubble above the avatar, e.g. "36 MPH" */
+  label?: string;
   /** dimmed when the position is old or the person is offline */
   stale?: boolean;
 };

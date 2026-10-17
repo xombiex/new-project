@@ -9,10 +9,12 @@ const RETRY_MS = 15_000;
 /** Keep showing the last limit through brief GPS wobbles (e.g. passing an intersection). */
 const HOLD_MS = 8_000;
 
-/** Posted limit for the road the driver is on, while `enabled` (a trip or navigation is running). */
-export function useSpeedLimit(enabled: boolean): SpeedLimit | null {
+export type RoadInfo = { limit: SpeedLimit | null; name: string | null };
+
+/** Posted limit and name of the road the driver is on, while `enabled` (a trip or navigation is running). */
+export function useSpeedLimit(enabled: boolean): RoadInfo {
   const sample = useTrips((s) => s.lastSample);
-  const [limit, setLimit] = useState<SpeedLimit | null>(null);
+  const [info, setInfo] = useState<RoadInfo>({ limit: null, name: null });
   const roads = useRef<Road[]>([]);
   const fetchedAt = useRef<LngLat | null>(null);
   const loading = useRef(false);
@@ -21,7 +23,7 @@ export function useSpeedLimit(enabled: boolean): SpeedLimit | null {
 
   useEffect(() => {
     if (!enabled) {
-      setLimit(null);
+      setInfo({ limit: null, name: null });
       return;
     }
     if (!sample) return;
@@ -30,9 +32,9 @@ export function useSpeedLimit(enabled: boolean): SpeedLimit | null {
     const road = matchRoad(roads.current, pos, sample.heading);
     if (road) {
       lastMatchAt.current = Date.now();
-      setLimit(road.limit);
+      setInfo((prev) => (prev.limit === road.limit && prev.name === (road.name ?? null) ? prev : { limit: road.limit, name: road.name ?? null }));
     } else if (Date.now() - lastMatchAt.current > HOLD_MS) {
-      setLimit(null);
+      setInfo((prev) => (prev.limit || prev.name ? { limit: null, name: null } : prev));
     }
 
     if (loading.current || Date.now() - failedAt.current < RETRY_MS || !needsRefetch(fetchedAt.current, RADIUS_M, pos)) return;
@@ -47,5 +49,5 @@ export function useSpeedLimit(enabled: boolean): SpeedLimit | null {
       .finally(() => (loading.current = false));
   }, [enabled, sample]);
 
-  return limit;
+  return info;
 }

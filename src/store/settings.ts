@@ -11,6 +11,9 @@ export type Appearance = 'system' | 'light' | 'dark';
 
 type SettingsState = {
   units: Units;
+  /** Last known position, so maps open where you are instead of zoomed out on the world */
+  lastCoord: [number, number] | null;
+  setLastCoord: (c: [number, number]) => void;
   keepScreenOn: boolean;
   appearance: Appearance;
   glow: GlowPreset;
@@ -32,10 +35,26 @@ type SettingsState = {
   setAutoDetect: (on: boolean) => void;
 };
 
+/** Countries that post speeds in mph (US and territories, UK, a few others). Everyone else: km/h. */
+const MPH_REGIONS = new Set(['US', 'GB', 'LR', 'PR', 'VI', 'GU', 'AS', 'MP', 'UM', 'BS', 'BZ', 'KY', 'VG', 'AG', 'DM', 'GD', 'KN', 'LC', 'VC', 'MS', 'AI', 'TC', 'FK', 'SH', 'IM', 'JE', 'GG']);
+
+/** First-launch default only; a saved choice always wins (persist restores it over this). */
+function regionUnits(): Units {
+  try {
+    const locale = Intl.DateTimeFormat().resolvedOptions().locale;
+    const region = /[-_]([A-Z]{2})(?:[-_]|$)/.exec(locale)?.[1];
+    return region && !MPH_REGIONS.has(region) ? 'metric' : 'imperial';
+  } catch {
+    return 'imperial';
+  }
+}
+
 export const useSettings = create<SettingsState>()(
   persist(
     (set, get) => ({
-      units: 'imperial',
+      units: regionUnits(),
+      lastCoord: null,
+      setLastCoord: (lastCoord) => set({ lastCoord }),
       keepScreenOn: true,
       appearance: 'system',
       glow: 'ember',

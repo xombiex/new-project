@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Glass } from '@/components/glass';
@@ -69,6 +69,15 @@ export default function DrivesScreen() {
   const [sort, setSort] = useState<Sort>('recent');
   const [period, setPeriod] = useState<Period>('all');
   const [selected, setSelected] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Swipe down: back up unsaved drives and pull ones recorded on other devices.
+  async function onRefresh() {
+    setRefreshing(true);
+    await useTrips.getState().syncPending();
+    await useTrips.getState().pullFromCloud();
+    setRefreshing(false);
+  }
 
   const trips = useMemo(() => {
     const since = periodStart(period);
@@ -189,6 +198,7 @@ export default function DrivesScreen() {
             <FlatList
               data={trips}
               keyExtractor={(t) => t.id}
+              refreshControl={profile ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.accent} /> : undefined}
               contentContainerStyle={{ paddingBottom: Spacing.three }}
               ListEmptyComponent={
                 <View style={styles.empty}>

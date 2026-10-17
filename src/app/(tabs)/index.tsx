@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useKeepAwake } from 'expo-keep-awake';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
@@ -16,9 +16,11 @@ import { Button, Stat } from '@/components/ui';
 import { BottomTabInset, Radius, Spacing } from '@/constants/theme';
 import { useSpeedLimit } from '@/hooks/use-speed-limit';
 import { useTheme } from '@/hooks/use-theme';
-import { formatDistance, formatDuration, speedIn, speedUnitLabel } from '@/lib/geo';
+import { formatDistance, formatDuration, speedIn, speedLabel, speedUnitLabel } from '@/lib/geo';
 import { addReason, removeReason } from '@/lib/location';
+import { haptic } from '@/lib/haptics';
 import { reportMeta } from '@/lib/reports';
+import { limitMps } from '@/lib/speed-limit';
 import { formatAgo } from '@/lib/time';
 import { averageSpeedMps } from '@/lib/trip-recorder';
 import { vehicleIcon } from '@/lib/vehicles';
@@ -35,8 +37,21 @@ const STALE_MS = 10_000;
 /** Members who haven't reported in this long are drawn dimmed. */
 const MEMBER_STALE_MS = 60_000;
 
+const KEEP_AWAKE_TAG = 'convoy-drive';
+
+/**
+ * Screen stays on during a trip. Not `useKeepAwake`: on the web its cleanup throws if the wake
+ * lock hadn't been granted yet (e.g. leaving the tab right away), surfacing as an uncaught error.
+ */
 function KeepAwake() {
-  useKeepAwake();
+  useEffect(() => {
+    void activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch(() => {});
+    return () => {
+      void Promise.resolve()
+        .then(() => deactivateKeepAwake(KEEP_AWAKE_TAG))
+        .catch(() => {});
+    };
+  }, []);
   return null;
 }
 
@@ -105,6 +120,7 @@ export default function DriveScreen() {
           icon: vehicleIcon(m.profile.vehicle),
           vehicle: m.profile.vehicle,
           paint: m.profile.vehicle_color,
+          label: speedLabel(units, m.position!.speed, !m.online || now - m.position!.t > MEMBER_STALE_MS),
           stale: !m.online || now - m.position!.t > MEMBER_STALE_MS,
         })),
     [members, myId, now]
@@ -144,6 +160,7 @@ export default function DriveScreen() {
 
   async function onStart() {
     start();
+    haptic.success();
     await addReason('trip');
   }
 
@@ -157,6 +174,7 @@ export default function DriveScreen() {
   async function onFinish() {
     await removeReason('trip');
     const trip = finish();
+    if (trip) haptic.success();
     if (trip) router.push({ pathname: '/trip/[id]', params: { id: trip.id } });
     else Alert.alert('Trip too short', 'Trips under 50 m are not saved.');
   }
@@ -178,7 +196,13 @@ export default function DriveScreen() {
   const elapsed = active ? (now - active.startedAt) / 1000 : 0;
   const panelHeight = navigating ? 260 : active ? 330 : 270;
   // Posted limit while a ride is on (recording a trip or navigating).
-  const speedLimit = useSpeedLimit(Boolean(active || navigating));
+  const road = useSpeedLimit(Boolean(active || navigating));
+  const speedLimit = road.limit;
+  const speeding = Boolean(speedLimit && !stale && lastSample?.speed != null && lastSample.speed > limitMps(speedLimit) + 1.5);
+  // One buzz when you go over, not a constant rattle.
+  useEffect(() => {
+    if (speeding) haptic.warning();
+  }, [speeding]);
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
@@ -292,7 +316,7 @@ export default function DriveScreen() {
 
       {/* Bottom: speed + trip or navigation controls */}
       <Glass style={[styles.panel, { paddingBottom: BottomTabInset + Spacing.three }]}>
-        <Speedometer sample={lastSample} units={units} stale={stale} />
+        <Speedometer sample={lastSample} units={units} stale={stale} speeding={speeding} street={active || navigating ? road.name : null} />
 
         {active && navigating ? (
           <View style={[styles.rec, { backgroundColor: theme.backgroundSelected }]}>

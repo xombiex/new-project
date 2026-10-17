@@ -2,9 +2,12 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 
 import { LngLatBounds, Map as MLMap, Marker, setWorkerUrl, type GeoJSONSource } from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useSettings } from '@/store/settings';
 
 import { lineFeature, lineLayers } from './line-style';
 import { useMapLook } from './use-map-look';
@@ -57,6 +60,9 @@ export function ConvoyMap({ style, follow = false, me, lines = [], people = [], 
   const [loaded, setLoaded] = useState(false);
   const [vehiclesReady, setVehiclesReady] = useState(false);
   const following = useRef(follow);
+  const [followingUi, setFollowingUi] = useState(follow);
+  const meRef = useRef(me);
+  meRef.current = me;
   const centeredOnce = useRef(false);
   const myHeading = useSteadyHeading(me?.heading);
 
@@ -64,8 +70,9 @@ export function ConvoyMap({ style, follow = false, me, lines = [], people = [], 
     const m = new MLMap({
       container: container.current!,
       style: styleUrl,
-      center: [-98, 39],
-      zoom: 3,
+      // Open where the driver was last seen; the first GPS fix takes over from there.
+      center: useSettings.getState().lastCoord ?? [-98, 39],
+      zoom: useSettings.getState().lastCoord ? 14 : 3,
       attributionControl: { compact: true },
     });
     m.on('load', () => {
@@ -82,7 +89,10 @@ export function ConvoyMap({ style, follow = false, me, lines = [], people = [], 
       });
     });
     // Panning by hand stops follow mode (like the native recenter behavior).
-    m.on('dragstart', () => (following.current = false));
+    m.on('dragstart', () => {
+      following.current = false;
+      setFollowingUi(false);
+    });
     map.current = m;
     // Tabs mount hidden (0×0); keep the canvas in sync with the container's real size.
     const observer = new ResizeObserver(() => m.resize());
@@ -138,6 +148,23 @@ export function ConvoyMap({ style, follow = false, me, lines = [], people = [], 
     if (!loaded || !m) return;
     for (const mk of markers.current) mk.remove();
     markers.current = people.map((p) => {
+      const wrap = document.createElement('div');
+      Object.assign(wrap.style, { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', opacity: p.stale ? '0.45' : '1' });
+      if (p.label) {
+        const pill = document.createElement('div');
+        pill.textContent = p.label;
+        Object.assign(pill.style, {
+          background: p.color,
+          color: '#fff',
+          font: '800 11px system-ui',
+          padding: '2px 7px',
+          borderRadius: '10px',
+          border: '1.5px solid #fff',
+          whiteSpace: 'nowrap',
+          fontVariantNumeric: 'tabular-nums',
+        });
+        wrap.appendChild(pill);
+      }
       const el = document.createElement('div');
       el.textContent = p.name.slice(0, 1).toUpperCase();
       Object.assign(el.style, {
@@ -152,10 +179,10 @@ export function ConvoyMap({ style, follow = false, me, lines = [], people = [], 
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        opacity: p.stale ? '0.45' : '1',
       });
+      wrap.appendChild(el);
       // Floats above the vehicle sprite drawn by the people-vehicles layer.
-      return new Marker({ element: el, anchor: 'bottom', offset: [0, -16] }).setLngLat(p.coord).addTo(m);
+      return new Marker({ element: wrap, anchor: 'bottom', offset: [0, -16] }).setLngLat(p.coord).addTo(m);
     });
     for (const pin of pins) {
       const el = document.createElement('div');
@@ -211,10 +238,42 @@ export function ConvoyMap({ style, follow = false, me, lines = [], people = [], 
   return (
     <View style={[styles.container, style]}>
       <div ref={container} style={{ position: 'absolute', inset: 0 }} />
+      {follow && !followingUi && me ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Recenter map on my location"
+          onPress={() => {
+            following.current = true;
+            setFollowingUi(true);
+            const cur = meRef.current;
+            const m = map.current;
+            if (cur && m) {
+              m.easeTo({
+                center: cur.coord,
+                zoom: Math.max(m.getZoom(), 15),
+                padding: { top: padding?.top ?? 0, bottom: padding?.bottom ?? 0, left: 0, right: 0 },
+                duration: 600,
+              });
+            }
+          }}
+          style={[styles.recenter, { backgroundColor: theme.backgroundElement, bottom: (padding?.bottom ?? 0) + Spacing.three + 68 }]}>
+          <MaterialCommunityIcons name="crosshairs-gps" size={24} color={theme.accent} />
+        </Pressable>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { overflow: 'hidden' },
+  recenter: {
+    position: 'absolute',
+    right: Spacing.three,
+    width: 52,
+    height: 52,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+  } as never,
 });

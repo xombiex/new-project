@@ -25,6 +25,12 @@ export function speedUnitLabel(units: Units) {
   return units === 'imperial' ? 'mph' : 'km/h';
 }
 
+/** "36 MPH" for a live speed bubble, or undefined when stopped, unknown or stale. */
+export function speedLabel(units: Units, mps: number | null | undefined, stale: boolean): string | undefined {
+  if (stale || mps == null || mps < 1) return undefined;
+  return `${Math.round(speedIn(units, mps))} ${speedUnitLabel(units).toUpperCase()}`;
+}
+
 export function formatDistance(units: Units, meters: number): string {
   if (units === 'imperial') {
     const miles = meters / 1609.344;

@@ -11,7 +11,7 @@ import { Avatar, Button, Card, EmptyState, Screen, SectionTitle, TextField } fro
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { analyzeConvoy, type ConvoyMemberView } from '@/lib/convoy';
-import { formatDistance, speedIn, speedUnitLabel, type LngLat } from '@/lib/geo';
+import { formatDistance, type LngLat, speedIn, speedLabel, speedUnitLabel } from '@/lib/geo';
 import { addReason, removeReason } from '@/lib/location';
 import { formatAgo } from '@/lib/time';
 import { vehicleIcon } from '@/lib/vehicles';
@@ -236,6 +236,7 @@ function ActiveDrive() {
             icon: vehicleIcon(m.profile.vehicle),
             vehicle: m.profile.vehicle,
           paint: m.profile.vehicle_color,
+          label: speedLabel(units, m.position!.speed, v.status !== 'live'),
             stale: v.status !== 'live',
           };
         }),

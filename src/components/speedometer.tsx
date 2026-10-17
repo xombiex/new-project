@@ -6,9 +6,17 @@ import { useTheme } from '@/hooks/use-theme';
 import { speedIn, speedUnitLabel, type Units } from '@/lib/geo';
 import { isAccurate, reportedSpeed, type LocationSample } from '@/lib/trip-recorder';
 
-type Props = { sample: LocationSample | null; units: Units; stale: boolean };
+type Props = {
+  sample: LocationSample | null;
+  units: Units;
+  stale: boolean;
+  /** Over the posted limit: the number turns red to match the sign */
+  speeding?: boolean;
+  /** Road you're on, shown under the speed during a trip */
+  street?: string | null;
+};
 
-export function Speedometer({ sample, units, stale }: Props) {
+export function Speedometer({ sample, units, stale, speeding, street }: Props) {
   const theme = useTheme();
   const mps = sample ? reportedSpeed(sample) : null;
   const speed = mps == null ? null : Math.round(speedIn(units, mps));
@@ -22,12 +30,17 @@ export function Speedometer({ sample, units, stale }: Props) {
 
   return (
     <View style={styles.wrap} accessibilityRole="text" accessibilityLabel={`${speed ?? 'unknown'} ${speedUnitLabel(units)}`}>
-      <ThemedText style={[styles.speed, gps !== 'good' && { color: theme.textSecondary }]}>
+      <ThemedText style={[styles.speed, gps !== 'good' && { color: theme.textSecondary }, speeding && gps === 'good' && { color: theme.danger }]}>
         {speed ?? '--'}
       </ThemedText>
       <ThemedText style={styles.unit} themeColor="textSecondary">
         {speedUnitLabel(units)}
       </ThemedText>
+      {street ? (
+        <ThemedText type="smallBold" numberOfLines={1} style={styles.street}>
+          {street}
+        </ThemedText>
+      ) : null}
       <View style={[styles.gps, { backgroundColor: theme.backgroundSelected }]}>
         <View style={[styles.dot, { backgroundColor: gpsColor }]} />
         <ThemedText type="small" themeColor="textSecondary">
@@ -52,4 +65,5 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
   },
   dot: { width: 8, height: 8, borderRadius: 4 },
+  street: { marginTop: Spacing.one, maxWidth: 260 },
 });

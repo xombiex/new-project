@@ -13,6 +13,15 @@ import { useTrips } from '@/store/trips';
 
 onLocation((samples) => useTrips.getState().ingest(samples));
 
+// Remember roughly where we are (rounded, throttled) so maps open there next launch.
+let lastSaved = 0;
+onLocation((samples) => {
+  const s = samples[samples.length - 1];
+  if (!s || Date.now() - lastSaved < 60_000) return;
+  lastSaved = Date.now();
+  useSettings.getState().setLastCoord([Math.round(s.lng * 1e4) / 1e4, Math.round(s.lat * 1e4) / 1e4]);
+});
+
 // A trip in progress survives restarts; resume GPS for it once persisted state loads.
 const resumeTrip = () => {
   if (useTrips.getState().active) void addReason('trip');

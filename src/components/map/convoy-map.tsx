@@ -13,11 +13,12 @@ import {
   type TrackUserLocation,
 } from '@maplibre/maplibre-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useSettings } from '@/store/settings';
 
 import { lineFeature, lineLayers } from './line-style';
 import { useMapLook } from './use-map-look';
@@ -41,6 +42,7 @@ export function ConvoyMap({
 }: ConvoyMapProps) {
   const { styleUrl, glow } = useMapLook();
   const theme = useTheme();
+  const lastCoord = useSettings((s) => s.lastCoord);
   const camera = useRef<CameraRef>(null);
   const [tracking, setTracking] = useState<TrackUserLocation | undefined>(follow ? 'course' : undefined);
   const myHeading = useSteadyHeading(me?.heading);
@@ -87,7 +89,7 @@ export function ConvoyMap({
         attributionPosition={{ bottom: (padding?.bottom ?? 0) + 8, left: 8 }}>
         <Camera
           ref={camera}
-          initialViewState={{ zoom: 15 }}
+          initialViewState={lastCoord ? { center: lastCoord, zoom: 15 } : { zoom: 3 }}
           trackUserLocation={tracking}
           padding={{ top: edge.top, bottom: edge.bottom, left: 0, right: 0 }}
           onTrackUserLocationChange={(e) => setTracking(e.nativeEvent.trackUserLocation ?? undefined)}
@@ -135,6 +137,11 @@ export function ConvoyMap({
         {people.map((p) => (
           <Marker key={p.id} id={`person-${p.id}`} lngLat={p.coord} anchor="bottom" offset={[0, -14]}>
             <View style={[styles.person, p.stale && { opacity: 0.45 }]}>
+              {p.label ? (
+                <View style={[styles.speedPill, { backgroundColor: p.color }]}>
+                  <Text style={styles.speedText}>{p.label}</Text>
+                </View>
+              ) : null}
               <View style={[styles.avatarRing, { borderColor: p.color }]}>
                 <Avatar name={p.name} color={p.color} size={30} />
               </View>
@@ -161,7 +168,7 @@ export function ConvoyMap({
           accessibilityRole="button"
           accessibilityLabel="Recenter map on my location"
           onPress={() => setTracking('course')}
-          style={[styles.recenter, { backgroundColor: theme.backgroundElement, bottom: (padding?.bottom ?? 0) + Spacing.three }]}>
+          style={[styles.recenter, { backgroundColor: theme.backgroundElement, bottom: (padding?.bottom ?? 0) + RECENTER_OFFSET }]}>
           <MaterialCommunityIcons name="crosshairs-gps" size={24} color={theme.accent} />
         </Pressable>
       ) : null}
@@ -169,9 +176,14 @@ export function ConvoyMap({
   );
 }
 
+/** Above the screens' floating action button (56pt + gap), so the two never overlap. */
+const RECENTER_OFFSET = Spacing.three + 68;
+
 const styles = StyleSheet.create({
   container: { overflow: 'hidden' },
   person: { alignItems: 'center' },
+  speedPill: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10, marginBottom: 3, borderWidth: 1.5, borderColor: '#fff' },
+  speedText: { color: '#fff', fontSize: 11, fontWeight: '800', fontVariant: ['tabular-nums'] },
   avatarRing: { borderRadius: 20, borderWidth: 3, backgroundColor: '#fff' },
   pinTip: { width: 0, height: 0, borderLeftWidth: 6, borderRightWidth: 6, borderTopWidth: 7, borderLeftColor: 'transparent', borderRightColor: 'transparent', marginTop: -1 },
   reportPin: { width: 34, height: 34, borderRadius: 17, borderWidth: 2, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' },

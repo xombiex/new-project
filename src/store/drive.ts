@@ -6,6 +6,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { analyzeConvoy } from '@/lib/convoy';
 import { haversine } from '@/lib/geo';
+import { haptic } from '@/lib/haptics';
 import { addReason, onLocation, removeReason } from '@/lib/location';
 import { notify } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
@@ -173,7 +174,10 @@ export const useDrive = create<DriveState>()(
             const members = { ...get().members };
             for (const id of Object.keys(members)) members[id] = { ...members[id], online: online.has(id) };
             set({ members });
-            if ([...online].some((id) => !members[id])) void loadRoster(drive.id);
+            if ([...online].some((id) => !members[id])) {
+              haptic.tap(); // someone new joined the drive
+              void loadRoster(drive.id);
+            }
           })
           .subscribe(async (status, err) => {
             if (channel !== ch) return;

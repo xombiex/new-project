@@ -8,6 +8,22 @@ rmSync('dist', { recursive: true, force: true });
 execSync('npx expo export --platform web', { stdio: 'inherit' });
 cpSync('web', 'dist', { recursive: true });
 
+// Installable on phones (Add to Home Screen): manifest, icon and full-screen hints.
+const HEAD = [
+  '<link rel="manifest" href="/manifest.webmanifest" />',
+  '<link rel="apple-touch-icon" href="/apple-touch-icon.png" />',
+  '<meta name="theme-color" content="#000000" />',
+  '<meta name="mobile-web-app-capable" content="yes" />',
+  '<meta name="apple-mobile-web-app-capable" content="yes" />',
+  '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />',
+  '<meta name="apple-mobile-web-app-title" content="Convoy" />',
+].join('');
+const indexHtml = readFileSync('dist/index.html', 'utf8')
+  // Let the app draw under the notch; safe-area insets keep content clear of it.
+  .replace('shrink-to-fit=no', 'shrink-to-fit=no, viewport-fit=cover')
+  .replace('</head>', `${HEAD}</head>`);
+writeFileSync('dist/index.html', indexHtml);
+
 const slug = process.env.ADMIN_PATH?.trim();
 if (slug) {
   if (!/^[a-z0-9-]{20,}$/.test(slug)) throw new Error('ADMIN_PATH must be 20+ chars of a-z, 0-9, -');

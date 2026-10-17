@@ -1,4 +1,5 @@
 import '@/lib/bootstrap';
+import '@/lib/web-alert';
 
 import * as Notifications from 'expo-notifications';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter, useSegments } from 'expo-router';
