@@ -30,7 +30,8 @@ type Page = { key: string; title: string; accent: string; body: string; art: () 
 export default function Welcome() {
   const theme = useTheme();
   const router = useRouter();
-  const { width } = useWindowDimensions();
+  // Phone-width pages, centered on big screens (desktop web).
+  const width = Math.min(useWindowDimensions().width, 520);
   const setOnboarded = useSettings((s) => s.setOnboarded);
   const scroller = useRef<ScrollViewInstance>(null);
   const [page, setPage] = useState(0);
@@ -96,7 +97,8 @@ export default function Welcome() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background, alignItems: 'center' }}>
+      <View style={{ flex: 1, width }}>
       <View style={styles.top}>
         {!last ? (
           <Pressable onPress={() => go(pages.length - 1)} hitSlop={12} accessibilityRole="button">
@@ -150,6 +152,7 @@ export default function Welcome() {
         ) : (
           <Button label="Next" size="lg" onPress={() => go(page + 1)} />
         )}
+        </View>
       </View>
     </SafeAreaView>
   );
