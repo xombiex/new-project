@@ -1,14 +1,16 @@
 import '@/lib/bootstrap';
+import { Platform } from 'react-native';
 import '@/lib/web-alert';
 
 import * as Notifications from 'expo-notifications';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { isDemo, seedDemo } from '@/lib/demo';
 import { startPresence } from '@/lib/presence';
 import { registerForPush, setDrivingCheck } from '@/lib/notifications';
 import { useAuth } from '@/store/auth';
@@ -35,15 +37,38 @@ export default function RootLayout() {
   const router = useRouter();
 
   useEffect(() => useAuth.getState().init(), []);
+  // Desktop visitors' first stop is the landing page (/about); phones go straight into the app.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || isDemo()) return;
+    try {
+      const fromEmail = location.hash.includes('access_token') || location.search.includes('code=');
+      if (location.pathname === '/' && !fromEmail && window.innerWidth >= 1024 && !localStorage.getItem('convoy-landing-seen')) {
+        location.replace('/about');
+      }
+    } catch {
+      // storage blocked: just show the app
+    }
+  }, []);
+
+  // Screenshot demo (dev web builds only): sample data instead of an account.
+  useEffect(() => void seedDemo(), []);
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();
   }, [ready]);
 
+  // First launch: the welcome screens (once settings have loaded from storage).
+  const onboarded = useSettings((s) => s.onboarded);
+  const [settingsReady, setSettingsReady] = useState(useSettings.persist.hasHydrated());
+  useEffect(() => useSettings.persist.onFinishHydration(() => setSettingsReady(true)), []);
+  useEffect(() => {
+    if (ready && settingsReady && !onboarded && segments[0] !== 'welcome') router.push('/welcome');
+  }, [ready, settingsReady, onboarded, segments, router]);
+
   // Signed-in users must pick a username before using social features.
   useEffect(() => {
-    if (ready && session && !profile && !profileLoading && segments[0] !== 'profile-setup') router.push('/profile-setup');
-  }, [ready, session, profile, profileLoading, segments, router]);
+    if (ready && onboarded && session && !profile && !profileLoading && segments[0] !== 'profile-setup') router.push('/profile-setup');
+  }, [ready, onboarded, session, profile, profileLoading, segments, router]);
 
   // Online status for friends: a heartbeat while the app is open (if the user shares it).
   const shareOnline = useSettings((s) => s.shareOnline);
@@ -98,6 +123,7 @@ export default function RootLayout() {
         <Stack.Screen name="event/new" options={{ title: 'New event', presentation: 'modal' }} />
         <Stack.Screen name="event/[id]" options={{ title: 'Event' }} />
         <Stack.Screen name="gear" options={{ title: 'Driving gear' }} />
+        <Stack.Screen name="welcome" options={{ presentation: 'fullScreenModal', headerShown: false, gestureEnabled: false, animation: 'fade' }} />
         <Stack.Screen name="car/[id]" options={{ presentation: 'modal', title: 'Car' }} />
         <Stack.Screen name="friend/[id]" options={{ title: 'Friend' }} />
         <Stack.Screen name="stripe-return" options={{ headerShown: false }} />

@@ -2,11 +2,12 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback } from 'react';
 import { Alert, Image, Pressable, StyleSheet, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { CarCard } from '@/components/car-card';
 import { sideImage } from '@/components/map/vehicle-sprites';
 import { ThemedText } from '@/components/themed-text';
-import { Avatar, Button, Card, Screen } from '@/components/ui';
+import { Avatar, Button, Card, Screen, Skeleton } from '@/components/ui';
 import { BottomTabInset, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/store/auth';
@@ -93,10 +94,14 @@ export default function GarageTab() {
             </ThemedText>
           ) : null}
 
-          {cars.map((car) => (
-            <Pressable key={car.id} onPress={() => openMenu(car)} onLongPress={() => openMenu(car)}>
-              <CarCard car={car} primary={profile.primary_car_id === car.id} onMenu={() => openMenu(car)} />
-            </Pressable>
+          {!loaded ? [0, 1].map((i) => <Skeleton key={i} height={230} radius={Radius.lg} />) : null}
+
+          {cars.map((car, i) => (
+            <Animated.View key={car.id} entering={FadeInDown.delay(i * 70).duration(300)}>
+              <Pressable onPress={() => openMenu(car)} onLongPress={() => openMenu(car)} style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.98 : 1 }] })}>
+                <CarCard car={car} primary={profile.primary_car_id === car.id} onMenu={() => openMenu(car)} />
+              </Pressable>
+            </Animated.View>
           ))}
 
           <Pressable

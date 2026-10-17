@@ -22,6 +22,9 @@ type SettingsState = {
   privacyZones: PrivacyZone[];
   /** spoken warnings for road reports ahead */
   reportAlerts: boolean;
+  /** Seen the welcome screens */
+  onboarded: boolean;
+  setOnboarded: (on: boolean) => void;
   /** Let friends see when I'm in the app */
   shareOnline: boolean;
   /** Speed cameras on the map + heads-up when approaching one */
@@ -87,6 +90,8 @@ export const useSettings = create<SettingsState>()(
       mapTheme: 'auto',
       privacyZones: [],
       reportAlerts: true,
+      onboarded: false,
+      setOnboarded: (onboarded) => set({ onboarded }),
       shareOnline: true,
       speedCameraAlerts: !CAMERA_ALERTS_OFF.has(deviceRegion() ?? ''),
       setSpeedCameraAlerts: (speedCameraAlerts) => set({ speedCameraAlerts }),

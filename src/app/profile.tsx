@@ -29,7 +29,7 @@ const MANAGE_SUBSCRIPTIONS = Platform.select({
 export default function ProfileScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { session, profile, signOut } = useAuth();
+  const { session, profile, signOut, setLeaderboard } = useAuth();
   const settings = useSettings();
   const pro = useEntitled('pro');
   const cosmetics = useEntitled('cosmetics');
@@ -266,6 +266,15 @@ export default function ProfileScreen() {
               </ThemedText>
             </View>
             <Switch value={settings.shareOnline} onValueChange={settings.setShareOnline} />
+          </View>
+          <View style={[styles.row, { marginTop: Spacing.three }]}>
+            <View style={{ flex: 1 }}>
+              <ThemedText style={{ fontWeight: 700 }}>Show me on leaderboards</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                Friends see your weekly distance, drives and drive days. Never routes or speeds.
+              </ThemedText>
+            </View>
+            <Switch value={profile?.leaderboard !== false} onValueChange={(on) => void setLeaderboard(on)} />
           </View>
         </Card>
       ) : null}

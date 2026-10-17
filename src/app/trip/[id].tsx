@@ -2,6 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { ConvoyMap, type MapLine, type MapPerson } from '@/components/map/convoy-map';
 import { sideImage } from '@/components/map/vehicle-sprites';
@@ -164,7 +165,7 @@ export default function TripScreen() {
       <ScrollView style={{ backgroundColor: theme.background }} contentContainerStyle={{ paddingBottom: Spacing.six }}>
         <ConvoyMap style={{ height: 340 }} showUser={false} lines={lines} people={people} fit={{ key: trip.id, points: trip.path }} />
 
-        <View style={[styles.sheet, { backgroundColor: theme.background }]}>
+        <Animated.View entering={FadeInUp.duration(350)} style={[styles.sheet, { backgroundColor: theme.background }]}>
           {/* Header: the car, when, how far and how long */}
           <View style={styles.header}>
             <Image source={sideImage(carBody, carPaint)} style={styles.headerCar} resizeMode="contain" />
@@ -268,7 +269,7 @@ export default function TripScreen() {
           <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
             {trip.synced ? 'Backed up to your account' : 'Saved on this phone only. Sign in to back up trips.'}
           </ThemedText>
-        </View>
+        </Animated.View>
       </ScrollView>
     </>
   );

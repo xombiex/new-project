@@ -5,9 +5,10 @@ import { useCallback, useState } from 'react';
 import { Alert, Platform, Pressable, RefreshControl, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Leaderboard } from '@/components/leaderboard';
 import { OnlineDot } from '@/components/online-status';
 import { ThemedText } from '@/components/themed-text';
-import { Avatar, Button, Card, EmptyState, Screen, SectionTitle, TextField } from '@/components/ui';
+import { Avatar, Button, Card, EmptyState, Screen, SectionTitle, Skeleton, TextField } from '@/components/ui';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDistance, haversine } from '@/lib/geo';
@@ -177,8 +178,16 @@ export default function FriendsScreen() {
           </>
         ) : null}
 
+        <Leaderboard />
+
         <SectionTitle>{`Friends · ${friends.length}`}</SectionTitle>
-        {friends.length === 0 ? (
+        {friends.length === 0 && loading ? (
+          <View style={{ gap: Spacing.two }}>
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} height={56} />
+            ))}
+          </View>
+        ) : friends.length === 0 ? (
           <ThemedText themeColor="textSecondary">No friends yet. Add someone by their username above.</ThemedText>
         ) : (
           <Card style={{ paddingVertical: Spacing.one }}>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
+import { isDemo } from '@/lib/demo';
 import { fetchRoads, matchRoad, needsRefetch, type Road, type SpeedLimit } from '@/lib/speed-limit';
 import type { LngLat } from '@/lib/geo';
 import { useTrips } from '@/store/trips';
@@ -22,6 +23,7 @@ export function useSpeedLimit(enabled: boolean): RoadInfo {
   const lastMatchAt = useRef(0);
 
   useEffect(() => {
+    if (isDemo()) return; // fixed road below
     if (!enabled) {
       setInfo({ limit: null, name: null });
       return;
@@ -49,5 +51,7 @@ export function useSpeedLimit(enabled: boolean): RoadInfo {
       .finally(() => (loading.current = false));
   }, [enabled, sample]);
 
+  // Screenshot demo: a fixed road, no network.
+  if (isDemo()) return enabled ? { limit: { value: 35, unit: 'mph' }, name: 'North Florida Avenue' } : { limit: null, name: null };
   return info;
 }

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { isDemo } from '@/lib/demo';
 import { supabase } from '@/lib/supabase';
 import type { Paint, Vehicle } from '@/lib/vehicles';
 import { useAuth } from '@/store/auth';
@@ -59,6 +60,7 @@ export const useGarage = create<GarageState>()((set, get) => ({
   loaded: false,
 
   load: async () => {
+    if (isDemo()) return;
     const uid = useAuth.getState().session?.user.id;
     if (!uid) {
       set({ cars: [], loaded: true });

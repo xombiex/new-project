@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two, paddingHorizontal: Spacing.three },
   title: { fontSize: 18, fontWeight: 800 },
   stage: { alignItems: 'center', justifyContent: 'flex-end', marginTop: -Spacing.two },
-  floor: { position: 'absolute', bottom: Spacing.three, width: '70%', height: 22, borderRadius: 999, opacity: 0.8 },
+  floor: { position: 'absolute', bottom: Spacing.three + 4, width: '58%', height: 14, borderRadius: 999, opacity: 0.35 },
   car: { width: '100%', aspectRatio: 2 },
   badge: {
     position: 'absolute',

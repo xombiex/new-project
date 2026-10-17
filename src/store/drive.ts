@@ -6,6 +6,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { analyzeConvoy } from '@/lib/convoy';
 import { haversine } from '@/lib/geo';
+import { isDemo } from '@/lib/demo';
 import { haptic } from '@/lib/haptics';
 import { addReason, onLocation, removeReason } from '@/lib/location';
 import { notify } from '@/lib/notifications';
@@ -303,7 +304,7 @@ export const useDrive = create<DriveState>()(
         /** Reconnect to the persisted drive after an app restart. */
         resume: async () => {
           const drive = get().drive;
-          if (!drive || channel) return;
+          if (!drive || channel || isDemo()) return;
           const { data } = await supabase.from('group_drives').select('*').eq('id', drive.id).maybeSingle();
           if (data && data.status === 'active') await connect(data);
           else set({ drive: null, members: {} });

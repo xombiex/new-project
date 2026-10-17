@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Convoy · Drive together</title>
+<meta name="description" content="Track every drive, ride with friends on one live map, build your 3D garage, and get speed limit and camera alerts. Free." />
+<meta property="og:title" content="Convoy · Drive together" />
+<meta property="og:description" content="Track every drive, ride with friends on one live map, build your 3D garage." />
+<meta property="og:image" content="/shots/together.webp" />
+<meta name="theme-color" content="#000000" />
+<link rel="icon" type="image/png" href="/favicon.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<style>
+  :root { --bg: #000; --panel: #0e1014; --text: #f4f5f7; --muted: #9aa1ab; --accent: #1e9bff; --orange: #ffa630; --border: #1d2027; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.55 -apple-system, "Segoe UI", system-ui, sans-serif; }
+  a { color: inherit; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+  header { position: sticky; top: 0; z-index: 5; background: rgba(0,0,0,.75); backdrop-filter: blur(14px); border-bottom: 1px solid var(--border); }
+  header .wrap { display: flex; align-items: center; gap: 12px; height: 64px; }
+  header img { width: 34px; height: 34px; border-radius: 9px; }
+  header b { font-size: 19px; }
+  header nav { margin-left: auto; display: flex; gap: 22px; align-items: center; font-weight: 600; font-size: 15px; }
+  header nav a { text-decoration: none; color: var(--muted); }
+  .btn { display: inline-flex; align-items: center; gap: 8px; background: var(--accent); color: #fff !important; text-decoration: none; font-weight: 800; padding: 13px 24px; border-radius: 999px; border: 0; cursor: pointer; font-size: 16px; }
+  .btn.ghost { background: transparent; border: 1.5px solid var(--border); color: var(--text) !important; }
+  .hero { position: relative; overflow: hidden; padding: 72px 0 40px; background: radial-gradient(90% 60% at 70% 20%, #11304f 0%, #05070b 55%, #000 100%); }
+  .hero .wrap { display: grid; grid-template-columns: 1.1fr .9fr; gap: 40px; align-items: center; }
+  .hero h1 { font-size: 68px; line-height: 1.02; letter-spacing: -2px; margin: 0 0 18px; font-weight: 900; }
+  .hero h1 span { color: var(--orange); }
+  .hero p { color: var(--muted); font-size: 20px; max-width: 520px; margin: 0 0 28px; }
+  .cta { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .soon { color: var(--muted); font-size: 14px; margin-top: 14px; }
+  .hero img { width: 100%; max-width: 420px; justify-self: center; filter: drop-shadow(0 30px 60px rgba(0,0,0,.6)); }
+  section.feature { padding: 70px 0; border-top: 1px solid var(--border); }
+  section.feature .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; }
+  section.feature:nth-of-type(even) .text { order: 2; }
+  .text h2 { font-size: 44px; line-height: 1.08; letter-spacing: -1px; margin: 0 0 14px; font-weight: 900; }
+  .text h2 span { color: var(--orange); }
+  .text p { color: var(--muted); font-size: 18px; margin: 0 0 12px; }
+  .text ul { color: var(--muted); padding-left: 20px; margin: 0; }
+  .text li { margin: 6px 0; }
+  .shot { width: 100%; max-width: 380px; justify-self: center; border-radius: 28px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 28px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 18px; padding: 20px; }
+  .card b { display: block; margin-bottom: 6px; font-size: 17px; }
+  .card span { color: var(--muted); font-size: 15px; }
+  .final { text-align: center; padding: 90px 0; border-top: 1px solid var(--border); background: radial-gradient(60% 80% at 50% 100%, #0f2a45 0%, #000 70%); }
+  .final h2 { font-size: 48px; margin: 0 0 12px; letter-spacing: -1px; font-weight: 900; }
+  .final p { color: var(--muted); margin: 0 0 28px; }
+  footer { border-top: 1px solid var(--border); color: var(--muted); font-size: 14px; }
+  footer .wrap { display: flex; gap: 18px; padding: 24px; flex-wrap: wrap; }
+  .safety { color: #6f7680; font-size: 13px; max-width: 760px; }
+  @media (max-width: 860px) {
+    .hero .wrap, section.feature .wrap { grid-template-columns: 1fr; }
+    section.feature:nth-of-type(even) .text { order: 0; }
+    .hero h1 { font-size: 46px; } .text h2 { font-size: 34px; } .grid { grid-template-columns: 1fr; }
+    header nav a.hide-sm { display: none; }
+  }
+</style>
+</head>
+<body>
+<header><div class="wrap"><img src="/apple-touch-icon.png" alt="" /><b>Convoy</b>
+  <nav><a class="hide-sm" href="#features">Features</a><a class="hide-sm" href="/privacy">Privacy</a><a class="btn open-app" href="/">Open Convoy</a></nav></div></header>
+
+<section class="hero"><div class="wrap">
+  <div>
+    <h1>Drive <span>together.</span></h1>
+    <p>Every drive tracked, your crew live on one map, and a 3D garage of the cars you love. With speed limits and camera alerts built in. Free.</p>
+    <div class="cta"><a class="btn open-app" href="/">Open Convoy in your browser</a><a class="btn ghost" href="#features">See features</a></div>
+    <div class="soon">iPhone and Android apps coming soon. On your phone now? Open Convoy, then Share → Add to Home Screen.</div>
+  </div>
+  <img src="/shots/together.webp" alt="Convoy map with friends driving together" />
+</div></section>
+
+<span id="features"></span>
+<section class="feature"><div class="wrap">
+  <div class="text"><h2>Every drive, <span>tracked</span></h2>
+    <p>Start a trip, or let Convoy notice when you start driving. Afterwards you get the full story.</p>
+    <ul><li>Route colored by speed, with a speed distribution</li><li>Distance, duration, top speed and replay</li><li>Monthly timeline and stats, synced across devices</li></ul></div>
+  <img class="shot" src="/shots/track.webp" alt="Trip details with a speed-colored route" loading="lazy" />
+</div></section>
+
+<section class="feature"><div class="wrap">
+  <div class="text"><h2>Ride as a <span>convoy</span></h2>
+    <p>Share a code and everyone appears live on one map with their car and speed, so nobody gets lost and nobody gets left behind.</p>
+    <ul><li>“Fell behind” alerts and arrival notifications</li><li>Clubs, events and tickets for car meets</li><li>Online status for friends, leaderboards by distance</li></ul></div>
+  <img class="shot" src="/shots/friends.webp" alt="Friends leaderboard" loading="lazy" />
+</div></section>
+
+<section class="feature"><div class="wrap">
+  <div class="text"><h2>Your 3D <span>garage</span></h2>
+    <p>Add the cars you drive (or dream about), pick a paint, and choose which one friends see moving along your route.</p></div>
+  <img class="shot" src="/shots/garage.webp" alt="Garage with three cars" loading="lazy" />
+</div></section>
+
+<section class="feature"><div class="wrap">
+  <div class="text"><h2>Make the map <span>yours</span></h2>
+    <p>3D buildings, map themes like Neon City and Blocks, and a heads-up for what's ahead.</p>
+    <div class="grid">
+      <div class="card"><b>Speed limits</b><span>The posted limit on your road, red when you're over.</span></div>
+      <div class="card"><b>Camera alerts</b><span>Speed and license-plate cameras from OpenStreetMap, worldwide.</span></div>
+      <div class="card"><b>Road reports</b><span>Hazards, closures and police reported by drivers nearby.</span></div>
+    </div></div>
+  <img class="shot" src="/shots/themes.webp" alt="Neon City map theme with a camera alert" loading="lazy" />
+</div></section>
+
+<section class="final"><div class="wrap">
+  <h2>Ready to roll?</h2>
+  <p>Free to use. No ads. Your data is never sold.</p>
+  <a class="btn open-app" href="/">Open Convoy</a>
+</div></section>
+
+<footer><div class="wrap">
+  <span>© 2026 Convoy</span><a href="/terms">Terms</a><a href="/privacy">Privacy</a>
+  <span class="safety">Convoy never encourages speeding or unsafe driving. Set things up before you move, and keep your eyes on the road. Map data © OpenStreetMap contributors.</span>
+</div></footer>
+<script src="/about.js"></script>
+</body>
+</html>

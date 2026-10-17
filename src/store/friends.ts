@@ -2,6 +2,7 @@ import { create } from 'zustand';
 
 import { onLocation } from '@/lib/location';
 import { notify } from '@/lib/notifications';
+import { isDemo } from '@/lib/demo';
 import { inZone } from '@/lib/privacy';
 import { supabase } from '@/lib/supabase';
 import type { LocationSample } from '@/lib/trip-recorder';
@@ -97,6 +98,7 @@ export const useFriends = create<FriendsState>()((set, get) => {
     loading: false,
 
     refresh: async () => {
+      if (isDemo()) return;
       const uid = await myId();
       if (!uid) return;
       set({ loading: true });

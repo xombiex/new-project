@@ -1,16 +1,6 @@
-import { ReactNode } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-  type PressableProps,
-  type StyleProp,
-  type TextInputProps,
-  type ViewStyle,
-} from 'react-native';
+import { ReactNode, useEffect } from 'react';
+import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import { ActivityIndicator, type DimensionValue, Pressable, type PressableProps, ScrollView, type StyleProp, StyleSheet, TextInput, type TextInputProps, View, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -88,7 +78,8 @@ export function Button({ label, variant = 'primary', size = 'md', loading, icon,
       style={({ pressed }) => [
         styles.button,
         size === 'lg' && styles.buttonLg,
-        { backgroundColor: bg, opacity: disabled ? 0.45 : pressed ? 0.8 : 1 },
+        // A small press-down so taps feel physical.
+        { backgroundColor: bg, opacity: disabled ? 0.45 : pressed ? 0.85 : 1, transform: [{ scale: pressed && !disabled ? 0.97 : 1 }] },
         style,
       ]}
       {...rest}>
@@ -184,6 +175,17 @@ export function EmptyState({ title, body, children }: { title: string; body: str
       {children}
     </Card>
   );
+}
+
+/** Pulsing placeholder shaped like the content that's loading, so screens don't pop in. */
+export function Skeleton({ height = 16, width = '100%', radius = Radius.md, style }: { height?: number; width?: DimensionValue; radius?: number; style?: StyleProp<ViewStyle> }) {
+  const theme = useTheme();
+  const pulse = useSharedValue(0.5);
+  useEffect(() => {
+    pulse.value = withRepeat(withTiming(1, { duration: 700 }), -1, true);
+  }, [pulse]);
+  const animated = useAnimatedStyle(() => ({ opacity: pulse.value }));
+  return <Animated.View style={[{ height, width, borderRadius: radius, backgroundColor: theme.backgroundSelected }, animated, style]} />;
 }
 
 export function Segmented<T extends string>({

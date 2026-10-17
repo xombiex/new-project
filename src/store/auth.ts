@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js';
 import { create } from 'zustand';
 
+import { isDemo } from '@/lib/demo';
 import { unregisterPush } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 import type { Paint, Vehicle } from '@/lib/vehicles';
@@ -14,6 +15,8 @@ export type Profile = {
   vehicle_color: Paint;
   /** Garage car shown on the map (its body/paint are mirrored into vehicle/vehicle_color) */
   primary_car_id?: string | null;
+  /** appears on friends' leaderboards */
+  leaderboard?: boolean;
 };
 
 type AuthState = {
@@ -25,6 +28,7 @@ type AuthState = {
   init: () => () => void;
   loadProfile: () => Promise<void>;
   saveProfile: (p: Pick<Profile, 'username' | 'display_name' | 'avatar_color' | 'vehicle' | 'vehicle_color'>) => Promise<string | null>;
+  setLeaderboard: (on: boolean) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -35,6 +39,7 @@ export const useAuth = create<AuthState>()((set, get) => ({
   profileLoading: false,
 
   init: () => {
+    if (isDemo()) return () => {};
     supabase.auth.getSession().then(async ({ data }) => {
       set({ session: data.session });
       if (data.session) await get().loadProfile();
@@ -58,7 +63,7 @@ export const useAuth = create<AuthState>()((set, get) => ({
     set({ profileLoading: true });
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, username, display_name, avatar_color, vehicle, vehicle_color, primary_car_id')
+      .select('id, username, display_name, avatar_color, vehicle, vehicle_color, primary_car_id, leaderboard')
       .eq('id', uid)
       .maybeSingle();
     if (error) console.warn('Profile load failed', error.message);
@@ -73,7 +78,7 @@ export const useAuth = create<AuthState>()((set, get) => ({
     const { data, error } = await supabase
       .from('profiles')
       .upsert(row)
-      .select('id, username, display_name, avatar_color, vehicle, vehicle_color, primary_car_id')
+      .select('id, username, display_name, avatar_color, vehicle, vehicle_color, primary_car_id, leaderboard')
       .single();
     if (error) {
       if (error.code === '23505') return 'That username is taken';
@@ -83,6 +88,13 @@ export const useAuth = create<AuthState>()((set, get) => ({
     }
     set({ profile: data });
     return null;
+  },
+
+  setLeaderboard: async (on) => {
+    const uid = get().session?.user.id;
+    if (!uid) return;
+    set({ profile: get().profile ? { ...get().profile!, leaderboard: on } : null });
+    await supabase.from('profiles').update({ leaderboard: on }).eq('id', uid);
   },
 
   signOut: async () => {
