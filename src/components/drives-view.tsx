@@ -8,6 +8,7 @@ import { Glass } from '@/components/glass';
 import { ConvoyMap, type MapLine } from '@/components/map/convoy-map';
 import { RouteThumbnail } from '@/components/route-thumbnail';
 import { ThemedText } from '@/components/themed-text';
+import { UnreadBadge } from '@/components/unread-badge';
 import { Avatar } from '@/components/ui';
 import { BottomTabInset, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -167,6 +168,7 @@ export function DrivesView({ toggle }: { toggle: ReactNode }) {
                 <MaterialCommunityIcons name="account" size={28} color={theme.textSecondary} />
               </View>
             )}
+            <UnreadBadge />
           </Pressable>
         </View>
 

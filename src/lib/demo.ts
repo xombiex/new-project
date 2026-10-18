@@ -18,8 +18,8 @@ export const DEMO_ROUTE: [number, number][] = Array.from({ length: 60 }, (_, i) 
 /** Dev web builds: expose stores to the browser console for testing (never in production). */
 export async function exposeStoresForTesting() {
   if (!__DEV__ || Platform.OS !== 'web' || typeof window === 'undefined') return;
-  const [{ useNav }, { useNavigation }, { useTrips }] = await Promise.all([import('@/store/nav'), import('@/store/navigation'), import('@/store/trips')]);
-  (window as unknown as { __convoy: unknown }).__convoy = { useNav, useNavigation, useTrips };
+  const [{ useNav }, { useNavigation }, { useTrips }, { useInbox }] = await Promise.all([import('@/store/nav'), import('@/store/navigation'), import('@/store/trips'), import('@/store/inbox')]);
+  (window as unknown as { __convoy: unknown }).__convoy = { useNav, useNavigation, useTrips, useInbox };
 }
 
 /** Fill the stores. Called once from the root layout when demo mode is on. */

@@ -1,5 +1,5 @@
 import '@/lib/bootstrap';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import '@/lib/web-alert';
 
 import * as Notifications from 'expo-notifications';
@@ -17,6 +17,7 @@ import { useAuth } from '@/store/auth';
 import { useClubs } from '@/store/clubs';
 import { useDrive } from '@/store/drive';
 import { useFriends } from '@/store/friends';
+import { useInbox } from '@/store/inbox';
 import { useNavigation } from '@/store/navigation';
 import { useNotificationSettings } from '@/store/notification-settings';
 import { usePro } from '@/store/pro';
@@ -84,6 +85,13 @@ export default function RootLayout() {
     if (ready) void usePro.getState().identify(userId);
   }, [ready, userId]);
 
+  // Coming back to the app: pick up team messages sent while it was closed.
+  useEffect(() => {
+    if (!signedIn) return;
+    const sub = AppState.addEventListener('change', (s) => s === 'active' && void useInbox.getState().load());
+    return () => sub.remove();
+  }, [signedIn]);
+
   // Tapping a notification opens the relevant screen.
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener((res) => {
@@ -91,19 +99,31 @@ export default function RootLayout() {
       if (data.type === 'drive_invite' && data.code) router.push({ pathname: '/convoy', params: { code: data.code } });
       else if (data.type === 'friend_request' || data.type === 'friend_accepted') router.push('/friends');
       else if (data.type === 'member_joined' || data.type === 'arrived') router.push('/convoy');
+      else if (data.type === 'admin_message') router.push('/inbox');
       else if (data.type === 'event_reminder' && data.event_id) router.push({ pathname: '/event/[id]', params: { id: data.event_id } });
     });
-    return () => sub.remove();
+    // A team message arriving while the app is open: refresh the inbox so the badge shows up.
+    const got = Notifications.addNotificationReceivedListener((n) => {
+      if ((n.request.content.data as { type?: string })?.type === 'admin_message') void useInbox.getState().load();
+    });
+    return () => {
+      sub.remove();
+      got.remove();
+    };
   }, [router]);
 
   useEffect(() => {
-    if (!profile) return;
+    if (!profile) {
+      useInbox.getState().clear();
+      return;
+    }
     void registerForPush(profile.id);
     void useNotificationSettings.getState().load();
     // Signing in on a new device (or the web app) brings your saved drives with you.
     void useTrips.getState().syncPending().then(() => useTrips.getState().pullFromCloud());
     void useClubs.getState().loadMine();
     void useFriends.getState().refresh();
+    void useInbox.getState().load();
     void useDrive.getState().resume();
   }, [profile]);
 
@@ -129,6 +149,7 @@ export default function RootLayout() {
         <Stack.Screen name="welcome" options={{ presentation: 'fullScreenModal', headerShown: false, gestureEnabled: false, animation: 'fade' }} />
         <Stack.Screen name="car/[id]" options={{ presentation: 'modal', title: 'Car' }} />
         <Stack.Screen name="friend/[id]" options={{ title: 'Friend' }} />
+        <Stack.Screen name="inbox" options={{ title: 'Inbox' }} />
         <Stack.Screen name="stripe-return" options={{ headerShown: false }} />
         <Stack.Screen name="invite" options={{ title: 'Invite to drive', presentation: 'modal' }} />
         <Stack.Screen name="report" options={{ title: 'Report', presentation: 'formSheet', sheetAllowedDetents: [0.6, 1] }} />

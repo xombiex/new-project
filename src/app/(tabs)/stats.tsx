@@ -7,6 +7,7 @@ import { BarChart } from '@/components/bar-chart';
 import { DrivesView } from '@/components/drives-view';
 import { Glass } from '@/components/glass';
 import { ThemedText } from '@/components/themed-text';
+import { UnreadBadge } from '@/components/unread-badge';
 import { Avatar, Button, Card, Screen, SectionTitle, Segmented, Stat } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -83,6 +84,7 @@ function StatsOverview({ toggle }: { toggle: ReactNode }) {
               <MaterialCommunityIcons name="account" size={26} color={theme.textSecondary} />
             </View>
           )}
+          <UnreadBadge />
         </Pressable>
       </View>
       {toggle}

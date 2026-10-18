@@ -7,6 +7,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { CarCard } from '@/components/car-card';
 import { sideImage } from '@/components/map/vehicle-sprites';
 import { ThemedText } from '@/components/themed-text';
+import { UnreadBadge } from '@/components/unread-badge';
 import { Avatar, Button, Card, Screen, Skeleton } from '@/components/ui';
 import { BottomTabInset, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -72,6 +73,7 @@ export default function GarageTab() {
               <MaterialCommunityIcons name="account" size={26} color={theme.textSecondary} />
             </View>
           )}
+          <UnreadBadge />
         </Pressable>
       </View>
 

@@ -81,6 +81,14 @@
   .kv { display: grid; grid-template-columns: 130px 1fr; gap: 6px 10px; font-size: 14px; }
   .kv span:nth-child(odd) { color: var(--muted); }
   .btns { display: flex; flex-wrap: wrap; gap: 8px; }
+  textarea { font: inherit; color: inherit; background: var(--panel-2); border: 1px solid transparent; border-radius: 10px; padding: 10px 12px; width: 100%; resize: vertical; min-height: 96px; }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .compose { display: grid; gap: 10px; padding: 16px; }
+  .compose .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .compose .count { font-size: 12px; margin-left: auto; }
+  .preview { display: flex; gap: 10px; align-items: flex-start; background: var(--panel-2); border-radius: 14px; padding: 12px; max-width: 380px; }
+  .preview img { width: 28px; height: 28px; border-radius: 7px; background: var(--accent); padding: 3px; }
+  .preview b { display: block; font-size: 14px; } .preview span { font-size: 13px; color: var(--muted); white-space: pre-wrap; word-break: break-word; }
   .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--panel-2); border: 1px solid var(--border); padding: 10px 16px; border-radius: 12px; font-weight: 600; }
 
   @media (max-width: 760px) {
@@ -128,6 +136,7 @@
     <button data-view="drives">Live drives</button>
     <button data-view="clubs">Clubs</button>
     <button data-view="reports">Road reports</button>
+    <button data-view="messages">Messages</button>
     <button data-view="audit">Audit log</button>
     <div class="spacer"></div>
     <div class="muted" id="me" style="font-size:13px;padding:0 12px 8px;word-break:break-all"></div>

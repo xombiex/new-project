@@ -14,6 +14,7 @@ import { openBillingPortal } from '@/lib/payments';
 import { supabase } from '@/lib/supabase';
 import { MAP_THEMES } from '@/lib/map-style';
 import { useAuth } from '@/store/auth';
+import { useInbox } from '@/store/inbox';
 import { useNotificationSettings, type NotificationPrefs } from '@/store/notification-settings';
 import { useEntitled, usePro, type Entitlement } from '@/store/pro';
 import { useSettings } from '@/store/settings';
@@ -38,6 +39,7 @@ export default function ProfileScreen() {
   const unsynced = useTrips((s) => s.history.filter((t) => !t.synced).length);
   const [perm, setPerm] = useState<PermissionSummary | null>(null);
   const notif = useNotificationSettings();
+  const unread = useInbox((s) => s.unread);
 
   useFocusEffect(
     useCallback(() => {
@@ -73,6 +75,23 @@ export default function ProfileScreen() {
           <Button label="Sign in or create account" onPress={() => router.push('/sign-in')} />
         </Card>
       )}
+
+      {profile ? (
+        <Pressable onPress={() => router.push('/inbox')} accessibilityRole="button" accessibilityLabel={unread ? `Inbox, ${unread} new` : 'Inbox'}>
+          <Card style={styles.row}>
+            <MaterialCommunityIcons name="email-outline" size={22} color={theme.accent} />
+            <ThemedText style={{ flex: 1, fontWeight: 700 }}>Inbox</ThemedText>
+            {unread ? (
+              <View style={[styles.unread, { backgroundColor: theme.danger }]}>
+                <ThemedText type="smallBold" style={{ color: '#fff' }}>
+                  {unread > 99 ? '99+' : unread}
+                </ThemedText>
+              </View>
+            ) : null}
+            <MaterialCommunityIcons name="chevron-right" size={22} color={theme.textSecondary} />
+          </Card>
+        </Pressable>
+      ) : null}
 
       <Pressable onPress={() => router.push('/paywall')} accessibilityRole="button">
         <Card style={[styles.row, { borderColor: pro ? theme.speed : theme.border }]}>
@@ -289,6 +308,7 @@ export default function ProfileScreen() {
                 ['drive_invites', 'Group drive invites'],
                 ['drive_activity', 'Drive activity (joins, arrivals, fell behind)'],
                 ['club_events', 'Club event reminders'],
+                ['announcements', 'News & updates from Convoy'],
               ] as [keyof NotificationPrefs, string][]
             ).map(([key, label]) => (
               <View key={key} style={styles.row}>
@@ -453,6 +473,7 @@ function PermissionRow({ label, granted }: { label: string; granted: boolean | u
 }
 
 const styles = StyleSheet.create({
+  unread: { minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center' },
   content: { padding: Spacing.three, paddingBottom: Spacing.six, gap: Spacing.three },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   proBadge: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },

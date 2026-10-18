@@ -13,7 +13,7 @@ const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE
 });
 const EXPO_TOKEN = Deno.env.get('EXPO_ACCESS_TOKEN');
 
-type Pref = 'friend_requests' | 'drive_invites' | 'drive_activity' | 'club_events';
+type Pref = 'friend_requests' | 'drive_invites' | 'drive_activity' | 'club_events' | 'announcements';
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -54,7 +54,15 @@ async function activeDriveFor(member: string, driveId: string) {
   return drive;
 }
 
-async function send(sender: string | null, recipients: string[], type: string, pref: Pref, title: string, body: string, data: Record<string, unknown>) {
+/** Split big id lists so `.in()` filters stay well under URL limits (broadcasts can be thousands). */
+function chunks<T>(xs: T[], n = 200): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < xs.length; i += n) out.push(xs.slice(i, i + n));
+  return out;
+}
+
+/** `pref` null = always deliver (a message from the Convoy team to just you). */
+async function send(sender: string | null, recipients: string[], type: string, pref: Pref | null, title: string, body: string, data: Record<string, unknown>) {
   let targets = [...new Set(recipients)].filter((r) => r !== sender);
   if (targets.length === 0) return 0;
 
@@ -70,13 +78,22 @@ async function send(sender: string | null, recipients: string[], type: string, p
   }
 
   // Missing settings row = defaults (everything on).
-  const { data: settings } = await admin.from('notification_settings').select(`user_id, ${pref}`).in('user_id', targets);
-  const off = new Set((settings ?? []).filter((s: Record<string, unknown>) => s[pref] === false).map((s) => s.user_id));
-  targets = targets.filter((t) => !off.has(t));
+  if (pref) {
+    const off = new Set<string>();
+    for (const part of chunks(targets)) {
+      const { data: settings } = await admin.from('notification_settings').select(`user_id, ${pref}`).in('user_id', part);
+      for (const s of (settings ?? []) as Record<string, unknown>[]) if (s[pref] === false) off.add(s.user_id as string);
+    }
+    targets = targets.filter((t) => !off.has(t));
+  }
   if (targets.length === 0) return 0;
 
-  const { data: tokens } = await admin.from('push_tokens').select('token').in('user_id', targets);
-  const messages = (tokens ?? []).map((t) => ({ to: t.token, title, body, data: { ...data, type }, sound: 'default' }));
+  const tokens: { token: string }[] = [];
+  for (const part of chunks(targets)) {
+    const { data: rows } = await admin.from('push_tokens').select('token').in('user_id', part);
+    tokens.push(...(rows ?? []));
+  }
+  const messages = tokens.map((t) => ({ to: t.token, title, body, data: { ...data, type }, sound: 'default' }));
 
   for (let i = 0; i < messages.length; i += 100) {
     const chunk = messages.slice(i, i + 100);
@@ -94,7 +111,7 @@ async function send(sender: string | null, recipients: string[], type: string, p
     if (dead.length) await admin.from('push_tokens').delete().in('token', dead);
   }
 
-  await admin.from('notification_log').insert(targets.map((recipient) => ({ sender, recipient, type })));
+  for (const part of chunks(targets, 1000)) await admin.from('notification_log').insert(part.map((recipient) => ({ sender, recipient, type })));
   return targets.length;
 }
 
@@ -135,7 +152,7 @@ Deno.serve(async (req) => {
     if (!me) return json({ error: 'unauthorized' }, 401);
 
     const body = await req.json();
-    const name = await displayName(me);
+    const name = body.type === 'admin_message' ? '' : await displayName(me);
     let sent = 0;
 
     switch (body.type) {
@@ -165,6 +182,33 @@ Deno.serve(async (req) => {
         const { data: members } = await admin.from('group_members').select('user_id').eq('drive_id', drive.id);
         const text = body.type === 'arrived' ? `${name} arrived at the destination` : `${name} joined the drive`;
         sent = await send(me, (members ?? []).map((m) => m.user_id), body.type, 'drive_activity', drive.name, text, { drive_id: drive.id });
+        break;
+      }
+      case 'admin_message': {
+        // The send was created by admin_send_message() (which checks the caller is an admin).
+        // Claim it atomically: only its own admin, only once, only while fresh.
+        const tenMinAgo = new Date(Date.now() - 10 * 60_000).toISOString();
+        const { data: claimed } = await admin
+          .from('message_sends')
+          .update({ pushed_at: new Date().toISOString() })
+          .eq('id', uuid(body.send_id))
+          .eq('sent_by', me)
+          .is('pushed_at', null)
+          .gte('created_at', tenMinAgo)
+          .select('id, audience, title, body')
+          .maybeSingle();
+        if (!claimed) throw new HttpError(403, 'not your send, or already pushed');
+        const recipients: string[] = [];
+        for (let from = 0; ; from += 1000) {
+          const { data } = await admin.from('messages').select('user_id').eq('send_id', claimed.id).range(from, from + 999);
+          recipients.push(...(data ?? []).map((m) => m.user_id));
+          if (!data || data.length < 1000) break;
+        }
+        // Broadcasts respect "Announcements"; a note to one person always goes through.
+        const pref = claimed.audience === 'user' ? null : 'announcements';
+        // No sender → no per-sender rate limit (and an admin can message themselves to test).
+        sent = await send(null, recipients, 'admin_message', pref, claimed.title, claimed.body, { send_id: claimed.id });
+        await admin.from('message_sends').update({ pushed: sent }).eq('id', claimed.id);
         break;
       }
       default:

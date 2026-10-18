@@ -96,7 +96,7 @@ document.querySelectorAll('nav [data-view]').forEach((b) => (b.onclick = () => s
 function show(view) {
   current = view;
   document.querySelectorAll('nav [data-view]').forEach((b) => b.classList.toggle('active', b.dataset.view === view));
-  ({ overview, users, drives, clubs, reports, audit })[view]();
+  ({ overview, users, drives, clubs, reports, messages, audit })[view]();
 }
 
 async function overview() {
@@ -197,6 +197,8 @@ async function openUser(id) {
       <p class="muted" style="font-size:13px;margin:8px 0 0">Comps are separate from paid subscriptions and are never touched by Stripe or App Store syncs.</p>
     </div>
 
+    <div class="section"><h3>Message</h3>${p.username ? composer('user') : '<p class="muted" style="margin:0">They haven’t finished setting up a profile yet, so there’s no inbox to send to.</p>'}</div>
+
     <div class="section"><h3>Moderation</h3><div class="btns">
       ${banned
         ? '<button data-ban="">Unban</button>'
@@ -228,6 +230,7 @@ async function openUser(id) {
     await rpc('admin_ban_user', { p_user: id, p_hours: hours });
     refresh(hours ? 'User banned' : 'User unbanned');
   }));
+  if (p.username) wireComposer(() => ({ audience: 'user', user: id }), (msg) => refresh(msg));
   $('#delete-user').onclick = async () => {
     const typed = prompt(`This permanently deletes ${u.email} and all their trips, friends and clubs they own.\n\nType their email to confirm:`);
     if (!typed) return;
@@ -288,6 +291,78 @@ async function reports() {
     toast('Report removed');
     reports();
   }));
+}
+
+// ─── Messages ──────────────────────────────────────────────────────────
+const AUDIENCES = { everyone: 'Everyone', pro: 'Pro members', free: 'Free members', user: 'One person' };
+
+/** Title + message fields with a live phone-notification preview. */
+function composer(kind) {
+  return `<form class="compose" id="compose" style="padding:${kind === 'user' ? 0 : 16}px">
+    ${kind === 'user' ? '' : `<div class="row"><label class="muted" for="m-aud">Send to</label>
+      <select id="m-aud" style="width:auto">${['everyone', 'pro', 'free'].map((a) => `<option value="${a}">${AUDIENCES[a]}</option>`).join('')}</select></div>`}
+    <input id="m-title" maxlength="80" placeholder="Title (shows in bold on the notification)" required />
+    <textarea id="m-body" maxlength="1000" placeholder="Message" required></textarea>
+    <div class="row">
+      <label class="muted" style="display:flex;gap:6px;align-items:center;font-size:14px"><input type="checkbox" id="m-push" checked style="width:auto" /> Also send a push notification</label>
+      <span class="muted count" id="m-count">0 / 1000</span>
+    </div>
+    <div class="preview"><img src="./logo.png" alt="" /><div><b id="m-pv-t">Convoy</b><span id="m-pv-b">Your message preview</span></div></div>
+    <div class="row"><button class="primary" type="submit" id="m-send">${kind === 'user' ? 'Send to this person' : 'Send'}</button></div>
+  </form>`;
+}
+
+function wireComposer(target, done) {
+  const t = $('#m-title');
+  const b = $('#m-body');
+  const sync = () => {
+    $('#m-pv-t').textContent = t.value.trim() || 'Convoy';
+    $('#m-pv-b').textContent = b.value.trim() || 'Your message preview';
+    $('#m-count').textContent = `${b.value.length} / 1000`;
+  };
+  t.oninput = sync;
+  b.oninput = sync;
+  $('#compose').onsubmit = async (e) => {
+    e.preventDefault();
+    const { audience, user } = target();
+    const who = audience === 'user' ? 'this person' : AUDIENCES[audience].toLowerCase();
+    if (audience !== 'user' && !confirm(`Send “${t.value.trim()}” to ${who}? This can’t be unsent.`)) return;
+    const btn = $('#m-send');
+    btn.disabled = true;
+    try {
+      const res = await rpc('admin_send_message', { p_audience: audience, p_title: t.value, p_body: b.value, p_user: user ?? null });
+      let pushed = null;
+      if ($('#m-push').checked && res.recipients > 0) {
+        const { data, error } = await sb.functions.invoke('notify', { body: { type: 'admin_message', send_id: res.send_id } });
+        pushed = error ? null : data?.sent ?? 0;
+        if (error) toast('Saved to inboxes, but the push failed: ' + error.message);
+      }
+      done(`Sent to ${res.recipients} inbox${res.recipients === 1 ? '' : 'es'}${pushed != null ? ` · ${pushed} notified` : ''}`);
+    } finally {
+      btn.disabled = false;
+    }
+  };
+}
+
+async function messages() {
+  $('#view').innerHTML = `<h1>Messages</h1>
+    <p class="muted" style="margin:-8px 0 16px">Messages land in each person’s in-app inbox. Push notifications reach people with the app installed and Announcements turned on. To message one person, open them from Users.</p>
+    <div class="card" style="margin-bottom:18px">${composer('broadcast')}</div>
+    <div class="card"><div class="table-wrap" id="sends"><div class="empty">Loading…</div></div></div>`;
+  wireComposer(() => ({ audience: $('#m-aud').value }), (msg) => {
+    toast(msg);
+    messages();
+  });
+  const rows = await rpc('admin_list_sends', { p_limit: 100 });
+  $('#sends').innerHTML = rows.length
+    ? `<table><thead><tr><th>Sent</th><th>To</th><th>Message</th><th>Inboxes</th><th class="hide-sm">Pushed</th><th class="hide-sm">Read</th><th class="hide-sm">By</th></tr></thead><tbody>${rows
+        .map((m) => `<tr><td>${fmtTime(m.created_at)}</td>
+          <td>${m.audience === 'user' ? (m.target ? '@' + esc(m.target) : '<span class="muted">deleted user</span>') : `<span class="chip">${esc(AUDIENCES[m.audience])}</span>`}</td>
+          <td><b>${esc(m.title)}</b><div class="muted" style="font-size:13px;max-width:420px;white-space:pre-wrap">${esc(m.body)}</div></td>
+          <td>${esc(m.recipients)}</td><td class="hide-sm">${m.pushed == null ? '<span class="muted">—</span>' : esc(m.pushed)}</td>
+          <td class="hide-sm">${esc(m.read_count)}</td><td class="hide-sm" style="font-size:13px">${esc(m.sent_by || '—')}</td></tr>`)
+        .join('')}</tbody></table>`
+    : '<div class="empty">No messages sent yet.</div>';
 }
 
 async function audit() {
