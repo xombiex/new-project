@@ -31,6 +31,15 @@ export function speedLabel(units: Units, mps: number | null | undefined, stale: 
   return `${Math.round(speedIn(units, mps))} ${speedUnitLabel(units).toUpperCase()}`;
 }
 
+/** Drive time the way maps say it: "2 min", "1 hr 5 min". */
+export function formatEta(seconds: number): string {
+  const min = Math.max(1, Math.round(seconds / 60));
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m ? `${h} hr ${m} min` : `${h} hr`;
+}
+
 export function formatDistance(units: Units, meters: number): string {
   if (units === 'imperial') {
     const miles = meters / 1609.344;

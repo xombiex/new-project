@@ -7,15 +7,17 @@ import { ThemedText } from '@/components/themed-text';
 import { TextField } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import type { LngLat } from '@/lib/geo';
+import { formatDistance, haversine, type LngLat } from '@/lib/geo';
 import { searchPlaces, type Place } from '@/lib/places';
 import { useDrive } from '@/store/drive';
 import { useNav } from '@/store/nav';
+import { useSettings } from '@/store/settings';
 import { useTrips } from '@/store/trips';
 
 export default function SearchScreen() {
   const { purpose } = useLocalSearchParams<{ purpose?: 'route' | 'drive' }>();
   const theme = useTheme();
+  const units = useSettings((s) => s.units);
   const router = useRouter();
   const last = useTrips((s) => s.lastSample);
   const [query, setQuery] = useState('');
@@ -92,7 +94,7 @@ export default function SearchScreen() {
                 {item.name}
               </ThemedText>
               <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-                {item.detail}
+                {[item.category, near ? formatDistance(units, haversine(near, item.coord)) : null, item.detail].filter(Boolean).join(' · ')}
               </ThemedText>
             </View>
           </Pressable>

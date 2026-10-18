@@ -11,7 +11,7 @@ export type MapLine = {
   width?: number;
   opacity?: number;
   /** 'glow' renders a heat-trail look: red haze → orange glow → hot white core */
-  variant?: 'solid' | 'glow';
+  variant?: 'solid' | 'glow' | 'route';
 };
 
 export type MapPerson = {
@@ -48,8 +48,13 @@ export type ConvoyMapProps = {
   showUser?: boolean;
   /** Speed and license-plate cameras to draw (from OpenStreetMap) */
   cameras?: Camera[];
-  /** Tilt into a 3D view with raised buildings when zoomed in */
+  /** Show raised 3D buildings */
   tilt3d?: boolean;
+  /**
+   * Follow-camera target while following the driver: zoom and tilt, and the heading the map should
+   * face (null = keep north up). Navigation passes a closer zoom near turns.
+   */
+  camera?: { zoom: number; pitch: number; heading: number | null };
   /** The signed-in driver, drawn as their 3D vehicle instead of a blue dot. */
   me?: { coord: LngLat; heading: number | null; vehicle?: string | null; paint?: string | null } | null;
   lines?: MapLine[];

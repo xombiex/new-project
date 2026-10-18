@@ -2,10 +2,11 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { NavBanner, NavFooter } from '@/components/drive/nav-overlay';
+import { NavBanner, NavFooter, SpeedBubble } from '@/components/drive/nav-overlay';
+import { PlaceCard } from '@/components/drive/place-card';
 import { SpeedLimitSign } from '@/components/drive/speed-limit-sign';
 import { Glass } from '@/components/glass';
 import { LocationPrompt } from '@/components/location-prompt';
@@ -19,7 +20,9 @@ import { useSpeedLimit } from '@/hooks/use-speed-limit';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDistance, formatDuration, speedIn, speedLabel, speedUnitLabel } from '@/lib/geo';
 import { addReason, removeReason } from '@/lib/location';
+import { useCompassHeading } from '@/lib/compass';
 import { haptic } from '@/lib/haptics';
+import { followPitch, followZoom, splitRoute } from '@/lib/nav-camera';
 import { reportMeta } from '@/lib/reports';
 import { limitMps } from '@/lib/speed-limit';
 import { formatAgo } from '@/lib/time';
@@ -105,19 +108,20 @@ export default function DriveScreen() {
   const lines = useMemo<MapLine[]>(() => {
     const out: MapLine[] = [];
     if (navRoute) {
-      // Only the road still ahead.
-      const from = navProgress?.snap.segment ?? 0;
-      out.push({ id: 'nav', coords: navRoute.geometry.slice(from), color: theme.accent, width: 8 });
+      // Road already driven fades to grey; the road ahead is the blue route.
+      const { driven, ahead } = splitRoute(navRoute.geometry, navRoute.cumulative, navProgress?.snap.segment ?? 0, navProgress?.snap.along ?? 0);
+      if (driven.length > 1) out.push({ id: 'nav-driven', coords: driven, color: '#8E959E', width: 7, opacity: 0.6 });
+      out.push({ id: 'nav', coords: ahead, color: theme.accent, width: 8, variant: 'route' });
     } else {
       nav.routes.forEach((r, i) => {
-        if (i !== nav.selected) out.push({ id: `alt-${i}`, coords: r.geometry, color: theme.textSecondary, width: 5, opacity: 0.6 });
+        if (i !== nav.selected) out.push({ id: `alt-${i}`, coords: r.geometry, color: '#8FB8E8', width: 6, opacity: 0.7 });
       });
       const sel = nav.routes[nav.selected];
-      if (sel) out.push({ id: 'route', coords: sel.geometry, color: theme.accent, width: 7 });
+      if (sel) out.push({ id: 'route', coords: sel.geometry, color: theme.accent, width: 7, variant: 'route' });
     }
     if (active && active.path.length > 1) out.push({ id: 'trip', coords: active.path, color: theme.speed, width: 3, variant: 'glow' });
     return out;
-  }, [navRoute, navProgress?.snap.segment, nav.routes, nav.selected, active, theme]);
+  }, [navRoute, navProgress?.snap.segment, navProgress?.snap.along, nav.routes, nav.selected, active, theme]);
 
   const people = useMemo<MapPerson[]>(
     () =>
@@ -206,7 +210,17 @@ export default function DriveScreen() {
   }
 
   const elapsed = active ? (now - active.startedAt) / 1000 : 0;
-  const panelHeight = navigating ? 260 : active ? 330 : 270;
+  const placeOpen = !navigating && Boolean(nav.destination);
+  const panelHeight = navigating ? 128 : placeOpen ? 400 : active ? 330 : 270;
+  // Map faces the way you're driving; standing still, the compass (web) takes over.
+  const compass = useCompassHeading();
+  const speedNow = !stale && lastSample?.speed != null && lastSample.speed >= 0 ? lastSample.speed : 0;
+  const headingNow = speedNow > 2 && lastSample?.heading != null ? lastSample.heading : (compass ?? lastSample?.heading ?? null);
+  const followCamera = {
+    zoom: followZoom(speedNow, navigating ? (navProgress?.toNextM ?? null) : null),
+    pitch: followPitch(navigating, map3d),
+    heading: headingNow,
+  };
   // Posted limit while a ride is on (recording a trip or navigating).
   const road = useSpeedLimit(Boolean(active || navigating));
   const speedLimit = road.limit;
@@ -222,10 +236,12 @@ export default function DriveScreen() {
 
       <ConvoyMap
         style={StyleSheet.absoluteFill}
-        follow
+        // Looking at a place: show the whole route. Otherwise keep following you.
+        follow={!placeOpen}
         cameras={cameras}
         tilt3d={map3d}
-        me={lastSample ? { coord: [lastSample.lng, lastSample.lat], heading: lastSample.heading, vehicle: myVehicle, paint: myPaint } : null}
+        camera={followCamera}
+        me={lastSample ? { coord: [lastSample.lng, lastSample.lat], heading: headingNow, vehicle: myVehicle, paint: myPaint } : null}
         lines={lines}
         people={people}
         markers={markers}
@@ -238,66 +254,16 @@ export default function DriveScreen() {
         <NavBanner units={units} top={insets.top + Spacing.two} />
       ) : (
         <View style={[styles.top, { paddingTop: insets.top + Spacing.two }]} pointerEvents="box-none">
-          {nav.destination ? (
-            <Glass style={styles.destCard}>
-              <View style={{ flex: 1 }}>
-                <ThemedText numberOfLines={1} style={{ fontWeight: 700 }}>
-                  {nav.destination.name}
-                </ThemedText>
-                <ThemedText type="small" themeColor={nav.error ? 'danger' : 'textSecondary'} numberOfLines={1}>
-                  {nav.loading
-                    ? 'Finding routes…'
-                    : nav.error
-                      ? nav.error
-                      : route
-                        ? `${formatDuration(route.durationS)} · ${formatDistance(units, route.distanceM)} · arrive ${new Date(Date.now() + route.durationS * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
-                        : ''}
-                </ThemedText>
-                {nav.routes.length > 1 ? (
-                  <View style={styles.altRow}>
-                    {nav.routes.map((r, i) => (
-                      <Pressable
-                        key={i}
-                        onPress={() => nav.select(i)}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected: i === nav.selected }}
-                        style={[styles.altChip, { backgroundColor: i === nav.selected ? theme.accent : theme.backgroundSelected }]}>
-                        <ThemedText type="smallBold" style={{ color: i === nav.selected ? theme.accentText : theme.text }}>
-                          {formatDuration(r.durationS)}
-                        </ThemedText>
-                        {r.cameras && showAlprCameras ? (
-                          <ThemedText type="small" style={{ color: i === nav.selected ? theme.accentText : theme.textSecondary }}>
-                            {r.cameras.alpr === 0 ? 'No plate cams' : `${r.cameras.alpr} plate cam${r.cameras.alpr === 1 ? '' : 's'}`}
-                          </ThemedText>
-                        ) : null}
-                      </Pressable>
-                    ))}
-                  </View>
-                ) : null}
-              </View>
-              <View style={{ alignItems: 'flex-end', gap: Spacing.two }}>
-                <Pressable onPress={nav.clear} accessibilityRole="button" accessibilityLabel="Clear destination" hitSlop={12}>
-                  <MaterialCommunityIcons name="close-circle" size={28} color={theme.textSecondary} />
-                </Pressable>
-                {route ? (
-                  <Pressable
-                    onPress={() => void onGo()}
-                    accessibilityRole="button"
-                    accessibilityLabel="Start navigation"
-                    style={[styles.go, { backgroundColor: theme.success }]}>
-                    <ThemedText style={styles.goText}>Go</ThemedText>
-                  </Pressable>
-                ) : null}
-              </View>
-            </Glass>
-          ) : (
+          {(
             <Pressable
               onPress={() => router.push({ pathname: '/search', params: { purpose: 'route' } })}
               accessibilityRole="search"
               style={styles.searchWrap}>
               <Glass style={styles.search}>
                 <MaterialCommunityIcons name="magnify" size={22} color={theme.textSecondary} />
-                <ThemedText themeColor="textSecondary">Where to?</ThemedText>
+                <ThemedText themeColor={nav.destination ? 'text' : 'textSecondary'} numberOfLines={1} style={{ flex: 1 }}>
+                  {nav.destination?.name ?? 'Where to?'}
+                </ThemedText>
               </Glass>
             </Pressable>
           )}
@@ -337,6 +303,11 @@ export default function DriveScreen() {
           <SpeedLimitSign limit={speedLimit} units={units} speedMps={stale ? null : (lastSample?.speed ?? null)} variant={themeVariant} />
         </View>
       ) : null}
+      {navigating ? (
+        <View style={[styles.limit, { left: Spacing.three + (speedLimit ? 76 : 0), bottom: panelHeight + BottomTabInset + Spacing.three }]} pointerEvents="none">
+          <SpeedBubble mps={stale ? null : speedNow} units={units} speeding={speeding} />
+        </View>
+      ) : null}
 
       {/* Report button floats above the panel */}
       <Pressable
@@ -348,21 +319,30 @@ export default function DriveScreen() {
       </Pressable>
 
       {/* Bottom: speed + trip or navigation controls */}
-      <Glass style={[styles.panel, { paddingBottom: BottomTabInset + Spacing.three }]}>
-        <Speedometer sample={lastSample} units={units} stale={stale} speeding={speeding} street={active || navigating ? road.name : null} />
-
-        {active && navigating ? (
-          <View style={[styles.rec, { backgroundColor: theme.backgroundSelected }]}>
-            <View style={[styles.recDot, { backgroundColor: theme.danger }]} />
-            <ThemedText type="smallBold">
-              REC {formatDuration(elapsed)} · {formatDistance(units, active.distanceM)}
-            </ThemedText>
-          </View>
-        ) : null}
-
-        {navigating ? (
+      <Glass style={[styles.panel, { paddingBottom: BottomTabInset + Spacing.three }, placeOpen && { alignItems: 'stretch' }]}>
+        {placeOpen && nav.destination ? (
+          <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
+            <PlaceCard
+              place={nav.destination}
+              routes={nav.routes}
+              selected={nav.selected}
+              loading={nav.loading}
+              error={nav.error}
+              units={units}
+              me={lastSample ? [lastSample.lng, lastSample.lat] : null}
+              showPlateCams={showAlprCameras}
+              onSelect={nav.select}
+              onGo={() => void onGo()}
+              onClose={nav.clear}
+            />
+          </ScrollView>
+        ) : navigating ? (
           <NavFooter units={units} onEnd={nav.clear} />
-        ) : active ? (
+        ) : (
+          <Speedometer sample={lastSample} units={units} stale={stale} speeding={speeding} street={active ? road.name : null} />
+        )}
+
+        {placeOpen || navigating ? null : active ? (
           <>
             <View style={styles.stats}>
               <Stat label="Time" value={formatDuration(elapsed)} />

@@ -39,6 +39,7 @@ export function ConvoyMap({
   me,
   cameras = [],
   tilt3d = false,
+  camera: followCamera,
   lines = [],
   people = [],
   markers = [],
@@ -51,6 +52,9 @@ export function ConvoyMap({
   const theme = useTheme();
   const lastCoord = useSettings((s) => s.lastCoord);
   const camera = useRef<CameraRef>(null);
+  // 'course' turns the map to the way you're driving; 'default' keeps north up (compass button).
+  const [northUp, setNorthUp] = useState(false);
+  const followMode: TrackUserLocation = northUp || followCamera?.heading === null ? 'default' : 'course';
   const [tracking, setTracking] = useState<TrackUserLocation | undefined>(follow ? 'course' : undefined);
   const myHeading = useSteadyHeading(me?.heading);
   const cameraData = useMemo(() => cameraFeatures(cameras), [cameras]);
@@ -68,7 +72,7 @@ export function ConvoyMap({
   );
   const edge = { top: (padding?.top ?? 0) + 40, bottom: (padding?.bottom ?? 0) + 40, left: 40, right: 40 };
 
-  useEffect(() => setTracking(follow ? 'course' : undefined), [follow]);
+  useEffect(() => setTracking(follow ? followMode : undefined), [follow, followMode]);
 
   const fitKey = fit?.key;
   useEffect(() => {
@@ -100,8 +104,9 @@ export function ConvoyMap({
           ref={camera}
           initialViewState={lastCoord ? { center: lastCoord, zoom: 15 } : { zoom: 3 }}
           trackUserLocation={tracking}
-          // 3D view: lean the camera in while following you; flat for overviews and fitted routes.
-          pitch={tilt3d && tracking ? TILT_3D : 0}
+          // Following you: the caller's zoom and tilt (closer near turns); flat for overviews and fitted routes.
+          pitch={tracking ? (followCamera?.pitch ?? (tilt3d ? TILT_3D : 0)) : 0}
+          zoom={tracking && followCamera ? followCamera.zoom : undefined}
           padding={{ top: edge.top, bottom: edge.bottom, left: 0, right: 0 }}
           onTrackUserLocationChange={(e) => setTracking(e.nativeEvent.trackUserLocation ?? undefined)}
         />
@@ -204,11 +209,21 @@ export function ConvoyMap({
         ) : null}
       </Map>
 
+      {follow && tracking != null ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={northUp ? 'Face my direction' : 'Keep north up'}
+          onPress={() => setNorthUp((v) => !v)}
+          style={[styles.compass, { backgroundColor: theme.backgroundElement, top: (padding?.top ?? 0) + Spacing.two }]}>
+          <MaterialCommunityIcons name={northUp ? 'navigation-variant-outline' : 'navigation-variant'} size={22} color={northUp ? theme.textSecondary : '#FF3B30'} />
+        </Pressable>
+      ) : null}
+
       {follow && tracking == null ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Recenter map on my location"
-          onPress={() => setTracking('course')}
+          onPress={() => setTracking(followMode)}
           style={[styles.recenter, { backgroundColor: theme.backgroundElement, bottom: (padding?.bottom ?? 0) + RECENTER_OFFSET }]}>
           <MaterialCommunityIcons name="crosshairs-gps" size={24} color={theme.accent} />
         </Pressable>
@@ -228,6 +243,20 @@ const styles = StyleSheet.create({
   avatarRing: { borderRadius: 20, borderWidth: 3, backgroundColor: '#fff' },
   pinTip: { width: 0, height: 0, borderLeftWidth: 6, borderRightWidth: 6, borderTopWidth: 7, borderLeftColor: 'transparent', borderRightColor: 'transparent', marginTop: -1 },
   reportPin: { width: 34, height: 34, borderRadius: 17, borderWidth: 2, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  compass: {
+    position: 'absolute',
+    right: Spacing.three,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
   recenter: {
     position: 'absolute',
     right: Spacing.three,

@@ -34,6 +34,13 @@ export function lineLayers(line: MapLine, glow: GlowPalette): LineLayerDef[] {
       { suffix: 'core', layout: ROUND, paint: { 'line-color': glow.core, 'line-width': w * 0.55, 'line-opacity': 0.9 * o } },
     ];
   }
+  if (line.variant === 'route') {
+    // Navigation route, Apple Maps style: bright blue with a darker blue edge.
+    return [
+      { suffix: 'edge', layout: ROUND, paint: { 'line-color': '#0B5ED7', 'line-width': w + 5, 'line-opacity': o } },
+      { suffix: 'core', layout: ROUND, paint: { 'line-color': '#3A9BFF', 'line-width': w, 'line-opacity': o } },
+    ];
+  }
   return [
     { suffix: 'casing', layout: ROUND, paint: { 'line-color': '#000000', 'line-width': w + 3, 'line-opacity': 0.35 * o } },
     { suffix: 'fill', layout: ROUND, paint: { 'line-color': line.color, 'line-width': w, 'line-opacity': o } },

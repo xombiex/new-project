@@ -13,6 +13,8 @@ export type Place = {
   name: string;
   detail: string;
   coord: LngLat;
+  /** e.g. "Restaurant", "Gas station" (from the OSM tag) */
+  category?: string;
 };
 
 type PhotonFeature = {
@@ -20,6 +22,8 @@ type PhotonFeature = {
   properties: {
     osm_id: number;
     osm_type: string;
+    osm_key?: string;
+    osm_value?: string;
     name?: string;
     housenumber?: string;
     street?: string;
@@ -45,7 +49,9 @@ export async function searchPlaces(query: string, near?: LngLat, signal?: AbortS
     const street = [p.housenumber, p.street].filter(Boolean).join(' ');
     const name = p.name ?? (street || p.city || 'Unnamed place');
     const detail = [p.name ? street : null, p.city, p.state, p.country].filter(Boolean).join(', ');
-    return { id: `${p.osm_type}${p.osm_id}`, name, detail, coord: f.geometry.coordinates };
+    const kind = p.osm_value && p.osm_value !== 'yes' && !['house', 'residential', 'street', 'road'].includes(p.osm_value) ? p.osm_value : null;
+    const category = kind ? (p.osm_key === 'shop' && kind !== 'supermarket' ? `${kind} store` : kind).replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase()) : undefined;
+    return { id: `${p.osm_type}${p.osm_id}`, name, detail, coord: f.geometry.coordinates, category };
   });
 }
 

@@ -3,7 +3,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { LngLatBounds, Map as MLMap, Marker, setWorkerUrl, type GeoJSONSource } from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -60,7 +60,7 @@ const point = (coord: [number, number], sprite: string, heading: number, opacity
  * Browser build of the map (maplibre-gl JS). Same tiles, line styles and 3D vehicle sprites as
  * the native map; follows the driver until they pan away.
  */
-export function ConvoyMap({ style, follow = false, me, cameras = [], tilt3d = false, lines = [], people = [], markers: pins = [], destination, fit, padding }: ConvoyMapProps) {
+export function ConvoyMap({ style, follow = false, me, cameras = [], tilt3d = false, camera, lines = [], people = [], markers: pins = [], destination, fit, padding }: ConvoyMapProps) {
   const { styleUrl, style: mapStyle, variant, glow, scheme } = useMapLook();
   const theme = useTheme();
   // A plain div: maplibre's CSS sets `position: relative` on its container, which would
@@ -70,9 +70,12 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], tilt3d = fa
   const added = useRef<string[]>([]);
   const markers = useRef<Marker[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const pendingFit = useRef(false);
   const [vehiclesReady, setVehiclesReady] = useState(false);
   const following = useRef(follow);
   const [followingUi, setFollowingUi] = useState(follow);
+  /** Compass button: lock the map north-up instead of facing the way you're going. */
+  const [northUp, setNorthUp] = useState(false);
   const meRef = useRef(me);
   meRef.current = me;
   const tilt3dRef = useRef(tilt3d);
@@ -123,7 +126,10 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], tilt3d = fa
     });
     map.current = m;
     // Tabs mount hidden (0×0); keep the canvas in sync with the container's real size.
-    const observer = new ResizeObserver(() => m.resize());
+    const observer = new ResizeObserver(() => {
+      m.resize();
+      if (pendingFit.current && container.current?.clientHeight) doFit.current();
+    });
     observer.observe(container.current!);
     return () => {
       observer.disconnect();
@@ -268,13 +274,31 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], tilt3d = fa
     };
   }, [vehiclesReady, people, me, myHeading]);
 
-  // 3D view: show buildings and lean the camera in (only while following you).
+  // Follow switched back on (e.g. a place sheet closed or navigation started): snap back to the driver.
+  useEffect(() => {
+    following.current = follow;
+    setFollowingUi(follow);
+    const m = map.current;
+    const cur = meRef.current;
+    if (follow && loaded && m && cur) m.easeTo({ ...followView(cur), duration: 700 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [follow, loaded]);
+
+  // 3D buildings on/off.
   useEffect(() => {
     const m = map.current;
     if (!loaded || !m || !m.getLayer('convoy-buildings-3d')) return;
     m.setLayoutProperty('convoy-buildings-3d', 'visibility', tilt3d ? 'visible' : 'none');
-    if (follow && following.current) m.easeTo({ pitch: tilt3d ? TILT_3D : 0, duration: 600 });
-  }, [loaded, tilt3d, follow]);
+  }, [loaded, tilt3d]);
+
+  /** Camera for "following you": zoom/tilt from the caller, facing your heading unless north-up. */
+  const followView = (cur: NonNullable<typeof me>) => ({
+    center: cur.coord,
+    zoom: camera?.zoom ?? 16,
+    pitch: camera?.pitch ?? (tilt3d ? TILT_3D : 0),
+    bearing: !northUp && camera?.heading != null ? camera.heading : 0,
+    padding: { top: padding?.top ?? 0, bottom: padding?.bottom ?? 0, left: 0, right: 0 },
+  });
 
   // Follow the driver: jump in on the first fix, then glide along until they pan away.
   const meKey = me ? `${me.coord[0].toFixed(6)},${me.coord[1].toFixed(6)}` : null;
@@ -284,32 +308,57 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], tilt3d = fa
     const pad = { top: padding?.top ?? 0, bottom: padding?.bottom ?? 0, left: 0, right: 0 };
     if (!centeredOnce.current) {
       centeredOnce.current = true;
-      if (follow || !fit) m.jumpTo({ center: me.coord, zoom: 16, padding: pad, pitch: follow && tilt3d ? TILT_3D : 0 });
+      if (follow) m.jumpTo(followView(me));
+      else if (!fit) m.jumpTo({ center: me.coord, zoom: 16, padding: pad });
       return;
     }
-    // Linear and about as long as the gap between fixes, so the camera moves continuously with the car.
-    if (follow && following.current) m.easeTo({ center: me.coord, padding: pad, duration: 1000, easing: (t) => t });
+    // Linear and about as long as the gap between fixes, so the camera moves (and turns, and
+    // zooms for upcoming turns) continuously with the car instead of in steps.
+    if (follow && following.current) m.easeTo({ ...followView(me), duration: 1000, easing: (t) => t });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded, meKey]);
+  }, [loaded, meKey, camera?.zoom, camera?.pitch, Math.round((camera?.heading ?? 0) / 3), northUp]);
 
   const fitKey = fit?.key;
-  useEffect(() => {
+  /** Fit the camera to `fit`, or remember to once the map is visible (hidden tabs are 0×0). */
+  const doFit = useRef<() => void>(() => {});
+  doFit.current = () => {
     const m = map.current;
-    if (!loaded || !m || !fit || fit.points.length === 0) return;
+    if (!m || !fit || fit.points.length === 0) return;
+    if (!container.current?.clientHeight) {
+      pendingFit.current = true;
+      return;
+    }
+    pendingFit.current = false;
     const bounds = new LngLatBounds(fit.points[0], fit.points[0]);
     for (const p of fit.points) bounds.extend(p);
     m.fitBounds(bounds, {
       padding: { top: (padding?.top ?? 0) + 40, bottom: (padding?.bottom ?? 0) + 40, left: 40, right: 40 },
       duration: 600,
       maxZoom: 15,
+      pitch: 0,
+      bearing: 0,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  };
+  useEffect(() => {
+    if (loaded) doFit.current();
   }, [loaded, fitKey]);
 
   return (
     <View style={[styles.container, style]}>
       <div ref={container} style={{ position: 'absolute', inset: 0 }} />
-      {follow && !followingUi && me ? (
+      {follow && me && camera?.heading != null ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={northUp ? 'Face my direction' : 'Keep north up'}
+          onPress={() => setNorthUp((v) => !v)}
+          style={[styles.compass, { backgroundColor: theme.backgroundElement, top: (padding?.top ?? 0) + Spacing.two }]}>
+          <View style={{ transform: [{ rotate: `${northUp ? 0 : -(camera.heading ?? 0)}deg` }], alignItems: 'center' }}>
+            <MaterialCommunityIcons name="navigation" size={20} color={northUp ? theme.textSecondary : '#FF3B30'} />
+          </View>
+          <Text style={[styles.compassN, { color: theme.textSecondary }]}>N</Text>
+        </Pressable>
+      ) : null}
+            {follow && !followingUi && me ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Recenter map on my location"
@@ -318,15 +367,7 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], tilt3d = fa
             setFollowingUi(true);
             const cur = meRef.current;
             const m = map.current;
-            if (cur && m) {
-              m.easeTo({
-                center: cur.coord,
-                zoom: Math.max(m.getZoom(), 15),
-                pitch: tilt3d ? TILT_3D : 0,
-                padding: { top: padding?.top ?? 0, bottom: padding?.bottom ?? 0, left: 0, right: 0 },
-                duration: 600,
-              });
-            }
+            if (cur && m) m.easeTo({ ...followView(cur), duration: 600 });
           }}
           style={[styles.recenter, { backgroundColor: theme.backgroundElement, bottom: (padding?.bottom ?? 0) + Spacing.three + 68 }]}>
           <MaterialCommunityIcons name="crosshairs-gps" size={24} color={theme.accent} />
@@ -338,6 +379,17 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], tilt3d = fa
 
 const styles = StyleSheet.create({
   container: { overflow: 'hidden' },
+  compass: {
+    position: 'absolute',
+    right: Spacing.three,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+  } as never,
+  compassN: { fontSize: 9, fontWeight: '800', marginTop: -2 },
   recenter: {
     position: 'absolute',
     right: Spacing.three,

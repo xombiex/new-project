@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
 
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { isDemo, seedDemo } from '@/lib/demo';
+import { exposeStoresForTesting, isDemo, seedDemo } from '@/lib/demo';
 import { startPresence } from '@/lib/presence';
 import { registerForPush, setDrivingCheck } from '@/lib/notifications';
 import { useAuth } from '@/store/auth';
@@ -51,7 +51,10 @@ export default function RootLayout() {
   }, []);
 
   // Screenshot demo (dev web builds only): sample data instead of an account.
-  useEffect(() => void seedDemo(), []);
+  useEffect(() => {
+    void seedDemo();
+    void exposeStoresForTesting();
+  }, []);
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();
