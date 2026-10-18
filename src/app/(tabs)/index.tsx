@@ -5,7 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { NavBanner, NavFooter, RouteChooser, SpeedBubble } from '@/components/drive/nav-overlay';
+import { NavBanner, NavFooter, RouteChooser } from '@/components/drive/nav-overlay';
+import { SpeedDial } from '@/components/drive/speed-dial';
 import { PlaceCard } from '@/components/drive/place-card';
 import { SpeedLimitSign } from '@/components/drive/speed-limit-sign';
 import { Glass } from '@/components/glass';
@@ -335,14 +336,14 @@ export default function DriveScreen() {
         </View>
       ) : null}
 
-            {speedLimit ? (
-        <View style={[styles.limit, { bottom: panelHeight + BottomTabInset + Spacing.three }]} pointerEvents="none">
-          <SpeedLimitSign limit={speedLimit} units={units} speedMps={stale ? null : (lastSample?.speed ?? null)} variant={themeVariant} />
-        </View>
-      ) : null}
+      {/* Navigating: speed dial wearing the limit. Otherwise the panel shows your speed, so just the limit. */}
       {navigating ? (
-        <View style={[styles.limit, { left: Spacing.three + (speedLimit ? 76 : 0), bottom: panelHeight + BottomTabInset + Spacing.three }]} pointerEvents="none">
-          <SpeedBubble mps={stale ? null : speedNow} units={units} speeding={speeding} />
+        <View style={[styles.limit, { bottom: panelHeight + BottomTabInset + Spacing.two }]} pointerEvents="none">
+          <SpeedDial mps={stale ? null : speedNow} units={units} limit={speedLimit} speeding={speeding} variant={themeVariant} />
+        </View>
+      ) : speedLimit ? (
+        <View style={[styles.limit, { bottom: panelHeight + BottomTabInset + Spacing.three }]} pointerEvents="none">
+          <SpeedLimitSign limit={speedLimit} units={units} speedMps={stale ? null : (lastSample?.speed ?? null)} variant={themeVariant} compact />
         </View>
       ) : null}
 

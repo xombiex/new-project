@@ -5,7 +5,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { formatDistance, formatEta, speedIn, speedUnitLabel, type Units } from '@/lib/geo';
+import { formatDistance, formatEta, type Units } from '@/lib/geo';
 import { ROUTE_TAG_LABEL, type Route } from '@/lib/places';
 import { formatClock } from '@/lib/time';
 import { useNavigation } from '@/store/navigation';
@@ -145,17 +145,6 @@ export function RouteChooser({
   );
 }
 
-/** Current speed in a white bubble (Apple Maps style), shown beside the speed limit while navigating. */
-export function SpeedBubble({ mps, units, speeding }: { mps: number | null; units: Units; speeding: boolean }) {
-  const value = mps == null ? '--' : String(Math.round(speedIn(units, mps)));
-  return (
-    <View style={[styles.bubble, speeding && { backgroundColor: '#FF3B30' }]} accessibilityLabel={`${value} ${speedUnitLabel(units)}`}>
-      <Text style={[styles.bubbleValue, speeding && { color: '#fff' }]}>{value}</Text>
-      <Text style={[styles.bubbleUnit, speeding && { color: '#fff' }]}>{speedUnitLabel(units)}</Text>
-    </View>
-  );
-}
-
 const shadow = { shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8 };
 
 const styles = StyleSheet.create({
@@ -175,7 +164,4 @@ const styles = StyleSheet.create({
   close: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   option: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, padding: Spacing.three, borderRadius: Radius.md },
   goPill: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.pill },
-  bubble: { width: 62, height: 62, borderRadius: 31, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', ...shadow },
-  bubbleValue: { color: '#111', fontSize: 24, lineHeight: 26, fontWeight: '900', fontVariant: ['tabular-nums'] },
-  bubbleUnit: { color: '#555', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
 });

@@ -1,4 +1,4 @@
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, Platform, StyleSheet, Text, View } from 'react-native';
 
 import type { Units } from '@/lib/geo';
 import { limitIn, limitMps, type SpeedLimit } from '@/lib/speed-limit';
@@ -12,12 +12,15 @@ export function SpeedLimitSign({
   units,
   speedMps,
   variant,
+  compact,
 }: {
   limit: SpeedLimit;
   units: Units;
   speedMps: number | null;
   /** Themed signs: a pixel sheep with a wooden sign (Blocks), or a glowing outline (Neon City) */
   variant?: 'blocks' | 'neon' | null;
+  /** Small square badge (just the number), as worn on the speed dial */
+  compact?: boolean;
 }) {
   const value = limitIn(units, limit);
   const over = speedMps != null && speedMps > limitMps(limit) + TOLERANCE_MPS;
@@ -40,6 +43,16 @@ export function SpeedLimitSign({
           <Text style={[styles.plankText, over && styles.white]}>{value}</Text>
         </View>
         <View style={styles.post} />
+      </View>
+    );
+  }
+
+  if (compact) {
+    return (
+      <View accessibilityRole="text" accessibilityLabel={label} style={[units === 'imperial' ? styles.badge : styles.badgeEu, over && styles.badgeOver]}>
+        <Text style={[styles.badgeValue, over && styles.white]} numberOfLines={1} adjustsFontSizeToFit>
+          {value}
+        </Text>
       </View>
     );
   }
@@ -81,6 +94,18 @@ const styles = StyleSheet.create({
   euOver: { backgroundColor: '#E5281F', borderColor: '#fff' },
   euValue: { color: '#111', fontSize: 24, fontWeight: '900', fontVariant: ['tabular-nums'], paddingHorizontal: 4 },
   white: { color: '#fff' },
+  badge: { width: 56, height: 56, borderRadius: 8, borderWidth: 5, borderColor: '#3A362F', backgroundColor: '#FFF9EA', alignItems: 'center', justifyContent: 'center', ...shadow },
+  badgeEu: { width: 56, height: 56, borderRadius: 28, borderWidth: 6, borderColor: '#E5281F', backgroundColor: '#FFF9EA', alignItems: 'center', justifyContent: 'center', ...shadow },
+  badgeOver: { backgroundColor: '#E5281F', borderColor: '#fff' },
+  badgeValue: {
+    color: '#111',
+    fontSize: 30,
+    lineHeight: 34,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+    paddingHorizontal: 3,
+    fontFamily: Platform.select({ ios: 'AvenirNextCondensed-Bold', android: 'sans-serif-condensed', default: '"Arial Narrow", "Roboto Condensed", system-ui, sans-serif' }),
+  },
   neon: {
     width: 62,
     paddingVertical: 4,
