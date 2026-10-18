@@ -76,7 +76,7 @@ export type Route = {
   /** turn-by-turn maneuvers (single leg) */
   steps: OsrmStep[];
   /** cameras along this route, when known */
-  cameras?: { speed: number; alpr: number };
+  cameras?: { speed: number; redlight: number; alpr: number };
   mode?: RouteMode;
   tags?: RouteTag[];
   /** real turns (not "continue" or name changes) */

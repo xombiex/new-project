@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { cameraAhead, camerasOnRoute, type Camera } from './cameras';
+import { cameraAhead, cameraKindOf, camerasOnRoute, type Camera } from './cameras';
 
 const cam = (id: number, kind: Camera['kind'], lng: number, lat: number): Camera => ({ id, kind, coord: [lng, lat] });
 
@@ -24,7 +24,7 @@ describe('camerasOnRoute', () => {
   it('counts cameras next to the route only', () => {
     const route: [number, number][] = [[0, 0], [0, 0.01]];
     const cams = [cam(1, 'alpr', 0.0001, 0.005), cam(2, 'alpr', 0.01, 0.005), cam(3, 'speed', 0, 0.009)];
-    expect(camerasOnRoute(route, cams)).toEqual({ alpr: 1, speed: 1 });
+    expect(camerasOnRoute(route, cams)).toEqual({ alpr: 1, speed: 1, redlight: 0 });
   });
 });
 
@@ -32,5 +32,16 @@ describe('cellsForBox', () => {
   it('lists the 1° cells a box touches', async () => {
     const { cellsForBox } = await import('./cameras');
     expect(cellsForBox([-82.6, 27.8, -82.3, 28.1])).toEqual(['27,-83', '28,-83']);
+  });
+});
+
+describe('cameraKindOf', () => {
+  it('tells red light cameras from speed cameras and plate readers', () => {
+    expect(cameraKindOf({ highway: 'speed_camera' })).toBe('speed');
+    expect(cameraKindOf({ enforcement: 'maxspeed' })).toBe('speed');
+    expect(cameraKindOf({ highway: 'traffic_signals', enforcement: 'red_light_camera' })).toBe('redlight');
+    expect(cameraKindOf({ enforcement: 'traffic_signals', 'surveillance:type': 'camera' })).toBe('redlight');
+    expect(cameraKindOf({ red_light_camera: 'yes' })).toBe('redlight');
+    expect(cameraKindOf({ man_made: 'surveillance', 'surveillance:type': 'ALPR', surveillance: 'traffic' })).toBe('alpr');
   });
 });

@@ -38,6 +38,7 @@ export function ConvoyMap({
   showUser = true,
   me,
   cameras = [],
+  onPressCamera,
   tilt3d = false,
   camera: followCamera,
   lines = [],
@@ -167,8 +168,15 @@ export function ConvoyMap({
           </Marker>
         ) : null}
 
-        <GeoJSONSource id="cameras" data={cameraData}>
-          <Layer type="symbol" id="cameras" minzoom={11} layout={CAMERA_LAYOUT as SymbolLayerSpecification['layout']} />
+        <GeoJSONSource
+          id="cameras"
+          data={cameraData}
+          onPress={(e) => {
+            const id = e.nativeEvent.features?.[0]?.properties?.id;
+            const cam = cameras.find((c) => c.id === id);
+            if (cam) onPressCamera?.(cam);
+          }}>
+          <Layer type="symbol" id="cameras" minzoom={10} layout={CAMERA_LAYOUT as SymbolLayerSpecification['layout']} />
         </GeoJSONSource>
 
         <GeoJSONSource id="people" data={peopleData}>

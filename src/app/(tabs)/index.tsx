@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { NavBanner, NavFooter, SpeedBubble } from '@/components/drive/nav-overlay';
+import { NavBanner, NavFooter, RouteChooser, SpeedBubble } from '@/components/drive/nav-overlay';
 import { PlaceCard } from '@/components/drive/place-card';
 import { SpeedLimitSign } from '@/components/drive/speed-limit-sign';
 import { Glass } from '@/components/glass';
@@ -18,11 +18,13 @@ import { Button, Stat } from '@/components/ui';
 import { BottomTabInset, Radius, Spacing } from '@/constants/theme';
 import { useSpeedLimit } from '@/hooks/use-speed-limit';
 import { useTheme } from '@/hooks/use-theme';
-import { formatDistance, formatDuration, speedIn, speedLabel, speedUnitLabel } from '@/lib/geo';
+import { CAMERA_COLOR, CAMERA_LABEL, type Camera } from '@/lib/cameras';
+import { formatDistance, formatDuration, speedIn, speedLabel, speedUnitLabel, haversine } from '@/lib/geo';
 import { addReason, removeReason } from '@/lib/location';
 import { useCompassHeading } from '@/lib/compass';
 import { haptic } from '@/lib/haptics';
 import { followPitch, followZoom, splitRoute } from '@/lib/nav-camera';
+import { getRouteOptions, type Route } from '@/lib/places';
 import { reportMeta } from '@/lib/reports';
 import { limitMps } from '@/lib/speed-limit';
 import { formatAgo } from '@/lib/time';
@@ -71,6 +73,12 @@ export default function DriveScreen() {
   const navRoute = useNavigation((s) => s.route);
   const navProgress = useNavigation((s) => s.progress);
   const navDestination = useNavigation((s) => s.destination);
+  const muted = useNavigation((s) => s.muted);
+  /** Mid-drive route picker (null = closed; routes null = loading). */
+  const [choosing, setChoosing] = useState<{ routes: Route[] | null; error: string | null } | null>(null);
+  useEffect(() => {
+    if (!navigating) setChoosing(null);
+  }, [navigating]);
   const reports = useReports((s) => s.reports);
   const allCameras = useCameras((s) => s.cameras);
   const cameraAheadNow = useCameras((s) => s.ahead);
@@ -121,9 +129,11 @@ export default function DriveScreen() {
       const sel = nav.routes[nav.selected];
       if (sel) out.push({ id: 'route', coords: sel.geometry, color: theme.accent, width: 7, variant: 'route' });
     }
+    // Choosing a new route mid-drive: show the options too.
+    choosing?.routes?.forEach((r, i) => out.push({ id: `choice-${i}`, coords: r.geometry, color: '#8FB8E8', width: 6, opacity: 0.8 }));
     if (active && active.path.length > 1) out.push({ id: 'trip', coords: active.path, color: theme.speed, width: 3, variant: 'glow' });
     return out;
-  }, [navRoute, navProgress?.snap.segment, navProgress?.snap.along, navProgress?.arrived, nav.routes, nav.selected, active, theme]);
+  }, [navRoute, navProgress?.snap.segment, navProgress?.snap.along, navProgress?.arrived, nav.routes, nav.selected, active, theme, choosing]);
 
   const people = useMemo<MapPerson[]>(
     () =>
@@ -157,6 +167,14 @@ export default function DriveScreen() {
 
   const route = nav.routes[nav.selected];
 
+  function onPressCamera(c: Camera) {
+    const facing = c.direction != null ? `Faces ${compassPoint(c.direction)}` : null;
+    const away = lastSample ? `${formatDistance(units, haversine([lastSample.lng, lastSample.lat], c.coord))} away` : null;
+    const enforces = c.kind !== 'alpr' && c.maxspeed ? `Enforces ${c.maxspeed}${/^\d+$/.test(c.maxspeed) ? (units === 'imperial' ? ' mph' : ' km/h') : ''}` : null;
+    const by = c.kind === 'alpr' && c.operator ? `Operated by ${c.operator}` : null;
+    Alert.alert(CAMERA_LABEL[c.kind], [away, enforces, facing, by, 'Location from OpenStreetMap (may be out of date).'].filter(Boolean).join('\n'));
+  }
+
   function onPressReport(id: string) {
     const r = useReports.getState().reports.find((x) => x.id === id);
     if (!r) return;
@@ -189,6 +207,19 @@ export default function DriveScreen() {
     await useNavigation.getState().start(route, nav.destination);
   }
 
+  /** Mid-drive "change route": fresh options from where you are to the same destination. */
+  async function openRoutes() {
+    const dest = useNavigation.getState().destination;
+    if (!dest || !lastSample) return;
+    setChoosing({ routes: null, error: null });
+    try {
+      const routes = await getRouteOptions([lastSample.lng, lastSample.lat], dest.coord);
+      setChoosing((c) => (c ? { routes, error: null } : c));
+    } catch (e) {
+      setChoosing((c) => (c ? { routes: null, error: e instanceof Error ? e.message : 'Couldn’t find routes' } : c));
+    }
+  }
+
   async function onFinish() {
     if (useNavigation.getState().active) await useNavigation.getState().stop();
     else nav.clear();
@@ -216,7 +247,7 @@ export default function DriveScreen() {
 
   const elapsed = active ? (now - active.startedAt) / 1000 : 0;
   const placeOpen = !navigating && Boolean(nav.destination);
-  const panelHeight = navigating ? 128 : placeOpen ? 400 : active ? 330 : 270;
+  const panelHeight = navigating ? (choosing ? 330 : 128) : placeOpen ? 400 : active ? 330 : 270;
   // Map faces the way you're driving; standing still, the compass (web) takes over.
   const compass = useCompassHeading();
   const speedNow = !stale && lastSample?.speed != null && lastSample.speed >= 0 ? lastSample.speed : 0;
@@ -244,6 +275,7 @@ export default function DriveScreen() {
         // Looking at a place: show the whole route. Otherwise keep following you.
         follow={!placeOpen}
         cameras={cameras}
+        onPressCamera={onPressCamera}
         tilt3d={map3d}
         camera={followCamera}
         me={lastSample ? { coord: [lastSample.lng, lastSample.lat], heading: headingNow, vehicle: myVehicle, paint: myPaint } : null}
@@ -291,12 +323,12 @@ export default function DriveScreen() {
 
       {cameraAheadNow ? (
         <View style={[styles.cameraBanner, { top: insets.top + (navigating ? 150 : 80) }]} pointerEvents="none">
-          <View style={[styles.cameraPill, { backgroundColor: cameraAheadNow.camera.kind === 'speed' ? '#FF8A00' : '#8E5CFF' }]}>
-            <MaterialCommunityIcons name="cctv" size={18} color="#fff" />
+          <View style={[styles.cameraPill, { backgroundColor: CAMERA_COLOR[cameraAheadNow.camera.kind] }]}>
+            <MaterialCommunityIcons name={CAMERA_ICON[cameraAheadNow.camera.kind]} size={18} color="#fff" />
             <ThemedText style={styles.cameraText}>
-              {cameraAheadNow.camera.kind === 'speed'
-                ? `Speed camera${cameraAheadNow.camera.maxspeed ? ` · ${cameraAheadNow.camera.maxspeed}` : ''}`
-                : cameraAheadNow.camera.operator ?? 'License plate camera'}{' '}
+              {cameraAheadNow.camera.kind === 'alpr'
+                ? (cameraAheadNow.camera.operator ?? CAMERA_LABEL.alpr)
+                : `${CAMERA_LABEL[cameraAheadNow.camera.kind]}${cameraAheadNow.camera.maxspeed ? ` · ${cameraAheadNow.camera.maxspeed}` : ''}`}{' '}
               · {formatDistance(units, cameraAheadNow.distanceM)}
             </ThemedText>
           </View>
@@ -312,6 +344,17 @@ export default function DriveScreen() {
         <View style={[styles.limit, { left: Spacing.three + (speedLimit ? 76 : 0), bottom: panelHeight + BottomTabInset + Spacing.three }]} pointerEvents="none">
           <SpeedBubble mps={stale ? null : speedNow} units={units} speeding={speeding} />
         </View>
+      ) : null}
+
+      {/* While navigating, voice on/off floats above the report button */}
+      {navigating ? (
+        <Pressable
+          onPress={useNavigation.getState().toggleMute}
+          accessibilityRole="button"
+          accessibilityLabel={muted ? 'Unmute voice' : 'Mute voice'}
+          style={[styles.reportBtn, { bottom: panelHeight + BottomTabInset + Spacing.three + 64, backgroundColor: theme.backgroundElement }]}>
+          <MaterialCommunityIcons name={muted ? 'volume-off' : 'volume-high'} size={26} color={theme.text} />
+        </Pressable>
       ) : null}
 
       {/* Report button floats above the panel */}
@@ -336,13 +379,27 @@ export default function DriveScreen() {
               units={units}
               me={lastSample ? [lastSample.lng, lastSample.lat] : null}
               showPlateCams={showAlprCameras}
+              showSpeedCams={speedCameraAlerts}
               onSelect={nav.select}
               onGo={() => void onGo()}
               onClose={nav.clear}
             />
           </ScrollView>
         ) : navigating ? (
-          <NavFooter units={units} onEnd={nav.clear} />
+          choosing ? (
+            <RouteChooser
+              routes={choosing.routes}
+              error={choosing.error}
+              units={units}
+              onClose={() => setChoosing(null)}
+              onPick={(r) => {
+                useNavigation.getState().switchRoute(r);
+                setChoosing(null);
+              }}
+            />
+          ) : (
+            <NavFooter units={units} onEnd={nav.clear} onRoutes={() => void openRoutes()} />
+          )
         ) : (
           <Speedometer sample={lastSample} units={units} stale={stale} speeding={speeding} street={active ? road.name : null} />
         )}
@@ -372,6 +429,12 @@ export default function DriveScreen() {
       </Glass>
     </View>
   );
+}
+
+const CAMERA_ICON = { speed: 'speedometer', redlight: 'traffic-light', alpr: 'cctv' } as const;
+
+function compassPoint(deg: number) {
+  return ['north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'][Math.round((((deg % 360) + 360) % 360) / 45) % 8];
 }
 
 const styles = StyleSheet.create({

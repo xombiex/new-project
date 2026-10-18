@@ -48,6 +48,8 @@ export type ConvoyMapProps = {
   showUser?: boolean;
   /** Speed and license-plate cameras to draw (from OpenStreetMap) */
   cameras?: Camera[];
+  /** Tapped a camera icon */
+  onPressCamera?: (camera: Camera) => void;
   /** Show raised 3D buildings */
   tilt3d?: boolean;
   /**

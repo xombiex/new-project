@@ -236,9 +236,9 @@ export default function ProfileScreen() {
       <Card style={{ gap: Spacing.three }}>
         <View style={styles.row}>
           <View style={{ flex: 1 }}>
-            <ThemedText style={{ fontWeight: 700 }}>Speed cameras</ThemedText>
+            <ThemedText style={{ fontWeight: 700 }}>Speed & red light cameras</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
-              Show them on the map and get a heads-up before you reach one. Worldwide, from OpenStreetMap. Some countries don’t allow camera warnings while driving, so check your local rules.
+              Show them on the map (tap one for details) and get a heads-up before you reach one. Worldwide, from OpenStreetMap. Some countries don’t allow camera warnings while driving, so check your local rules.
             </ThemedText>
           </View>
           <Switch value={settings.speedCameraAlerts} onValueChange={settings.setSpeedCameraAlerts} />

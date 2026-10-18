@@ -1,11 +1,12 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDistance, formatEta, speedIn, speedUnitLabel, type Units } from '@/lib/geo';
+import { ROUTE_TAG_LABEL, type Route } from '@/lib/places';
 import { formatClock } from '@/lib/time';
 import { useNavigation } from '@/store/navigation';
 
@@ -45,40 +46,30 @@ export function NavBanner({ units, top }: { units: Units; top: number }) {
   );
 }
 
-/** Bottom bar while navigating: arrival time, minutes and distance left, and End. */
-export function NavFooter({ units, onEnd }: { units: Units; onEnd?: () => void }) {
+/** Bottom bar while navigating (Apple Maps style): time left in green, distance and arrival; change route; end. */
+export function NavFooter({ units, onEnd, onRoutes }: { units: Units; onEnd?: () => void; onRoutes: () => void }) {
   const theme = useTheme();
-  const { route, progress, muted, toggleMute, stop } = useNavigation();
+  const { route, progress, stop } = useNavigation();
   if (!route) return null;
   const remainingS = progress?.remainingS ?? route.totalS;
   const remainingM = progress?.remainingM ?? route.totalM;
-  const cols = [
-    // Like Apple Maps: "9:22" with no AM/PM so the three numbers fit side by side.
-    { value: progress?.arrived ? 'Here' : formatClock(Date.now() + remainingS * 1000).replace(/\s?[AP]\.?M\.?$/i, ''), label: 'arrival' },
-    { value: formatEta(remainingS), label: 'left' },
-    { value: formatDistance(units, remainingM), label: 'to go' },
-  ];
   return (
     <View style={styles.footer}>
-      <Pressable
-        onPress={toggleMute}
-        accessibilityRole="button"
-        accessibilityLabel={muted ? 'Unmute voice' : 'Mute voice'}
-        style={[styles.mute, { backgroundColor: theme.backgroundSelected }]}>
-        <MaterialCommunityIcons name={muted ? 'volume-off' : 'volume-high'} size={22} color={theme.text} />
-      </Pressable>
-      <View style={styles.cols}>
-        {cols.map((c) => (
-          <View key={c.label} style={{ alignItems: 'center', flex: 1 }}>
-            <ThemedText style={styles.colValue} numberOfLines={1} adjustsFontSizeToFit>
-              {c.value}
-            </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {c.label}
-            </ThemedText>
-          </View>
-        ))}
+      <View style={{ flex: 1 }}>
+        <ThemedText style={[styles.eta, { color: theme.success }]} numberOfLines={1} adjustsFontSizeToFit>
+          {progress?.arrived ? 'Arrived' : formatEta(remainingS)}
+        </ThemedText>
+        <ThemedText themeColor="textSecondary" numberOfLines={1}>
+          {formatDistance(units, remainingM)} · {formatClock(Date.now() + remainingS * 1000)}
+        </ThemedText>
       </View>
+      <Pressable
+        onPress={onRoutes}
+        accessibilityRole="button"
+        accessibilityLabel="Change route"
+        style={({ pressed }) => [styles.roundBtn, { borderColor: theme.text, transform: [{ scale: pressed ? 0.92 : 1 }] }]}>
+        <MaterialCommunityIcons name="call-split" size={26} color={theme.text} />
+      </Pressable>
       <Pressable
         onPress={() => {
           void stop();
@@ -86,10 +77,71 @@ export function NavFooter({ units, onEnd }: { units: Units; onEnd?: () => void }
         }}
         accessibilityRole="button"
         accessibilityLabel="End navigation"
-        style={({ pressed }) => [styles.end, { backgroundColor: theme.danger, transform: [{ scale: pressed ? 0.95 : 1 }] }]}>
-        <Text style={styles.endText}>End</Text>
+        style={({ pressed }) => [styles.roundBtn, styles.endBtn, { backgroundColor: theme.danger, transform: [{ scale: pressed ? 0.92 : 1 }] }]}>
+        <MaterialCommunityIcons name="close" size={28} color="#fff" />
       </Pressable>
     </View>
+  );
+}
+
+/** Mid-drive route picker: the same kinds of options as before you left, from where you are now. */
+export function RouteChooser({
+  routes,
+  error,
+  units,
+  onPick,
+  onClose,
+}: {
+  routes: Route[] | null;
+  error: string | null;
+  units: Units;
+  onPick: (r: Route) => void;
+  onClose: () => void;
+}) {
+  const theme = useTheme();
+  return (
+    <Animated.View entering={FadeIn.duration(200)} style={{ alignSelf: 'stretch', gap: Spacing.two }}>
+      <View style={styles.chooserHead}>
+        <ThemedText style={{ fontSize: 20, fontWeight: 800, flex: 1 }}>Change route</ThemedText>
+        <Pressable
+          onPress={onClose}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+          style={[styles.close, { backgroundColor: theme.backgroundSelected }]}>
+          <MaterialCommunityIcons name="close" size={18} color={theme.textSecondary} />
+        </Pressable>
+      </View>
+      {error ? (
+        <ThemedText type="small" style={{ color: theme.danger }}>
+          {error}
+        </ThemedText>
+      ) : !routes ? (
+        <ActivityIndicator color={theme.accent} style={{ marginVertical: Spacing.three }} />
+      ) : (
+        routes.map((r, i) => (
+          <Pressable
+            key={i}
+            onPress={() => onPick(r)}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.option, { backgroundColor: theme.backgroundSelected, opacity: pressed ? 0.7 : 1 }]}>
+            <View style={{ flex: 1 }}>
+              <ThemedText style={{ fontWeight: 800 }}>{formatEta(r.durationS)}</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+                {[r.tags?.length ? r.tags.map((t) => ROUTE_TAG_LABEL[t]).join(' · ') : 'Alternative', formatDistance(units, r.distanceM), r.turns != null ? `${r.turns} turns` : null]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </ThemedText>
+            </View>
+            <View style={[styles.goPill, { backgroundColor: theme.accent }]}>
+              <ThemedText type="smallBold" style={{ color: '#fff' }}>
+                Go
+              </ThemedText>
+            </View>
+          </Pressable>
+        ))
+      )}
+    </Animated.View>
   );
 }
 
@@ -115,12 +167,14 @@ const styles = StyleSheet.create({
   then: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, backgroundColor: 'rgba(255,255,255,0.08)' },
   thenLabel: { color: '#B0B5BD', fontSize: 14, fontWeight: '700' },
   thenText: { color: '#fff', fontSize: 15, fontWeight: '600', flex: 1 },
-  footer: { flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch', gap: Spacing.two },
-  mute: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  cols: { flex: 1, flexDirection: 'row' },
-  colValue: { fontSize: 21, lineHeight: 25, fontWeight: 800, fontVariant: ['tabular-nums'] },
-  end: { paddingHorizontal: Spacing.four, height: 48, borderRadius: Radius.pill, alignItems: 'center', justifyContent: 'center' },
-  endText: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  footer: { flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch', gap: Spacing.three },
+  eta: { fontSize: 30, lineHeight: 36, fontWeight: 800, fontVariant: ['tabular-nums'] },
+  roundBtn: { width: 52, height: 52, borderRadius: 26, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  endBtn: { borderWidth: 0 },
+  chooserHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  close: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  option: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, padding: Spacing.three, borderRadius: Radius.md },
+  goPill: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.pill },
   bubble: { width: 62, height: 62, borderRadius: 31, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', ...shadow },
   bubbleValue: { color: '#111', fontSize: 24, lineHeight: 26, fontWeight: '900', fontVariant: ['tabular-nums'] },
   bubbleUnit: { color: '#555', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },

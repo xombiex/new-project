@@ -1,7 +1,7 @@
 import * as Speech from 'expo-speech';
 import { create } from 'zustand';
 
-import { cameraAhead, fetchCamerasAround, type Camera, type CameraKind } from '@/lib/cameras';
+import { CAMERA_LABEL, cameraAhead, fetchCamerasAround, type Camera, type CameraKind } from '@/lib/cameras';
 import { haversine, type LngLat } from '@/lib/geo';
 import { haptic } from '@/lib/haptics';
 import { spokenDistance } from '@/lib/instructions';
@@ -52,7 +52,7 @@ export const useCameras = create<CamerasState>()((set, get) => ({
 /** Which kinds the user wants on the map and alerted. */
 export function cameraKinds(): CameraKind[] {
   const { speedCameraAlerts, showAlprCameras } = useSettings.getState();
-  return [...(speedCameraAlerts ? (['speed'] as const) : []), ...(showAlprCameras ? (['alpr'] as const) : [])];
+  return [...(speedCameraAlerts ? (['speed', 'redlight'] as const) : []), ...(showAlprCameras ? (['alpr'] as const) : [])];
 }
 
 // Load cameras around you, and give one heads-up per camera on the road ahead.
@@ -78,6 +78,6 @@ onLocation((samples) => {
   haptic.warning();
   const { reportAlerts, units } = useSettings.getState();
   if (!reportAlerts || useNavigation.getState().muted) return;
-  const what = ahead.camera.kind === 'speed' ? 'Speed camera' : 'License plate camera';
+  const what = CAMERA_LABEL[ahead.camera.kind];
   Speech.speak(`${what} ahead, in ${spokenDistance(units, ahead.distanceM)}.`, { language: 'en-US' });
 });

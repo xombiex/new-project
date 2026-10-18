@@ -27,12 +27,12 @@ const EMPTY = { type: 'FeatureCollection' as const, features: [] };
 
 /** Symbol layers that draw vehicle sprites. Re-run after every style (re)load. */
 function addCameraLayer(m: MLMap) {
-  for (const kind of ['speed', 'alpr']) {
+  for (const kind of ['speed', 'redlight', 'alpr']) {
     const id = `cam-${kind}`;
     if (!m.hasImage(id)) void m.loadImage(`/cameras/${kind}.png`).then((img) => !m.hasImage(id) && m.addImage(id, img.data, { pixelRatio: 3 }));
   }
   if (!m.getSource('cameras')) m.addSource('cameras', { type: 'geojson', data: EMPTY });
-  if (!m.getLayer('cameras')) m.addLayer({ id: 'cameras', type: 'symbol', source: 'cameras', minzoom: 11, layout: CAMERA_LAYOUT as any });
+  if (!m.getLayer('cameras')) m.addLayer({ id: 'cameras', type: 'symbol', source: 'cameras', minzoom: 10, layout: CAMERA_LAYOUT as any });
 }
 
 function addVehicleLayers(m: MLMap) {
@@ -60,7 +60,7 @@ const point = (coord: [number, number], sprite: string, heading: number, opacity
  * Browser build of the map (maplibre-gl JS). Same tiles, line styles and 3D vehicle sprites as
  * the native map; follows the driver until they pan away.
  */
-export function ConvoyMap({ style, follow = false, me, cameras = [], tilt3d = false, camera, lines = [], people = [], markers: pins = [], destination, fit, padding }: ConvoyMapProps) {
+export function ConvoyMap({ style, follow = false, me, cameras = [], onPressCamera, tilt3d = false, camera, lines = [], people = [], markers: pins = [], destination, fit, padding }: ConvoyMapProps) {
   const { styleUrl, style: mapStyle, variant, glow, scheme } = useMapLook();
   const theme = useTheme();
   // A plain div: maplibre's CSS sets `position: relative` on its container, which would
@@ -71,6 +71,10 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], tilt3d = fa
   const markers = useRef<Marker[]>([]);
   const [loaded, setLoaded] = useState(false);
   const pendingFit = useRef(false);
+  const camerasRef = useRef(cameras);
+  camerasRef.current = cameras;
+  const onPressCameraRef = useRef(onPressCamera);
+  onPressCameraRef.current = onPressCamera;
   const [vehiclesReady, setVehiclesReady] = useState(false);
   const following = useRef(follow);
   const [followingUi, setFollowingUi] = useState(follow);
@@ -125,6 +129,13 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], tilt3d = fa
       setFollowingUi(false);
     });
     map.current = m;
+    m.on('click', 'cameras', (e) => {
+      const id = e.features?.[0]?.properties?.id;
+      const cam = camerasRef.current.find((c) => c.id === id);
+      if (cam) onPressCameraRef.current?.(cam);
+    });
+    m.on('mouseenter', 'cameras', () => (m.getCanvas().style.cursor = 'pointer'));
+    m.on('mouseleave', 'cameras', () => (m.getCanvas().style.cursor = ''));
     // Tabs mount hidden (0×0); keep the canvas in sync with the container's real size.
     const observer = new ResizeObserver(() => {
       m.resize();
@@ -168,7 +179,8 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], tilt3d = fa
           if (m.getLayer(layerId)) {
             for (const [k, v] of Object.entries(l.paint)) m.setPaintProperty(layerId, k as 'line-color', v as string);
           } else {
-            m.addLayer({ id: layerId, type: 'line', source: id, layout: l.layout as any, paint: l.paint as any });
+            // Under the cameras and cars, so a route never hides a camera icon.
+            m.addLayer({ id: layerId, type: 'line', source: id, layout: l.layout as any, paint: l.paint as any }, m.getLayer('cameras') ? 'cameras' : undefined);
           }
         }
       }

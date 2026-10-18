@@ -25,6 +25,8 @@ type NavState = {
   rerouting: boolean;
   start: (route: Route, destination: Place) => Promise<void>;
   stop: () => Promise<void>;
+  /** Change to another route mid-drive (keeps the trip and destination). */
+  switchRoute: (route: Route) => void;
   toggleMute: () => void;
 };
 
@@ -121,6 +123,16 @@ export const useNavigation = create<NavState>()((set, get) => {
       // Done (ended, arrived, or the trip finished): drop the planned route too, or its line and
       // place card would pop straight back onto the map.
       useNav.getState().clear();
+    },
+
+    switchRoute: (route) => {
+      if (!get().active) return;
+      mode = route.mode ?? 'fastest';
+      spoken = new Set();
+      offRouteFixes = 0;
+      lastReroute = Date.now();
+      set({ route: buildNavRoute(route.geometry, route.steps, route.durationS), progress: null, rerouting: false });
+      say('Route changed.');
     },
 
     toggleMute: () => {

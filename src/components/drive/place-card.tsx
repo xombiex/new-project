@@ -22,13 +22,14 @@ type Props = {
   units: Units;
   me: LngLat | null;
   showPlateCams: boolean;
+  showSpeedCams: boolean;
   onSelect: (i: number) => void;
   onGo: () => void;
   onClose: () => void;
 };
 
 /** Apple Maps–style place sheet: what it is, how far, open now, call/website, and Go. */
-export function PlaceCard({ place, routes, selected, loading, error, units, me, showPlateCams, onSelect, onGo, onClose }: Props) {
+export function PlaceCard({ place, routes, selected, loading, error, units, me, showPlateCams, showSpeedCams, onSelect, onGo, onClose }: Props) {
   const theme = useTheme();
   const [details, setDetails] = useState<PlaceDetails | null | undefined>(undefined);
   const [showHours, setShowHours] = useState(false);
@@ -134,6 +135,12 @@ export function PlaceCard({ place, routes, selected, loading, error, units, me, 
                 {r.cameras && showPlateCams ? (
                   <ThemedText type="small" style={{ color: on ? theme.accentText : theme.textSecondary }}>
                     {r.cameras.alpr === 0 ? 'No plate cams' : `${r.cameras.alpr} plate cam${r.cameras.alpr === 1 ? '' : 's'}`}
+                  </ThemedText>
+                ) : null}
+                {r.cameras && showSpeedCams && r.cameras.speed + r.cameras.redlight > 0 ? (
+                  <ThemedText type="small" style={{ color: on ? theme.accentText : theme.textSecondary }}>
+                    {[r.cameras.speed ? `${r.cameras.speed} speed` : null, r.cameras.redlight ? `${r.cameras.redlight} red light` : null].filter(Boolean).join(' · ')} cam
+                    {r.cameras.speed + r.cameras.redlight === 1 ? '' : 's'}
                   </ThemedText>
                 ) : null}
               </Pressable>

@@ -4,9 +4,9 @@
 //   → { cameras: [{ osm_id, kind, lat, lng, maxspeed, operator, direction }] }
 //
 // Cells older than a week (or never fetched) are refreshed from OpenStreetMap via Overpass first
-// (speed cameras + ALPR/Flock plate readers); everything else comes straight from Postgres, so only
-// the first driver in an area waits. Public data, so no sign-in required; refreshes are bounded by
-// the cell staleness check.
+// (speed cameras, red light cameras and ALPR/Flock plate readers); everything else comes straight
+// from Postgres, so only the first driver in an area waits. Public data, so no sign-in required;
+// refreshes are bounded by the cell staleness check.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
@@ -34,39 +34,53 @@ const json = (body: unknown, status = 200) =>
 type OsmNode = { id: number; lat: number; lon: number; tags?: Record<string, string> };
 
 async function overpass(query: string): Promise<OsmNode[]> {
-  let lastError = 'no mirrors';
+  const errors: string[] = [];
   for (const url of MIRRORS) {
     try {
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        // overpass-api.de answers 406 to anonymous clients, browser-like agents and agents naming a
+        // vercel.app site, so identify plainly.
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Accept: 'application/json',
+          'User-Agent': 'Convoy/1.0 (camera cache)',
+        },
         body: `data=${encodeURIComponent(query)}`,
         signal: AbortSignal.timeout(50_000),
       });
       if (!res.ok) {
-        lastError = `${url} ${res.status}`;
+        errors.push(`${url} ${res.status}`);
         continue;
       }
       return ((await res.json()) as { elements: OsmNode[] }).elements;
     } catch (e) {
-      lastError = `${url} ${e instanceof Error ? e.message : e}`;
+      errors.push(`${url} ${e instanceof Error ? e.message : e}`);
     }
   }
-  throw new Error(lastError);
+  throw new Error(errors.join('; ') || 'no mirrors');
+}
+
+/** Same rules as the app's cameraKindOf (src/lib/cameras.ts). */
+function kindOf(t: Record<string, string>) {
+  if (t['surveillance:type'] === 'ALPR') return 'alpr';
+  if (t.enforcement === 'traffic_signals' || t.enforcement === 'red_light_camera' || t.red_light_camera === 'yes') return 'redlight';
+  return 'speed';
 }
 
 async function refreshCell(cell: string) {
   const [lat, lng] = cell.split(',').map(Number);
   const box = `${lat},${lng},${lat + 1},${lng + 1}`;
   const nodes = await overpass(
-    `[out:json][timeout:45];(node["highway"="speed_camera"](${box});node["man_made"="surveillance"]["surveillance:type"="ALPR"](${box}););out body;`
+    `[out:json][timeout:45];(node["highway"="speed_camera"](${box});node["enforcement"~"^(maxspeed|traffic_signals|red_light_camera)$"](${box});` +
+      `node["red_light_camera"="yes"](${box});node["man_made"="surveillance"]["surveillance:type"="ALPR"](${box}););out body;`
   );
   const rows = nodes.map((n) => {
     const t = n.tags ?? {};
     const dir = Number(t['camera:direction'] ?? t.direction);
     return {
       osm_id: n.id,
-      kind: t['surveillance:type'] === 'ALPR' ? 'alpr' : 'speed',
+      kind: kindOf(t),
       lat: n.lat,
       lng: n.lon,
       maxspeed: t.maxspeed ?? null,
@@ -92,14 +106,13 @@ Deno.serve(async (req) => {
   const fresh = new Set((known ?? []).filter((k) => Date.now() - Date.parse(k.fetched_at) < STALE_MS).map((k) => k.cell));
   const stale = cells.filter((c) => !fresh.has(c));
   const failed: string[] = [];
-  await Promise.all(
-    stale.map((c) =>
-      refreshCell(c).catch((e) => {
-        console.error('refresh failed', c, e instanceof Error ? e.message : e);
-        failed.push(c);
-      })
-    )
-  );
+  // One at a time: public Overpass servers only allow a couple of requests per caller at once.
+  for (const c of stale) {
+    await refreshCell(c).catch((e) => {
+      console.error('refresh failed', c, e instanceof Error ? e.message : e);
+      failed.push(c);
+    });
+  }
 
   const { data, error } = await admin
     .from('road_cameras')

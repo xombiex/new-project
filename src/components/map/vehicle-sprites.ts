@@ -121,16 +121,17 @@ export const BLOCK_IMAGES = {
   'blk-dirt': require('../../../assets/themes/blocks/dirt.png'),
 } as const;
 
-/** Map icons for cameras (speed = orange, license-plate reader = purple). */
+/** Map icons for cameras (speed = orange, red light = red, license-plate reader = purple). */
 export const CAMERA_IMAGES = {
   'cam-speed': require('../../../assets/cameras/speed.png'),
+  'cam-redlight': require('../../../assets/cameras/redlight.png'),
   'cam-alpr': require('../../../assets/cameras/alpr.png'),
 } as const;
 
 /** Camera dots: small when zoomed out, readable up close; never hidden by labels. */
 export const CAMERA_LAYOUT: NonNullable<SymbolLayerSpecification['layout']> = {
-  'icon-image': ['match', ['get', 'kind'], 'alpr', 'cam-alpr', 'cam-speed'],
-  'icon-size': ['interpolate', ['linear'], ['zoom'], 11, 0.7, 16, 1.1],
+  'icon-image': ['match', ['get', 'kind'], 'alpr', 'cam-alpr', 'redlight', 'cam-redlight', 'cam-speed'],
+  'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.5, 13, 0.75, 16, 1],
   'icon-allow-overlap': true,
   'icon-ignore-placement': true,
 };

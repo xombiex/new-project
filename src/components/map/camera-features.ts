@@ -7,7 +7,7 @@ export function cameraFeatures(cameras: Camera[]): GeoJSON.FeatureCollection {
       type: 'Feature',
       id: c.id,
       geometry: { type: 'Point', coordinates: c.coord },
-      properties: { kind: c.kind },
+      properties: { kind: c.kind, id: c.id },
     })),
   };
 }

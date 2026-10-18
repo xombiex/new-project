@@ -2,14 +2,18 @@ import { bearing, haversine, type LngLat } from '@/lib/geo';
 
 /**
  * Road cameras from OpenStreetMap, via the free Overpass API (same endpoint as speed limits):
- *   - speed cameras: highway=speed_camera (mapped worldwide)
+ *   - speed cameras: highway=speed_camera or enforcement=maxspeed (mapped worldwide)
+ *   - red light cameras: enforcement=traffic_signals / red_light_camera on the signal, or red_light_camera=yes
  *   - license-plate readers (Flock Safety and others): man_made=surveillance +
  *     surveillance:type=ALPR, mapped by volunteers through the DeFlock project (deflock.me)
  * Coverage is whatever the community has mapped; it is never complete.
  */
 const OVERPASS_URL = process.env.EXPO_PUBLIC_OVERPASS_URL ?? 'https://overpass-api.de/api/interpreter';
 
-export type CameraKind = 'speed' | 'alpr';
+export type CameraKind = 'speed' | 'redlight' | 'alpr';
+
+export const CAMERA_LABEL: Record<CameraKind, string> = { speed: 'Speed camera', redlight: 'Red light camera', alpr: 'License plate camera' };
+export const CAMERA_COLOR: Record<CameraKind, string> = { speed: '#FF8A00', redlight: '#E62828', alpr: '#8E5CFF' };
 export type Camera = {
   id: number;
   kind: CameraKind;
@@ -24,13 +28,19 @@ export type Camera = {
 
 type OsmNode = { id: number; lat: number; lon: number; tags?: Record<string, string> };
 
+/** Which kind of camera an OSM node is (same rules as the cache's edge function). */
+export function cameraKindOf(t: Record<string, string>): CameraKind {
+  if (t['surveillance:type'] === 'ALPR') return 'alpr';
+  if (t.enforcement === 'traffic_signals' || t.enforcement === 'red_light_camera' || t.red_light_camera === 'yes') return 'redlight';
+  return 'speed';
+}
+
 function toCamera(n: OsmNode): Camera {
   const t = n.tags ?? {};
-  const alpr = t['surveillance:type'] === 'ALPR';
   const dir = Number(t['camera:direction'] ?? t.direction);
   return {
     id: n.id,
-    kind: alpr ? 'alpr' : 'speed',
+    kind: cameraKindOf(t),
     coord: [n.lon, n.lat],
     maxspeed: t.maxspeed,
     operator: t.manufacturer ?? t.operator ?? t.brand,
@@ -50,7 +60,9 @@ async function overpass(query: string, signal?: AbortSignal): Promise<Camera[]> 
   return json.elements.filter((e) => typeof e.lat === 'number').map(toCamera);
 }
 
-const filters = (area: string) => `node["highway"="speed_camera"](${area});node["man_made"="surveillance"]["surveillance:type"="ALPR"](${area});`;
+const filters = (area: string) =>
+  `node["highway"="speed_camera"](${area});node["enforcement"~"^(maxspeed|traffic_signals|red_light_camera)$"](${area});` +
+  `node["red_light_camera"="yes"](${area});node["man_made"="surveillance"]["surveillance:type"="ALPR"](${area});`;
 
 /** 1°×1° cache cells (see supabase/functions/cameras) covering a box. */
 export function cellsForBox([w, s, e, n]: [number, number, number, number]): string[] {
@@ -136,7 +148,7 @@ export function cameraAhead(cameras: Camera[], me: LngLat, heading: number | nul
     if (d > max || d < 15) continue;
     if (angleDiff(bearing(me, c.coord), heading) > 35) continue;
     // A camera facing away from us (the other carriageway) isn't ours.
-    if (c.kind === 'speed' && c.direction != null && angleDiff(c.direction, heading + 180) > 90 && angleDiff(c.direction, heading) > 90) continue;
+    if (c.kind !== 'alpr' && c.direction != null && angleDiff(c.direction, heading + 180) > 90 && angleDiff(c.direction, heading) > 90) continue;
     if (!best || d < best.distanceM) best = { camera: c, distanceM: d };
   }
   return best;
@@ -155,7 +167,7 @@ function segmentDistance(p: LngLat, a: LngLat, b: LngLat) {
 
 /** Cameras a route passes (within `withinM` of its line), counted by kind. */
 export function camerasOnRoute(route: LngLat[], cameras: Camera[], withinM = 30): Record<CameraKind, number> {
-  const out: Record<CameraKind, number> = { speed: 0, alpr: 0 };
+  const out: Record<CameraKind, number> = { speed: 0, redlight: 0, alpr: 0 };
   if (route.length < 2) return out;
   // Cheap reject first: the route's bounding box, padded.
   let [w, s, e, n] = [Infinity, Infinity, -Infinity, -Infinity];

@@ -25,7 +25,9 @@ export async function exposeStoresForTesting() {
     import('@/store/inbox'),
     import('@/store/places'),
   ]);
-  (window as unknown as { __convoy: unknown }).__convoy = { useNav, useNavigation, useTrips, useInbox, usePlaces };
+  const { useCameras } = await import('@/store/cameras');
+  const { fetchCamerasInBox } = await import('@/lib/cameras');
+  (window as unknown as { __convoy: unknown }).__convoy = { useNav, useNavigation, useTrips, useInbox, usePlaces, useCameras, fetchCamerasInBox };
 }
 
 /** Fill the stores. Called once from the root layout when demo mode is on. */
