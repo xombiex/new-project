@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import Animated, { FadeInUp, ZoomIn } from 'react-native-reanimated';
 
 import { ConvoyMap, type MapLine, type MapPerson } from '@/components/map/convoy-map';
 import { sideImage } from '@/components/map/vehicle-sprites';
@@ -37,7 +37,7 @@ function tripTitle(t: number) {
 }
 
 export default function TripScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, fresh } = useLocalSearchParams<{ id: string; fresh?: string }>();
   const theme = useTheme();
   const router = useRouter();
   const { units, privacyZones } = useSettings();
@@ -179,6 +179,25 @@ export default function TripScreen() {
             </View>
           </View>
 
+          {/* Just finished: invite them to share the recap */}
+          {fresh ? (
+            <Animated.View entering={ZoomIn.springify().damping(14).delay(250)} style={[styles.fresh, { backgroundColor: theme.accent }]}>
+              <MaterialCommunityIcons name="flag-checkered" size={28} color="#fff" />
+              <View style={{ flex: 1 }}>
+                <ThemedText style={{ color: '#fff', fontWeight: 800, fontSize: 17 }}>Nice drive!</ThemedText>
+                <ThemedText type="small" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                  Make a recap card for your story or group chat.
+                </ThemedText>
+              </View>
+              <Pressable
+                onPress={() => router.push({ pathname: '/share/[id]', params: { id: trip.id } })}
+                accessibilityRole="button"
+                style={({ pressed }) => [styles.freshBtn, { opacity: pressed ? 0.8 : 1 }]}>
+                <ThemedText style={{ color: theme.accent, fontWeight: 800 }}>Share</ThemedText>
+              </Pressable>
+            </Animated.View>
+          ) : null}
+
           {/* Vehicle and role */}
           <View style={styles.chips}>
             <View style={[styles.chip, { backgroundColor: theme.backgroundElement }]}>
@@ -276,6 +295,8 @@ export default function TripScreen() {
 }
 
 const styles = StyleSheet.create({
+  fresh: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, padding: Spacing.three, borderRadius: 18 },
+  freshBtn: { backgroundColor: '#fff', paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: 999 },
   sheet: { marginTop: -24, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: Spacing.three, gap: Spacing.three },
   header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   headerCar: { width: 72, height: 36 },

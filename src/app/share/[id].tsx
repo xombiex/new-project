@@ -1,10 +1,12 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useRef, useState, type ComponentRef } from 'react';
-import { Platform, Pressable, ScrollView, Share, StyleSheet, Switch, useWindowDimensions, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Switch, useWindowDimensions, View } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 
-import { CARD_STYLES, ShareCard, type CardStyle } from '@/components/share-card';
+import { sideImage } from '@/components/map/vehicle-sprites';
+import { CARD_STYLES, ShareCard, type CardFormat, type CardStyle } from '@/components/share-card';
+import { drawShareCard } from '@/components/share-card-canvas';
 import { ThemedText } from '@/components/themed-text';
 import { Button, Card } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
@@ -28,6 +30,7 @@ export default function ShareScreen() {
   const pro = useEntitled('pro');
   const [style, setStyle] = useState<CardStyle>('night');
   const [watermark, setWatermark] = useState(true);
+  const [format, setFormat] = useState<CardFormat>('post');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const card = useRef<ComponentRef<typeof View>>(null);
@@ -40,16 +43,31 @@ export default function ShareScreen() {
   const unit = speedUnitLabel(units);
   const scale = Math.min(1, (width - Spacing.three * 2) / 360);
 
+  const car = trip.car ? { label: trip.car.label, image: sideImage(trip.car.body, trip.car.paint) } : null;
+  const cardProps = {
+    style,
+    format,
+    title: trip.name ?? formatDayOrdinal(trip.startedAt),
+    subtitle: new Date(trip.startedAt).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }),
+    stats: [
+      { label: 'Distance', value: formatDistance(units, trip.distanceM) },
+      { label: 'Time', value: formatDuration((trip.endedAt - trip.startedAt) / 1000) },
+      { label: `Avg ${unit}`, value: String(Math.round(speedIn(units, averageSpeedMps(trip)))) },
+    ],
+    topSpeed: { value: String(Math.round(speedIn(units, trip.maxSpeedMps))), unit: unit.toUpperCase() },
+    segments,
+    watermark: watermark || !pro,
+  };
+
   async function share() {
     setBusy(true);
     setError(null);
     try {
-      if (Platform.OS === 'web') {
-        await Share.share({ message: `${trip!.name ?? 'My drive'}: ${formatDistance(units, trip!.distanceM)} with Convoy` });
-      } else {
-        const uri = await captureRef(card, { format: 'png', quality: 1, result: 'tmpfile' });
-        await shareImage(uri);
-      }
+      const uri =
+        Platform.OS === 'web'
+          ? await drawShareCard({ ...cardProps, car: car ? { label: car.label, uri: (car.image as { uri: string }).uri } : null })
+          : await captureRef(card, { format: 'png', quality: 1, result: 'tmpfile' });
+      await shareImage(uri);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not create the image');
     } finally {
@@ -59,23 +77,29 @@ export default function ShareScreen() {
 
   return (
     <ScrollView style={{ backgroundColor: theme.background }} contentContainerStyle={styles.content}>
-      <View style={{ height: 450 * scale, alignItems: 'center' }}>
+      <View style={{ height: (format === 'story' ? 640 : 450) * scale, alignItems: 'center' }}>
         <View style={{ transform: [{ scale }], transformOrigin: 'top' }}>
-          <ShareCard
-            ref={card}
-            style={style}
-            title={trip.name ?? formatDayOrdinal(trip.startedAt)}
-            subtitle={new Date(trip.startedAt).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}
-            stats={[
-              { label: 'Distance', value: formatDistance(units, trip.distanceM) },
-              { label: 'Time', value: formatDuration((trip.endedAt - trip.startedAt) / 1000) },
-              { label: `Avg ${unit}`, value: String(Math.round(speedIn(units, averageSpeedMps(trip)))) },
-            ]}
-            topSpeed={{ value: String(Math.round(speedIn(units, trip.maxSpeedMps))), unit: unit.toUpperCase() }}
-            segments={segments}
-            watermark={watermark || !pro}
-          />
+          <ShareCard ref={card} {...cardProps} car={car} />
         </View>
+      </View>
+
+      <View style={styles.styles}>
+        {(['post', 'story'] as const).map((f) => (
+          <Pressable
+            key={f}
+            onPress={() => setFormat(f)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: format === f }}
+            style={[
+              styles.chip,
+              { backgroundColor: format === f ? theme.text : theme.backgroundElement, borderColor: format === f ? theme.text : theme.border },
+            ]}>
+            <MaterialCommunityIcons name={f === 'post' ? 'crop-portrait' : 'cellphone'} size={14} color={format === f ? theme.background : theme.textSecondary} />
+            <ThemedText type="smallBold" style={{ color: format === f ? theme.background : theme.text }}>
+              {f === 'post' ? 'Post' : 'Story'}
+            </ThemedText>
+          </Pressable>
+        ))}
       </View>
 
       <View style={styles.styles}>

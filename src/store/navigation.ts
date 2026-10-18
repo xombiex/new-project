@@ -1,6 +1,7 @@
 import * as Speech from 'expo-speech';
 import { create } from 'zustand';
 
+import { haptic } from '@/lib/haptics';
 import { addReason, onLocation, removeReason } from '@/lib/location';
 import {
   announce,
@@ -35,6 +36,10 @@ const REROUTE_COOLDOWN_MS = 10_000;
 const AUTO_END_MS = 30_000;
 
 let spoken = new Set<string>();
+/** Steps we've already buzzed for. */
+let buzzed = new Set<number>();
+/** Buzz this far before a turn. */
+const BUZZ_M = 200;
 let offRouteFixes = 0;
 let lastReroute = 0;
 let stopListening: (() => void) | null = null;
@@ -59,6 +64,7 @@ export const useNavigation = create<NavState>()((set, get) => {
       const best = await routeFor(mode, [from.lng, from.lat], dest.coord);
       if (best && get().active) {
         spoken = new Set();
+        buzzed = new Set();
         offRouteFixes = 0;
         set({ route: buildNavRoute(best.geometry, best.steps, best.durationS), progress: null });
       }
@@ -83,6 +89,12 @@ export const useNavigation = create<NavState>()((set, get) => {
     set({ progress: prog });
 
     const speed = sample.speed != null && sample.speed >= 0 ? sample.speed : 0;
+    const step = route.steps[prog.next];
+    if (!prog.arrived && prog.toNextM <= BUZZ_M && !buzzed.has(prog.next) && step && step.type !== 'arrive') {
+      buzzed.add(prog.next);
+      haptic.turn();
+    }
+
     const a = announce(route, prog, speed, useSettings.getState().units, spoken);
     if (a) {
       spoken.add(a.key);
@@ -102,6 +114,7 @@ export const useNavigation = create<NavState>()((set, get) => {
     start: async (route, destination) => {
       await get().stop();
       spoken = new Set();
+      buzzed = new Set();
       offRouteFixes = 0;
       mode = route.mode ?? 'fastest';
       const nav = buildNavRoute(route.geometry, route.steps, route.durationS);
@@ -129,6 +142,7 @@ export const useNavigation = create<NavState>()((set, get) => {
       if (!get().active) return;
       mode = route.mode ?? 'fastest';
       spoken = new Set();
+      buzzed = new Set();
       offRouteFixes = 0;
       lastReroute = Date.now();
       set({ route: buildNavRoute(route.geometry, route.steps, route.durationS), progress: null, rerouting: false });

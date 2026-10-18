@@ -11,6 +11,7 @@ import { formatDistance, formatEta, haversine, type LngLat, type Units } from '@
 import { openState, weekLines } from '@/lib/opening-hours';
 import { fetchPlaceDetails, type PlaceDetails } from '@/lib/place-details';
 import { ROUTE_TAG_LABEL, type Place, type Route } from '@/lib/places';
+import { describeAlert, WEATHER_ICON, type WeatherAlert } from '@/lib/weather';
 import { usePlaces } from '@/store/places';
 
 type Props = {
@@ -23,13 +24,14 @@ type Props = {
   me: LngLat | null;
   showPlateCams: boolean;
   showSpeedCams: boolean;
+  weather?: WeatherAlert | null;
   onSelect: (i: number) => void;
   onGo: () => void;
   onClose: () => void;
 };
 
 /** Apple Maps–style place sheet: what it is, how far, open now, call/website, and Go. */
-export function PlaceCard({ place, routes, selected, loading, error, units, me, showPlateCams, showSpeedCams, onSelect, onGo, onClose }: Props) {
+export function PlaceCard({ place, routes, selected, loading, error, units, me, showPlateCams, showSpeedCams, weather, onSelect, onGo, onClose }: Props) {
   const theme = useTheme();
   const [details, setDetails] = useState<PlaceDetails | null | undefined>(undefined);
   const [showHours, setShowHours] = useState(false);
@@ -151,6 +153,7 @@ export function PlaceCard({ place, routes, selected, loading, error, units, me, 
 
       {/* Details */}
       <View style={[styles.info, { backgroundColor: theme.backgroundSelected }]}>
+        {weather ? <Row icon={WEATHER_ICON[weather.kind]} text={describeAlert(weather)} /> : null}
         {route ? <Row icon="clock-outline" text={`Arrive ${new Date(Date.now() + route.durationS * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`} /> : null}
         {details?.hours ? (
           <Pressable onPress={() => setShowHours((v) => !v)} accessibilityRole="button" accessibilityLabel="Opening hours">

@@ -1,17 +1,19 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { useEffect, type ReactNode } from 'react';
+import Animated, { cancelAnimation, FadeIn, FadeInDown, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming, ZoomIn } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDistance, formatEta, type Units } from '@/lib/geo';
 import { ROUTE_TAG_LABEL, type Route } from '@/lib/places';
+import { laneArrow, type Lane } from '@/lib/navigation';
 import { formatClock } from '@/lib/time';
 import { useNavigation } from '@/store/navigation';
 
 /** Apple Maps–style maneuver card: big arrow, distance, the street to turn onto, then the next step. */
-export function NavBanner({ units, top }: { units: Units; top: number }) {
+export function NavBanner({ units, top, children }: { units: Units; top: number; /** stacked under the card (lineup, alerts) */ children?: ReactNode }) {
   const { route, progress, rerouting } = useNavigation();
   if (!route) return null;
   const index = progress?.next ?? 1;
@@ -24,7 +26,7 @@ export function NavBanner({ units, top }: { units: Units; top: number }) {
       {/* Keyed by step so each new maneuver slides in. */}
       <Animated.View key={index} entering={FadeInDown.duration(250)} style={styles.banner} accessibilityLiveRegion="polite">
         <View style={styles.bannerMain}>
-          <MaterialCommunityIcons name={step.icon as 'arrow-up'} size={56} color="#fff" />
+          <TurnArrow icon={step.icon} close={Boolean(progress && progress.toNextM <= 200 && !rerouting)} />
           <View style={{ flex: 1 }}>
             <Text style={styles.dist}>{rerouting ? 'Rerouting…' : progress ? formatDistance(units, progress.toNextM) : '…'}</Text>
             <Text style={styles.street} numberOfLines={2}>
@@ -32,6 +34,7 @@ export function NavBanner({ units, top }: { units: Units; top: number }) {
             </Text>
           </View>
         </View>
+        {step.lanes && progress && progress.toNextM < 1000 ? <Lanes lanes={step.lanes} modifier={step.modifier} /> : null}
         {after && progress && progress.toNextM < 800 ? (
           <Animated.View entering={FadeIn.duration(200)} style={styles.then}>
             <Text style={styles.thenLabel}>Then</Text>
@@ -42,7 +45,44 @@ export function NavBanner({ units, top }: { units: Units; top: number }) {
           </Animated.View>
         ) : null}
       </Animated.View>
+      {children}
     </View>
+  );
+}
+
+/** The maneuver arrow: pops in for each new turn and pulses once you're about 200 m away. */
+function TurnArrow({ icon, close }: { icon: string; close: boolean }) {
+  const pulse = useSharedValue(1);
+  useEffect(() => {
+    if (close) pulse.value = withRepeat(withSequence(withTiming(1.14, { duration: 380 }), withTiming(1, { duration: 380 })), -1);
+    else {
+      cancelAnimation(pulse);
+      pulse.value = withTiming(1, { duration: 150 });
+    }
+  }, [close, pulse]);
+  const style = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
+  return (
+    <Animated.View entering={ZoomIn.springify().damping(14)} style={style}>
+      <MaterialCommunityIcons name={icon as 'arrow-up'} size={56} color={close ? '#5BE37D' : '#fff'} />
+    </Animated.View>
+  );
+}
+
+/** Lane guidance: one arrow per lane, the ones you can use lit up. */
+function Lanes({ lanes, modifier }: { lanes: Lane[]; modifier?: string }) {
+  return (
+    <Animated.View entering={FadeIn.duration(200)} style={styles.lanes} accessibilityLabel={`Use lane${lanes.filter((l) => l.valid).length > 1 ? 's' : ''} ${lanes.map((l, i) => (l.valid ? i + 1 : null)).filter(Boolean).join(' and ')} of ${lanes.length}`}>
+      {lanes.map((lane, i) => {
+        const { angle, uturn } = laneArrow(lane, modifier);
+        return (
+          <View key={i} style={[styles.lane, i > 0 && styles.laneDivider]}>
+            <View style={{ transform: [{ rotate: `${angle}deg` }] }}>
+              <MaterialCommunityIcons name={uturn ? 'arrow-u-left-top' : 'arrow-up-bold'} size={26} color={lane.valid ? '#fff' : 'rgba(255,255,255,0.28)'} />
+            </View>
+          </View>
+        );
+      })}
+    </Animated.View>
   );
 }
 
@@ -148,11 +188,14 @@ export function RouteChooser({
 const shadow = { shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8 };
 
 const styles = StyleSheet.create({
-  bannerWrap: { position: 'absolute', left: Spacing.two, right: Spacing.two },
+  bannerWrap: { position: 'absolute', left: Spacing.two, right: Spacing.two, gap: Spacing.two },
   banner: { backgroundColor: 'rgba(22,24,28,0.97)', borderRadius: 24, overflow: 'hidden', ...shadow },
   bannerMain: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingHorizontal: Spacing.three, paddingVertical: Spacing.three },
   dist: { color: '#fff', fontSize: 34, lineHeight: 38, fontWeight: '800' },
   street: { color: '#fff', fontSize: 21, lineHeight: 25, fontWeight: '700' },
+  lanes: { flexDirection: 'row', alignSelf: 'center', marginBottom: Spacing.two, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, overflow: 'hidden' },
+  lane: { width: 44, height: 40, alignItems: 'center', justifyContent: 'center' },
+  laneDivider: { borderLeftWidth: 2, borderLeftColor: 'rgba(255,255,255,0.35)', borderStyle: 'dashed' },
   then: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, backgroundColor: 'rgba(255,255,255,0.08)' },
   thenLabel: { color: '#B0B5BD', fontSize: 14, fontWeight: '700' },
   thenText: { color: '#fff', fontSize: 15, fontWeight: '600', flex: 1 },

@@ -1,6 +1,9 @@
 import { haversine, type LngLat, type Units } from '@/lib/geo';
 import { capitalize, instructionFor, maneuverIcon, spokenDistance, type OsrmStep } from '@/lib/instructions';
 
+/** One painted lane at a maneuver: its arrows, and whether it leads where you're going. */
+export type Lane = { indications: string[]; valid: boolean };
+
 export type NavStep = {
   text: string;
   icon: string;
@@ -9,7 +12,39 @@ export type NavStep = {
   location: LngLat;
   /** meters along the route where this maneuver happens */
   along: number;
+  /** turn lanes at this maneuver, left to right (only where OpenStreetMap has them) */
+  lanes?: Lane[];
+  modifier?: string;
 };
+
+/** Rotation for a lane arrow drawn as an up arrow (degrees, clockwise). */
+const LANE_ANGLE: Record<string, number> = {
+  'sharp left': -135,
+  left: -90,
+  'slight left': -45,
+  straight: 0,
+  none: 0,
+  'slight right': 45,
+  right: 90,
+  'sharp right': 135,
+};
+
+/**
+ * Which arrow to draw for a lane: the one matching your maneuver if the lane is valid, otherwise
+ * its first arrow. Returns null for u-turn lanes (drawn with their own icon).
+ */
+export function laneArrow(lane: Lane, modifier?: string): { angle: number; uturn: boolean } {
+  const pick = (lane.valid && modifier && lane.indications.find((i) => i === modifier)) || (lane.valid && lane.indications.find((i) => i !== 'none' && i !== 'uturn')) || lane.indications[0] || 'straight';
+  return { angle: LANE_ANGLE[pick] ?? 0, uturn: pick === 'uturn' };
+}
+
+function lanesOf(s: OsrmStep): Lane[] | undefined {
+  const lanes = s.intersections?.[0]?.lanes;
+  // A single lane, or lanes with no arrows painted, tell the driver nothing.
+  if (!lanes || lanes.length < 2 || lanes.every((l) => l.indications.every((i) => i === 'none'))) return undefined;
+  if (lanes.every((l) => l.valid)) return undefined;
+  return lanes.map((l) => ({ indications: l.indications, valid: l.valid }));
+}
 
 export type NavRoute = {
   geometry: LngLat[];
@@ -77,6 +112,8 @@ export function buildNavRoute(geometry: LngLat[], osrmSteps: OsrmStep[], duratio
       name: s.name || s.ref || '',
       location: s.maneuver.location,
       along: snapped.along,
+      modifier: s.maneuver.modifier,
+      lanes: lanesOf(s),
     };
   });
   return { geometry, cumulative, steps, totalM: cumulative.at(-1) ?? 0, totalS: durationS };

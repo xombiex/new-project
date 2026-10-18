@@ -3,11 +3,13 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ConvoyLineup } from '@/components/drive/convoy-lineup';
 import { NavBanner, NavFooter, RouteChooser } from '@/components/drive/nav-overlay';
-import { SpeedDial } from '@/components/drive/speed-dial';
 import { PlaceCard } from '@/components/drive/place-card';
+import { SpeedDial } from '@/components/drive/speed-dial';
 import { SpeedLimitSign } from '@/components/drive/speed-limit-sign';
 import { Glass } from '@/components/glass';
 import { LocationPrompt } from '@/components/location-prompt';
@@ -17,10 +19,12 @@ import { Speedometer } from '@/components/speedometer';
 import { ThemedText } from '@/components/themed-text';
 import { Button, Stat } from '@/components/ui';
 import { BottomTabInset, Radius, Spacing } from '@/constants/theme';
+import { useRouteWeather } from '@/hooks/use-route-weather';
 import { useSpeedLimit } from '@/hooks/use-speed-limit';
 import { useTheme } from '@/hooks/use-theme';
 import { CAMERA_COLOR, CAMERA_LABEL, type Camera } from '@/lib/cameras';
 import { formatDistance, formatDuration, speedIn, speedLabel, speedUnitLabel, haversine } from '@/lib/geo';
+import { lineup } from '@/lib/lineup';
 import { addReason, removeReason } from '@/lib/location';
 import { useCompassHeading } from '@/lib/compass';
 import { haptic } from '@/lib/haptics';
@@ -31,6 +35,7 @@ import { limitMps } from '@/lib/speed-limit';
 import { formatAgo } from '@/lib/time';
 import { averageSpeedMps } from '@/lib/trip-recorder';
 import { vehicleIcon } from '@/lib/vehicles';
+import { describeAlert, WEATHER_ICON } from '@/lib/weather';
 import { useAuth } from '@/store/auth';
 import { useCameras } from '@/store/cameras';
 import { useDrive } from '@/store/drive';
@@ -93,6 +98,7 @@ export default function DriveScreen() {
   );
   const drive = useDrive((s) => s.drive);
   const members = useDrive((s) => s.members);
+  const arrivedAt = useDrive((s) => s.arrived);
   const myId = useAuth((s) => s.session?.user.id);
   const myVehicle = useAuth((s) => s.profile?.vehicle);
   const myPaint = useAuth((s) => s.profile?.vehicle_color);
@@ -227,7 +233,7 @@ export default function DriveScreen() {
     await removeReason('trip');
     const trip = finish();
     if (trip) haptic.success();
-    if (trip) router.push({ pathname: '/trip/[id]', params: { id: trip.id } });
+    if (trip) router.push({ pathname: '/trip/[id]', params: { id: trip.id, fresh: '1' } });
     else Alert.alert('Trip too short', 'Trips under 50 m are not saved.');
   }
 
@@ -258,6 +264,34 @@ export default function DriveScreen() {
     pitch: followPitch(navigating, map3d),
     heading: headingNow,
   };
+  // Group drive: who's where, front to back.
+  const convoyOrder = useMemo(() => {
+    if (!drive) return [];
+    return lineup(
+      Object.entries(members).map(([id, m]) => {
+        const mine = id === myId && lastSample;
+        return {
+          id,
+          name: m.profile.display_name,
+          color: m.profile.avatar_color,
+          coord: mine ? ([lastSample.lng, lastSample.lat] as [number, number]) : m.position ? ([m.position.lng, m.position.lat] as [number, number]) : null,
+          stale: id !== myId && (!m.online || !m.position || now - m.position.t > MEMBER_STALE_MS),
+          arrived: Boolean(arrivedAt[id]),
+        };
+      }),
+      myId ?? null,
+      headingNow,
+      drive.dest_lat != null && drive.dest_lng != null ? [drive.dest_lng, drive.dest_lat] : null,
+      lastSample ? [lastSample.lng, lastSample.lat] : null
+    );
+    // `now` ticks every second; the order only needs that pace.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drive, members, arrivedAt, myId, Math.floor(now / 3000)]);
+  const showLineup = convoyOrder.length >= 2;
+
+  // Rain, snow or storms on the road ahead (or on the route option you're looking at).
+  const weather = useRouteWeather(navigating ? navRoute : null, navProgress, navigating ? undefined : route);
+
   // Posted limit while a ride is on (recording a trip or navigating).
   const road = useSpeedLimit(Boolean(active || navigating));
   const speedLimit = road.limit;
@@ -266,6 +300,32 @@ export default function DriveScreen() {
   useEffect(() => {
     if (speeding) haptic.warning();
   }, [speeding]);
+
+  // Heads-ups that stack under the top bar: a camera coming up, and bad weather on the route.
+  const alerts =
+    cameraAheadNow || (navigating && weather) ? (
+      <View style={styles.alerts} pointerEvents="none">
+        {cameraAheadNow ? (
+          <View style={[styles.cameraPill, { backgroundColor: CAMERA_COLOR[cameraAheadNow.camera.kind] }]}>
+            <MaterialCommunityIcons name={CAMERA_ICON[cameraAheadNow.camera.kind]} size={18} color="#fff" />
+            <ThemedText style={styles.cameraText}>
+              {cameraAheadNow.camera.kind === 'alpr'
+                ? (cameraAheadNow.camera.operator ?? CAMERA_LABEL.alpr)
+                : `${CAMERA_LABEL[cameraAheadNow.camera.kind]}${cameraAheadNow.camera.maxspeed ? ` · ${cameraAheadNow.camera.maxspeed}` : ''}`}{' '}
+              · {formatDistance(units, cameraAheadNow.distanceM)}
+            </ThemedText>
+          </View>
+        ) : null}
+        {navigating && weather ? (
+          <Animated.View entering={FadeInDown.duration(250)} style={[styles.cameraPill, { backgroundColor: '#2F6FED' }]}>
+            <MaterialCommunityIcons name={WEATHER_ICON[weather.kind] as 'weather-rainy'} size={18} color="#fff" />
+            <ThemedText style={[styles.cameraText, { flexShrink: 1 }]} numberOfLines={1}>
+              {describeAlert(weather)}
+            </ThemedText>
+          </Animated.View>
+        ) : null}
+      </View>
+    ) : null;
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
@@ -289,7 +349,10 @@ export default function DriveScreen() {
       />
 
       {navigating ? (
-        <NavBanner units={units} top={insets.top + Spacing.two} />
+        <NavBanner units={units} top={insets.top + Spacing.two}>
+          {showLineup ? <ConvoyLineup entries={convoyOrder} units={units} /> : null}
+          {alerts}
+        </NavBanner>
       ) : (
         <View style={[styles.top, { paddingTop: insets.top + Spacing.two }]} pointerEvents="box-none">
           {(
@@ -317,24 +380,12 @@ export default function DriveScreen() {
               </ThemedText>
             </Pressable>
           ) : null}
+          {showLineup ? <ConvoyLineup entries={convoyOrder} units={units} /> : null}
+          {alerts}
         </View>
       )}
 
       <LocationPrompt />
-
-      {cameraAheadNow ? (
-        <View style={[styles.cameraBanner, { top: insets.top + (navigating ? 150 : 80) }]} pointerEvents="none">
-          <View style={[styles.cameraPill, { backgroundColor: CAMERA_COLOR[cameraAheadNow.camera.kind] }]}>
-            <MaterialCommunityIcons name={CAMERA_ICON[cameraAheadNow.camera.kind]} size={18} color="#fff" />
-            <ThemedText style={styles.cameraText}>
-              {cameraAheadNow.camera.kind === 'alpr'
-                ? (cameraAheadNow.camera.operator ?? CAMERA_LABEL.alpr)
-                : `${CAMERA_LABEL[cameraAheadNow.camera.kind]}${cameraAheadNow.camera.maxspeed ? ` · ${cameraAheadNow.camera.maxspeed}` : ''}`}{' '}
-              · {formatDistance(units, cameraAheadNow.distanceM)}
-            </ThemedText>
-          </View>
-        </View>
-      ) : null}
 
       {/* Navigating: speed dial wearing the limit. Otherwise the panel shows your speed, so just the limit. */}
       {navigating ? (
@@ -381,6 +432,7 @@ export default function DriveScreen() {
               me={lastSample ? [lastSample.lng, lastSample.lat] : null}
               showPlateCams={showAlprCameras}
               showSpeedCams={speedCameraAlerts}
+              weather={weather}
               onSelect={nav.select}
               onGo={() => void onGo()}
               onClose={nav.clear}
@@ -470,8 +522,8 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
   },
   limit: { position: 'absolute', left: Spacing.three },
-  cameraBanner: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
-  cameraPill: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: 999, borderWidth: 2, borderColor: '#fff' },
+  alerts: { alignSelf: 'stretch', alignItems: 'center', gap: Spacing.two },
+  cameraPill: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: 999, borderWidth: 2, borderColor: '#fff', maxWidth: '94%' },
   cameraText: { color: '#fff', fontWeight: 800 },
   reportBtn: {
     position: 'absolute',

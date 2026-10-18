@@ -9,6 +9,8 @@ export type OsrmStep = {
   destinations?: string;
   exits?: string;
   maneuver: { type: string; modifier?: string; location: LngLat; exit?: number };
+  /** intersections along the step; the first is the maneuver itself, with its turn lanes when mapped */
+  intersections?: { lanes?: { valid: boolean; indications: string[] }[] }[];
 };
 
 const ORDINAL = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth'];
