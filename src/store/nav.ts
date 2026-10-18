@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 import type { LngLat } from '@/lib/geo';
 import { camerasOnRoute, fetchCamerasInBox, routesBox } from '@/lib/cameras';
-import { getRoutes, type Place, type Route } from '@/lib/places';
+import { getRouteOptions, type Place, type Route } from '@/lib/places';
 import { useSettings } from '@/store/settings';
 
 type NavState = {
@@ -31,7 +31,7 @@ export const useNav = create<NavState>()((set) => ({
     inflight = ctrl;
     set({ destination: place, routes: [], selected: 0, loading: true, error: null });
     try {
-      let routes = await getRoutes(from, place.coord, ctrl.signal);
+      let routes = await getRouteOptions(from, place.coord, ctrl.signal);
       if (ctrl.signal.aborted) return;
       set({ routes, loading: false });
       // Then count cameras along each option (best effort; routing works without it).

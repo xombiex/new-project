@@ -107,7 +107,9 @@ export default function DriveScreen() {
 
   const lines = useMemo<MapLine[]>(() => {
     const out: MapLine[] = [];
-    if (navRoute) {
+    if (navRoute && navProgress?.arrived) {
+      // Arrived: nothing left to follow.
+    } else if (navRoute) {
       // Road already driven fades to grey; the road ahead is the blue route.
       const { driven, ahead } = splitRoute(navRoute.geometry, navRoute.cumulative, navProgress?.snap.segment ?? 0, navProgress?.snap.along ?? 0);
       if (driven.length > 1) out.push({ id: 'nav-driven', coords: driven, color: '#8E959E', width: 7, opacity: 0.6 });
@@ -121,7 +123,7 @@ export default function DriveScreen() {
     }
     if (active && active.path.length > 1) out.push({ id: 'trip', coords: active.path, color: theme.speed, width: 3, variant: 'glow' });
     return out;
-  }, [navRoute, navProgress?.snap.segment, navProgress?.snap.along, nav.routes, nav.selected, active, theme]);
+  }, [navRoute, navProgress?.snap.segment, navProgress?.snap.along, navProgress?.arrived, nav.routes, nav.selected, active, theme]);
 
   const people = useMemo<MapPerson[]>(
     () =>
@@ -188,6 +190,8 @@ export default function DriveScreen() {
   }
 
   async function onFinish() {
+    if (useNavigation.getState().active) await useNavigation.getState().stop();
+    else nav.clear();
     await removeReason('trip');
     const trip = finish();
     if (trip) haptic.success();
@@ -203,6 +207,7 @@ export default function DriveScreen() {
         style: 'destructive',
         onPress: () => {
           discard();
+          void useNavigation.getState().stop();
           void removeReason('trip');
         },
       },

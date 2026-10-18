@@ -70,6 +70,13 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Convoy uses the microphone only when you tap the mic to search for a place by voice.",
+          "speechRecognitionPermission": "Convoy turns what you say into text so you can search for places hands-free."
+        }
       ]
     ],
     "experiments": {

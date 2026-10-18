@@ -135,7 +135,10 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="sign-in" options={{ presentation: 'modal', title: 'Account' }} />
         <Stack.Screen name="profile-setup" options={{ presentation: 'modal', title: 'Your profile', gestureEnabled: false }} />
-        <Stack.Screen name="search" options={{ presentation: 'modal', title: 'Search' }} />
+        <Stack.Screen
+          name="search"
+          options={{ presentation: 'transparentModal', animation: 'slide_from_bottom', headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}
+        />
         <Stack.Screen name="trip/[id]" options={{ title: 'Trip' }} />
         <Stack.Screen name="paywall" options={{ presentation: 'modal' }} />
         <Stack.Screen name="profile" options={{ title: 'Profile' }} />

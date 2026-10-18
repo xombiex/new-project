@@ -11,8 +11,9 @@ import {
   type NavProgress,
   type NavRoute,
 } from '@/lib/navigation';
-import { getRoutes, type Place, type Route } from '@/lib/places';
+import { routeFor, type Place, type Route, type RouteMode } from '@/lib/places';
 import type { LocationSample } from '@/lib/trip-recorder';
+import { useNav } from '@/store/nav';
 import { useSettings } from '@/store/settings';
 
 type NavState = {
@@ -36,6 +37,8 @@ let offRouteFixes = 0;
 let lastReroute = 0;
 let stopListening: (() => void) | null = null;
 let endTimer: ReturnType<typeof setTimeout> | null = null;
+/** The kind of route picked (fastest / shortest / no highways), kept when rerouting. */
+let mode: RouteMode = 'fastest';
 
 function say(text: string) {
   if (useNavigation.getState().muted) return;
@@ -51,7 +54,7 @@ export const useNavigation = create<NavState>()((set, get) => {
     set({ rerouting: true });
     say('Rerouting.');
     try {
-      const [best] = await getRoutes([from.lng, from.lat], dest.coord);
+      const best = await routeFor(mode, [from.lng, from.lat], dest.coord);
       if (best && get().active) {
         spoken = new Set();
         offRouteFixes = 0;
@@ -98,6 +101,7 @@ export const useNavigation = create<NavState>()((set, get) => {
       await get().stop();
       spoken = new Set();
       offRouteFixes = 0;
+      mode = route.mode ?? 'fastest';
       const nav = buildNavRoute(route.geometry, route.steps, route.durationS);
       set({ active: true, route: nav, destination, progress: null });
       stopListening = onLocation((samples) => onSample(samples[samples.length - 1]));
@@ -114,6 +118,9 @@ export const useNavigation = create<NavState>()((set, get) => {
       Speech.stop();
       if (get().active) await removeReason('nav');
       set({ active: false, route: null, destination: null, progress: null, rerouting: false });
+      // Done (ended, arrived, or the trip finished): drop the planned route too, or its line and
+      // place card would pop straight back onto the map.
+      useNav.getState().clear();
     },
 
     toggleMute: () => {

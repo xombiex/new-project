@@ -331,8 +331,20 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], tilt3d = fa
     pendingFit.current = false;
     const bounds = new LngLatBounds(fit.points[0], fit.points[0]);
     for (const p of fit.points) bounds.extend(p);
+    // fitBounds adds the follow camera's padding on top of its own, and gives up silently when
+    // the total is taller than the map (phones, with the place sheet open). Clear it, and shrink
+    // the margins so at least ~140 px of route stays visible.
+    m.setPadding({ top: 0, bottom: 0, left: 0, right: 0 });
+    const room = container.current.clientHeight - 140;
+    let top = (padding?.top ?? 0) + 30;
+    let bottom = (padding?.bottom ?? 0) + 30;
+    if (top + bottom > room) {
+      const k = Math.max(0, room / (top + bottom));
+      top = Math.floor(top * k);
+      bottom = Math.floor(bottom * k);
+    }
     m.fitBounds(bounds, {
-      padding: { top: (padding?.top ?? 0) + 40, bottom: (padding?.bottom ?? 0) + 40, left: 40, right: 40 },
+      padding: { top, bottom, left: 40, right: 40 },
       duration: 600,
       maxZoom: 15,
       pitch: 0,

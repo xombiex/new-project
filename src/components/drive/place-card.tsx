@@ -10,7 +10,8 @@ import { useTheme } from '@/hooks/use-theme';
 import { formatDistance, formatEta, haversine, type LngLat, type Units } from '@/lib/geo';
 import { openState, weekLines } from '@/lib/opening-hours';
 import { fetchPlaceDetails, type PlaceDetails } from '@/lib/place-details';
-import type { Place, Route } from '@/lib/places';
+import { ROUTE_TAG_LABEL, type Place, type Route } from '@/lib/places';
+import { usePlaces } from '@/store/places';
 
 type Props = {
   place: Place;
@@ -31,6 +32,7 @@ export function PlaceCard({ place, routes, selected, loading, error, units, me, 
   const theme = useTheme();
   const [details, setDetails] = useState<PlaceDetails | null | undefined>(undefined);
   const [showHours, setShowHours] = useState(false);
+  const pinned = usePlaces((s) => s.pins.some((p) => p.place.id === place.id));
 
   useEffect(() => {
     setDetails(undefined);
@@ -93,6 +95,11 @@ export function PlaceCard({ place, routes, selected, loading, error, units, me, 
           <Action icon="phone" label="Call" onPress={() => void Linking.openURL(`tel:${details.phone!.replace(/[^\d+]/g, '')}`)} />
         ) : null}
         {details?.website ? <Action icon="web" label="Website" onPress={() => void WebBrowser.openBrowserAsync(details.website!)} /> : null}
+        <Action
+          icon={pinned ? 'pin' : 'pin-outline'}
+          label={pinned ? 'Pinned' : 'Pin'}
+          onPress={() => (pinned ? usePlaces.getState().unpin(place.id) : usePlaces.getState().setPin('other', place))}
+        />
       </View>
 
       {error ? (
@@ -113,9 +120,17 @@ export function PlaceCard({ place, routes, selected, loading, error, units, me, 
                 accessibilityRole="button"
                 accessibilityState={{ selected: on }}
                 style={[styles.alt, { backgroundColor: on ? theme.accent : theme.backgroundSelected }]}>
+                <ThemedText type="small" style={{ color: on ? theme.accentText : theme.textSecondary, fontWeight: 700 }} numberOfLines={1}>
+                  {r.tags?.length ? r.tags.map((t) => ROUTE_TAG_LABEL[t]).join(' · ') : 'Alternative'}
+                </ThemedText>
                 <ThemedText type="smallBold" style={{ color: on ? theme.accentText : theme.text }}>
                   {formatEta(r.durationS)} · {formatDistance(units, r.distanceM)}
                 </ThemedText>
+                {r.turns != null ? (
+                  <ThemedText type="small" style={{ color: on ? theme.accentText : theme.textSecondary }}>
+                    {r.turns} {r.turns === 1 ? 'turn' : 'turns'}
+                  </ThemedText>
+                ) : null}
                 {r.cameras && showPlateCams ? (
                   <ThemedText type="small" style={{ color: on ? theme.accentText : theme.textSecondary }}>
                     {r.cameras.alpr === 0 ? 'No plate cams' : `${r.cameras.alpr} plate cam${r.cameras.alpr === 1 ? '' : 's'}`}
@@ -192,9 +207,9 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: Spacing.two, marginTop: Spacing.three },
   go: { flex: 1, minHeight: 56, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.two },
   goText: { color: '#fff', fontSize: 18, fontWeight: 800 },
-  action: { width: 72, minHeight: 56, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  action: { width: 64, minHeight: 56, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center', gap: 2 },
   alts: { gap: Spacing.two, paddingTop: Spacing.three },
-  alt: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.md },
+  alt: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.md, minWidth: 120 },
   info: { marginTop: Spacing.three, borderRadius: Radius.md, paddingHorizontal: Spacing.three, paddingVertical: Spacing.one },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingVertical: Spacing.two },
   hourRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3, paddingLeft: 26 },
