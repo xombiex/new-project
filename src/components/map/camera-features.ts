@@ -7,7 +7,8 @@ export function cameraFeatures(cameras: Camera[]): GeoJSON.FeatureCollection {
       type: 'Feature',
       id: c.id,
       geometry: { type: 'Point', coordinates: c.coord },
-      properties: { kind: c.kind, id: c.id },
+      // Unconfirmed community reports get a faded icon with a "?".
+      properties: { kind: c.kind, id: c.id, icon: `cam-${c.status === 'pending' ? 'pending-' : ''}${c.kind}` },
     })),
   };
 }

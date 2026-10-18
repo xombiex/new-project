@@ -15,7 +15,8 @@ export type CameraKind = 'speed' | 'redlight' | 'alpr';
 export const CAMERA_LABEL: Record<CameraKind, string> = { speed: 'Speed camera', redlight: 'Red light camera', alpr: 'License plate camera' };
 export const CAMERA_COLOR: Record<CameraKind, string> = { speed: '#FF8A00', redlight: '#E62828', alpr: '#8E5CFF' };
 export type Camera = {
-  id: number;
+  /** OpenStreetMap node id, or "c-<uuid>" for a community report */
+  id: number | string;
   kind: CameraKind;
   coord: LngLat;
   /** posted limit the camera enforces, when tagged */
@@ -24,6 +25,15 @@ export type Camera = {
   operator?: string;
   /** compass direction the camera faces, when tagged */
   direction?: number;
+  /** where it came from: OpenStreetMap, or reported by Convoy drivers */
+  source?: 'osm' | 'community';
+  /** community reports: "pending" until enough drivers confirm it */
+  status?: 'pending' | 'verified';
+  /** you reported it */
+  mine?: boolean;
+  /** your vote on it (true = still there), if any */
+  myVote?: boolean | null;
+  votes?: { present: number; gone: number };
 };
 
 type OsmNode = { id: number; lat: number; lon: number; tags?: Record<string, string> };
@@ -143,7 +153,7 @@ export function cameraAhead(cameras: Camera[], me: LngLat, heading: number | nul
   const max = cameraAlertDistance(speedMps);
   let best: { camera: Camera; distanceM: number } | null = null;
   for (const c of cameras) {
-    if (!kinds.includes(c.kind)) continue;
+    if (!kinds.includes(c.kind) || c.status === 'pending') continue;
     const d = haversine(me, c.coord);
     if (d > max || d < 15) continue;
     if (angleDiff(bearing(me, c.coord), heading) > 35) continue;

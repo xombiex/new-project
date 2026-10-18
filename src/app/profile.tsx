@@ -5,6 +5,7 @@ import { useCallback, useState } from 'react';
 import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 
 import { LegalLinks } from '@/components/legal-links';
+import { ScoutCard } from '@/components/scout-card';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar, Button, Card, SectionTitle, Segmented } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
@@ -233,6 +234,7 @@ export default function ProfileScreen() {
       </Card>
 
       <SectionTitle>Cameras</SectionTitle>
+      {profile ? <ScoutCard /> : null}
       <Card style={{ gap: Spacing.three }}>
         <View style={styles.row}>
           <View style={{ flex: 1 }}>

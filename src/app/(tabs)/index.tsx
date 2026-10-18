@@ -3,7 +3,7 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ConvoyLineup } from '@/components/drive/convoy-lineup';
@@ -88,6 +88,7 @@ export default function DriveScreen() {
   const reports = useReports((s) => s.reports);
   const allCameras = useCameras((s) => s.cameras);
   const cameraAheadNow = useCameras((s) => s.ahead);
+  const cameraPrompt = useCameras((s) => s.prompt);
   const speedCameraAlerts = useSettings((s) => s.speedCameraAlerts);
   const showAlprCameras = useSettings((s) => s.showAlprCameras);
   const map3d = useSettings((s) => s.map3d);
@@ -179,7 +180,23 @@ export default function DriveScreen() {
     const away = lastSample ? `${formatDistance(units, haversine([lastSample.lng, lastSample.lat], c.coord))} away` : null;
     const enforces = c.kind !== 'alpr' && c.maxspeed ? `Enforces ${c.maxspeed}${/^\d+$/.test(c.maxspeed) ? (units === 'imperial' ? ' mph' : ' km/h') : ''}` : null;
     const by = c.kind === 'alpr' && c.operator ? `Operated by ${c.operator}` : null;
-    Alert.alert(CAMERA_LABEL[c.kind], [away, enforces, facing, by, 'Location from OpenStreetMap (may be out of date).'].filter(Boolean).join('\n'));
+    const vote = (present: boolean) => void useCameras.getState().vote(c, present);
+    if (c.source === 'community' && c.status === 'pending') {
+      const lines = [away, 'Reported by a Convoy driver, not confirmed yet.', c.mine ? 'You reported this one.' : null];
+      Alert.alert(`${CAMERA_LABEL[c.kind]}?`, lines.filter(Boolean).join('\n'), [
+        { text: 'Close', style: 'cancel' },
+        c.mine ? { text: 'Take it back', style: 'destructive', onPress: () => vote(false) } : { text: 'Not there', style: 'destructive', onPress: () => vote(false) },
+        ...(c.mine ? [] : [{ text: 'It’s there', onPress: () => vote(true) }]),
+      ]);
+      return;
+    }
+    const watches = c.source === 'community' && c.direction != null ? `Watches traffic heading ${compassPoint(c.direction)}` : facing;
+    const source = c.source === 'community' ? 'Confirmed by Convoy drivers.' : 'Location from OpenStreetMap (may be out of date).';
+    Alert.alert(CAMERA_LABEL[c.kind], [away, enforces, watches, by, source].filter(Boolean).join('\n'), [
+      { text: 'Close', style: 'cancel' },
+      { text: 'It’s gone', style: 'destructive', onPress: () => vote(false) },
+      { text: 'Still here', onPress: () => vote(true) },
+    ]);
   }
 
   function onPressReport(id: string) {
@@ -398,6 +415,32 @@ export default function DriveScreen() {
         </View>
       ) : null}
 
+      {/* Passing an unconfirmed camera report: one tap to confirm or deny */}
+      {cameraPrompt ? (
+        <Animated.View
+          entering={FadeInDown.springify().damping(15)}
+          exiting={FadeOutDown.duration(200)}
+          style={[styles.scoutCard, { bottom: panelHeight + BottomTabInset + Spacing.three + (navigating ? 124 : 72) }]}>
+          <View style={[styles.scoutIcon, { backgroundColor: CAMERA_COLOR[cameraPrompt.kind] }]}>
+            <MaterialCommunityIcons name={CAMERA_ICON[cameraPrompt.kind]} size={22} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <ThemedText style={{ color: '#fff', fontWeight: 800 }} numberOfLines={1} adjustsFontSizeToFit>
+              {CAMERA_LABEL[cameraPrompt.kind]} here?
+            </ThemedText>
+            <ThemedText type="small" style={{ color: '#B9C0CA' }} numberOfLines={1}>
+              Another driver reported one
+            </ThemedText>
+          </View>
+          <Pressable onPress={() => void useCameras.getState().vote(cameraPrompt, false)} accessibilityRole="button" style={[styles.scoutBtn, { backgroundColor: 'rgba(255,255,255,0.12)' }]}>
+            <ThemedText style={{ color: '#fff', fontWeight: 800 }}>No</ThemedText>
+          </Pressable>
+          <Pressable onPress={() => void useCameras.getState().vote(cameraPrompt, true)} accessibilityRole="button" style={[styles.scoutBtn, { backgroundColor: theme.success }]}>
+            <ThemedText style={{ color: '#fff', fontWeight: 800 }}>Yes</ThemedText>
+          </Pressable>
+        </Animated.View>
+      ) : null}
+
       {/* While navigating, voice on/off floats above the report button */}
       {navigating ? (
         <Pressable
@@ -523,6 +566,25 @@ const styles = StyleSheet.create({
   },
   limit: { position: 'absolute', left: Spacing.three },
   alerts: { alignSelf: 'stretch', alignItems: 'center', gap: Spacing.two },
+  scoutCard: {
+    position: 'absolute',
+    left: Spacing.three,
+    right: Spacing.three,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    padding: Spacing.two,
+    paddingLeft: Spacing.three,
+    borderRadius: 20,
+    backgroundColor: 'rgba(22,24,28,0.96)',
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  scoutIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  scoutBtn: { minWidth: 56, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.three },
   cameraPill: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: 999, borderWidth: 2, borderColor: '#fff', maxWidth: '94%' },
   cameraText: { color: '#fff', fontWeight: 800 },
   reportBtn: {

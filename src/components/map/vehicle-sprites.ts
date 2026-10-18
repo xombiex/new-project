@@ -126,11 +126,14 @@ export const CAMERA_IMAGES = {
   'cam-speed': require('../../../assets/cameras/speed.png'),
   'cam-redlight': require('../../../assets/cameras/redlight.png'),
   'cam-alpr': require('../../../assets/cameras/alpr.png'),
+  'cam-pending-speed': require('../../../assets/cameras/pending-speed.png'),
+  'cam-pending-redlight': require('../../../assets/cameras/pending-redlight.png'),
+  'cam-pending-alpr': require('../../../assets/cameras/pending-alpr.png'),
 } as const;
 
 /** Camera dots: small when zoomed out, readable up close; never hidden by labels. */
 export const CAMERA_LAYOUT: NonNullable<SymbolLayerSpecification['layout']> = {
-  'icon-image': ['match', ['get', 'kind'], 'alpr', 'cam-alpr', 'redlight', 'cam-redlight', 'cam-speed'],
+  'icon-image': ['get', 'icon'],
   'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.5, 13, 0.75, 16, 1],
   'icon-allow-overlap': true,
   'icon-ignore-placement': true,

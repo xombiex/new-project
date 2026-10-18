@@ -27,7 +27,7 @@ const EMPTY = { type: 'FeatureCollection' as const, features: [] };
 
 /** Symbol layers that draw vehicle sprites. Re-run after every style (re)load. */
 function addCameraLayer(m: MLMap) {
-  for (const kind of ['speed', 'redlight', 'alpr']) {
+  for (const kind of ['speed', 'redlight', 'alpr', 'pending-speed', 'pending-redlight', 'pending-alpr']) {
     const id = `cam-${kind}`;
     if (!m.hasImage(id)) void m.loadImage(`/cameras/${kind}.png`).then((img) => !m.hasImage(id) && m.addImage(id, img.data, { pixelRatio: 3 }));
   }

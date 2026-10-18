@@ -155,7 +155,7 @@ export default function RootLayout() {
         <Stack.Screen name="inbox" options={{ title: 'Inbox' }} />
         <Stack.Screen name="stripe-return" options={{ headerShown: false }} />
         <Stack.Screen name="invite" options={{ title: 'Invite to drive', presentation: 'modal' }} />
-        <Stack.Screen name="report" options={{ title: 'Report', presentation: 'formSheet', sheetAllowedDetents: [0.6, 1] }} />
+        <Stack.Screen name="report" options={{ title: 'Report', presentation: 'formSheet', sheetAllowedDetents: [0.85, 1] }} />
       </Stack>
     </ThemeProvider>
   );
