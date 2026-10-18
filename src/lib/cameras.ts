@@ -158,7 +158,10 @@ export function cameraAhead(cameras: Camera[], me: LngLat, heading: number | nul
     if (d > max || d < 15) continue;
     if (angleDiff(bearing(me, c.coord), heading) > 35) continue;
     // A camera facing away from us (the other carriageway) isn't ours.
-    if (c.kind !== 'alpr' && c.direction != null && angleDiff(c.direction, heading + 180) > 90 && angleDiff(c.direction, heading) > 90) continue;
+    if (c.source === 'community') {
+      // Community reports store the way the reporter was driving: only that direction of traffic.
+      if (c.direction != null && angleDiff(c.direction, heading) > 60) continue;
+    } else if (c.kind !== 'alpr' && c.direction != null && angleDiff(c.direction, heading + 180) > 90 && angleDiff(c.direction, heading) > 90) continue;
     if (!best || d < best.distanceM) best = { camera: c, distanceM: d };
   }
   return best;

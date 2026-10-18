@@ -45,3 +45,20 @@ describe('cameraKindOf', () => {
     expect(cameraKindOf({ man_made: 'surveillance', 'surveillance:type': 'ALPR', surveillance: 'traffic' })).toBe('alpr');
   });
 });
+
+describe('community camera direction', () => {
+  // A verified community camera 200 m north of you, reported by someone driving north.
+  const north: Camera = { id: 'c-x', kind: 'speed', coord: [0, 0.0018], source: 'community', status: 'verified', direction: 0 };
+
+  it('alerts drivers going the reported way', () => {
+    expect(cameraAhead([north], [0, 0], 0, 15, ['speed'])?.camera.id).toBe('c-x');
+  });
+
+  it('stays quiet for the other direction of traffic', () => {
+    expect(cameraAhead([{ ...north, direction: 180 }], [0, 0], 0, 15, ['speed'])).toBeNull();
+  });
+
+  it('never alerts for unconfirmed reports', () => {
+    expect(cameraAhead([{ ...north, status: 'pending' }], [0, 0], 0, 15, ['speed'])).toBeNull();
+  });
+});
