@@ -2,10 +2,11 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { convoyStop, ConvoyRoster, rosterEntries } from '@/components/drive/convoy-roster';
 import { NavBanner, NavFooter, RouteChooser } from '@/components/drive/nav-overlay';
 import { PlaceCard } from '@/components/drive/place-card';
 import { SpeedDial } from '@/components/drive/speed-dial';
@@ -283,8 +284,23 @@ export default function DriveScreen() {
     heading: headingNow,
   };
 
-  // Rain, snow or storms on the road ahead (or on the route option you're looking at).
+  // Group drive: everyone down the left side, with speed and distance to the stop.
+  const { height: screenH } = useWindowDimensions();
+  const stop = drive ? convoyStop(drive) : null;
+  const roster = useMemo(
+    () =>
+      drive
+        ? rosterEntries(members, myId ?? null, lastSample && !stale ? { coord: [lastSample.lng, lastSample.lat], speed: lastSample.speed } : null, stop?.coord ?? null, now)
+        : [],
+    // `now` ticks every second; the list only needs to refresh every few.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [drive, members, myId, lastSample?.timestamp, stale, stop?.coord.join(), Math.floor(now / 3000)]
+  );
+
+    // Rain, snow or storms on the road ahead (or on the route option you're looking at).
   const weather = useRouteWeather(navigating ? navRoute : null, navProgress, navigating ? undefined : route);
+  const rosterTop = insets.top + (navigating ? 190 : 80 + (drive ? 48 : 0) + (regroup ? 48 : 0)) + (cameraAheadNow || (navigating && weather) ? 48 : 0);
+  const rosterMax = screenH - rosterTop - (panelHeight + BottomTabInset + 150);
 
   // Posted limit while a ride is on (recording a trip or navigating).
   const road = useSpeedLimit(Boolean(active || navigating));
@@ -394,6 +410,12 @@ export default function DriveScreen() {
       )}
 
       <LocationPrompt />
+
+      {drive && roster.length > 1 && rosterMax > 80 ? (
+        <View style={[styles.roster, { top: rosterTop }]} pointerEvents="box-none">
+          <ConvoyRoster entries={roster} units={units} stopLabel={stop?.label ?? null} maxHeight={rosterMax} />
+        </View>
+      ) : null}
 
       {/* Navigating: the speed dial with the limit beside it (otherwise both live in the bottom panel). */}
       {navigating ? (
@@ -560,6 +582,7 @@ const styles = StyleSheet.create({
   },
   limit: { position: 'absolute', left: Spacing.three },
   alerts: { alignSelf: 'stretch', alignItems: 'center', gap: Spacing.two },
+  roster: { position: 'absolute', left: Spacing.two },
   scoutCard: {
     position: 'absolute',
     left: Spacing.three,

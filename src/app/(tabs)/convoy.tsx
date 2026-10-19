@@ -6,6 +6,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Switch, useWindowDimensions, 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ConvoyLineup } from '@/components/drive/convoy-lineup';
+import { convoyStop, ConvoyRoster, rosterEntries } from '@/components/drive/convoy-roster';
 import { RegroupCard } from '@/components/drive/regroup-card';
 import { Glass } from '@/components/glass';
 import { ConvoyMap, type MapPerson } from '@/components/map/convoy-map';
@@ -275,6 +276,8 @@ function ActiveDrive() {
 
   const regroupAt: LngLat | null = drive.regroup_lat != null && drive.regroup_lng != null ? [drive.regroup_lng, drive.regroup_lat] : null;
   const behind = views.filter((v) => v.behind && v.id !== myId);
+  const stop = convoyStop(drive);
+  const roster = rosterEntries(members, myId ?? null, last ? { coord: [last.lng, last.lat], speed: last.speed } : null, stop?.coord ?? null, now);
   const online = Object.values(members).filter((m) => m.online).length;
   const sheetHeight = Math.round(height * 0.44);
 
@@ -337,6 +340,13 @@ function ActiveDrive() {
           </View>
         ) : null}
       </View>
+
+      {/* Everyone down the left side: speed and distance to the stop */}
+      {roster.length > 1 ? (
+        <View style={[styles.roster, { top: insets.top + (behind.length ? 136 : 92) }]} pointerEvents="box-none">
+          <ConvoyRoster entries={roster} units={units} stopLabel={stop?.label ?? null} maxHeight={height - sheetHeight - insets.top - (behind.length ? 136 : 92) - 40} />
+        </View>
+      ) : null}
 
       {/* Bottom sheet: lineup, sharing, destination, members */}
       <Glass style={[styles.sheet, { height: sheetHeight }]} intensity={50}>
@@ -525,6 +535,7 @@ const styles = StyleSheet.create({
   member: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.two + 2 },
   badge: { paddingHorizontal: Spacing.two, paddingVertical: 2, borderRadius: Radius.pill },
   top: { position: 'absolute', left: Spacing.three, right: Spacing.three, gap: Spacing.two, alignItems: 'flex-start' },
+  roster: { position: 'absolute', left: Spacing.two },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, alignSelf: 'stretch' },
   chip: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one + 2, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.pill, flexShrink: 1 },
   codePill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.pill },
