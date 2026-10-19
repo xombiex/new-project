@@ -81,13 +81,20 @@ export function SpeedDial({
           <Text style={styles.unit}>{unit}</Text>
         </View>
       </View>
-      {limit ? <SpeedLimitSign limit={limit} units={units} speedMps={mps} variant={variant} compact /> : null}
+      {/* The posted limit, overlapping the dial's top-right edge */}
+      {limit ? (
+        <View style={styles.sign} pointerEvents="none">
+          <SpeedLimitSign limit={limit} units={units} speedMps={mps} variant={variant} compact size={50} />
+        </View>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  // Room above and to the right for the sign that sits on the dial's shoulder.
+  wrap: { width: SIZE + 16, height: SIZE + 16, justifyContent: 'flex-end' },
+  sign: { position: 'absolute', top: 0, right: 0, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 6 },
   dial: {
     width: SIZE,
     height: SIZE,

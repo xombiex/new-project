@@ -1,7 +1,9 @@
-import { Image, Platform, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
 import type { Units } from '@/lib/geo';
 import { limitIn, limitMps, type SpeedLimit } from '@/lib/speed-limit';
+
+import { RoundLimitSign, UsLimitSign } from './limit-sign-art';
 
 /** Allowance before we flag speeding: GPS speed is noisy and speedometers read high. */
 const TOLERANCE_MPS = 1.5;
@@ -13,14 +15,17 @@ export function SpeedLimitSign({
   speedMps,
   variant,
   compact,
+  size,
 }: {
   limit: SpeedLimit;
   units: Units;
   speedMps: number | null;
   /** Themed signs: a pixel sheep with a wooden sign (Blocks), or a glowing outline (Neon City) */
   variant?: 'blocks' | 'neon' | null;
-  /** Small square badge (just the number), as worn on the speed dial */
+  /** Just the sign itself (drawn like the real one), as worn on the speed dial */
   compact?: boolean;
+  /** compact sign width in points */
+  size?: number;
 }) {
   const value = limitIn(units, limit);
   const over = speedMps != null && speedMps > limitMps(limit) + TOLERANCE_MPS;
@@ -48,16 +53,15 @@ export function SpeedLimitSign({
   }
 
   if (compact) {
+    // The real sign, drawn: US plate in mph, red-ring disc in km/h. A grey tag marks an estimate.
     return (
-      <View
-        accessibilityRole="text"
-        accessibilityLabel={label}
-        style={[units === 'imperial' ? styles.badge : styles.badgeEu, over && styles.badgeOver, limit.estimated && !over && styles.badgeEstimated]}>
-        <Text style={[styles.badgeValue, over && styles.white, limit.estimated && !over && { color: '#5A5650' }]} numberOfLines={1} adjustsFontSizeToFit>
-          {value}
-        </Text>
-        {/* Not posted, just the usual limit for this kind of street */}
-        {limit.estimated ? <Text style={[styles.badgeEst, over && styles.white]}>EST</Text> : null}
+      <View accessibilityRole="image" accessibilityLabel={label} style={{ alignItems: 'center' }}>
+        {units === 'imperial' ? (
+          <UsLimitSign value={value} over={over} estimated={limit.estimated} width={size} />
+        ) : (
+          <RoundLimitSign value={value} over={over} estimated={limit.estimated} size={size ? size + 4 : undefined} />
+        )}
+        {limit.estimated ? <Text style={styles.estTag}>EST</Text> : null}
       </View>
     );
   }
@@ -99,20 +103,7 @@ const styles = StyleSheet.create({
   euOver: { backgroundColor: '#E5281F', borderColor: '#fff' },
   euValue: { color: '#111', fontSize: 24, fontWeight: '900', fontVariant: ['tabular-nums'], paddingHorizontal: 4 },
   white: { color: '#fff' },
-  badge: { width: 56, height: 56, borderRadius: 8, borderWidth: 5, borderColor: '#3A362F', backgroundColor: '#FFF9EA', alignItems: 'center', justifyContent: 'center', ...shadow },
-  badgeEu: { width: 56, height: 56, borderRadius: 28, borderWidth: 6, borderColor: '#E5281F', backgroundColor: '#FFF9EA', alignItems: 'center', justifyContent: 'center', ...shadow },
-  badgeOver: { backgroundColor: '#E5281F', borderColor: '#fff' },
-  badgeEstimated: { borderStyle: 'dashed', borderColor: '#8A8378', backgroundColor: '#F4EFE3' },
-  badgeEst: { position: 'absolute', bottom: 1, fontSize: 8, fontWeight: '900', letterSpacing: 0.5, color: '#8A8378' },
-  badgeValue: {
-    color: '#111',
-    fontSize: 30,
-    lineHeight: 34,
-    fontWeight: '800',
-    fontVariant: ['tabular-nums'],
-    paddingHorizontal: 3,
-    fontFamily: Platform.select({ ios: 'AvenirNextCondensed-Bold', android: 'sans-serif-condensed', default: '"Arial Narrow", "Roboto Condensed", system-ui, sans-serif' }),
-  },
+  estTag: { marginTop: -6, fontSize: 9, fontWeight: '900', letterSpacing: 0.6, color: '#fff', backgroundColor: '#6E6A63', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4, overflow: 'hidden' },
   neon: {
     width: 62,
     paddingVertical: 4,
