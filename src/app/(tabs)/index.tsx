@@ -37,7 +37,7 @@ import { vehicleIcon } from '@/lib/vehicles';
 import { describeAlert, WEATHER_ICON } from '@/lib/weather';
 import { useAuth } from '@/store/auth';
 import { useCameras } from '@/store/cameras';
-import { useDrive } from '@/store/drive';
+import { groupStop, useDrive } from '@/store/drive';
 import { useNav } from '@/store/nav';
 import { useNavigation } from '@/store/navigation';
 import { useReports } from '@/store/reports';
@@ -97,10 +97,8 @@ export default function DriveScreen() {
     [allCameras, speedCameraAlerts, showAlprCameras]
   );
   const drive = useDrive((s) => s.drive);
-  const regroup =
-    drive?.regroup_name && drive.regroup_lat != null && drive.regroup_lng != null
-      ? { name: drive.regroup_name, coord: [drive.regroup_lng, drive.regroup_lat] as [number, number] }
-      : null;
+  /** The convoy's current stop: the regroup point, else the destination. */
+  const regroup = groupStop(drive);
   const members = useDrive((s) => s.members);
   const myId = useAuth((s) => s.session?.user.id);
   const myVehicle = useAuth((s) => s.profile?.vehicle);
@@ -391,13 +389,13 @@ export default function DriveScreen() {
           ) : null}
           {regroup ? (
             <Pressable
-              onPress={() => lastSample && void nav.planTo({ id: `regroup-${drive!.id}`, name: regroup.name, detail: 'Regroup point', coord: regroup.coord, category: 'Regroup point' }, [lastSample.lng, lastSample.lat])}
+              onPress={() => lastSample && void nav.planTo(regroup, [lastSample.lng, lastSample.lat])}
               accessibilityRole="button"
-              accessibilityLabel={`Regroup at ${regroup.name}. Tap for directions.`}
+              accessibilityLabel={`${regroup.kind === 'regroup' ? 'Regroup at' : 'Convoy destination:'} ${regroup.name}. Tap for directions.`}
               style={[styles.convoyChip, { backgroundColor: theme.backgroundElement, borderWidth: 2, borderColor: theme.accent }]}>
-              <MaterialCommunityIcons name="map-marker-radius" size={16} color={theme.accent} />
+              <MaterialCommunityIcons name={regroup.kind === 'regroup' ? 'map-marker-radius' : 'flag-checkered'} size={16} color={theme.accent} />
               <ThemedText type="smallBold" numberOfLines={1} style={{ flexShrink: 1 }}>
-                Regroup: {regroup.name}
+                {regroup.kind === 'regroup' ? 'Regroup' : 'Destination'}: {regroup.name}
                 {lastSample ? ` · ${formatDistance(units, haversine([lastSample.lng, lastSample.lat], regroup.coord))}` : ''}
               </ThemedText>
               <ThemedText type="smallBold" style={{ color: theme.accent }}>

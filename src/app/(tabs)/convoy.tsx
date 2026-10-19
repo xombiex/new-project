@@ -15,14 +15,14 @@ import { Avatar, Button, Card, EmptyState, Screen, SectionTitle, TextField } fro
 import { BottomTabInset, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { analyzeConvoy, type ConvoyMemberView } from '@/lib/convoy';
-import { formatDistance, type LngLat, speedIn, speedLabel, speedUnitLabel } from '@/lib/geo';
+import { formatDistance, haversine, type LngLat, speedIn, speedLabel, speedUnitLabel } from '@/lib/geo';
 import { lineup } from '@/lib/lineup';
 import { addReason, removeReason } from '@/lib/location';
 import { formatAgo } from '@/lib/time';
 import { vehicleIcon } from '@/lib/vehicles';
 import { useAuth } from '@/store/auth';
 import { useClubs } from '@/store/clubs';
-import { useDrive, type Member } from '@/store/drive';
+import { groupStop, useDrive, type Member } from '@/store/drive';
 import { useNav } from '@/store/nav';
 import { useEntitled } from '@/store/pro';
 import { useSettings } from '@/store/settings';
@@ -389,6 +389,17 @@ function ActiveDrive() {
                 <Button label={destination ? 'Change' : 'Set'} variant="secondary" onPress={() => router.push({ pathname: '/search', params: { purpose: 'drive' } })} />
               ) : null}
             </View>
+            {destination && me && haversine(me, destination) > 120 ? (
+              <Button
+                label={`Drive there · ${formatDistance(units, haversine(me, destination))}`}
+                onPress={() => {
+                  const place = groupStop({ ...drive, regroup_name: null, regroup_lat: null, regroup_lng: null });
+                  if (!place) return;
+                  void useNav.getState().planTo(place, me);
+                  router.navigate('/');
+                }}
+              />
+            ) : null}
             {isOwner && destination ? <Button label="Clear destination" variant="ghost" onPress={() => void setDestination(null)} /> : null}
           </Card>
 

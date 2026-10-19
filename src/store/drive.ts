@@ -13,6 +13,8 @@ import { notify } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 import type { LocationSample } from '@/lib/trip-recorder';
 import type { Profile } from '@/store/auth';
+import type { Place } from '@/lib/places';
+import { useNav } from '@/store/nav';
 import { useNavigation } from '@/store/navigation';
 import { useNotificationSettings } from '@/store/notification-settings';
 import { useTrips } from '@/store/trips';
@@ -386,3 +388,47 @@ export const useDrive = create<DriveState>()(
     }
   )
 );
+
+/**
+ * Where the convoy is headed right now, as a place you can route to: the regroup point while one
+ * is set, otherwise the group destination.
+ */
+export function groupStop(drive: GroupDrive | null): (Place & { kind: 'regroup' | 'destination' }) | null {
+  if (!drive) return null;
+  if (drive.regroup_name && drive.regroup_lat != null && drive.regroup_lng != null) {
+    const coord: [number, number] = [drive.regroup_lng, drive.regroup_lat];
+    return { kind: 'regroup', id: `regroup-${drive.id}-${coord.join()}`, name: drive.regroup_name, detail: 'Regroup point', coord, category: 'Regroup point' };
+  }
+  if (drive.dest_lat != null && drive.dest_lng != null) {
+    const coord: [number, number] = [drive.dest_lng, drive.dest_lat];
+    return { kind: 'destination', id: `destination-${drive.id}-${coord.join()}`, name: drive.destination_name ?? 'Convoy destination', detail: 'Convoy destination', coord, category: 'Convoy destination' };
+  }
+  return null;
+}
+
+// When the convoy's stop is set or changes (the leader picks a destination or regroup point, or
+// you join a drive that has one), open the route to it on the Drive tab with the Go button, so
+// nobody has to search for it. Not while you're navigating or looking at another place, and not
+// for a stop you already had when the app started.
+let lastStop: string | null = null;
+let ready = false;
+const markStop = () => {
+  lastStop = groupStop(useDrive.getState().drive)?.id ?? null;
+  ready = true;
+};
+if (useDrive.persist.hasHydrated()) markStop();
+else useDrive.persist.onFinishHydration(markStop);
+
+useDrive.subscribe((state) => {
+  if (!ready) return;
+  const stop = groupStop(state.drive);
+  const id = stop?.id ?? null;
+  if (id === lastStop) return;
+  lastStop = id;
+  if (!stop || useNavigation.getState().active) return;
+  const shown = useNav.getState().destination;
+  // Replace an older convoy stop, but don't take over a place they're looking at themselves.
+  if (shown && !/^(regroup|destination)-/.test(shown.id)) return;
+  const s = useTrips.getState().lastSample;
+  if (s) void useNav.getState().planTo(stop, [s.lng, s.lat]);
+});
