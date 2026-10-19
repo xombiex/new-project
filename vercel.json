@@ -6,7 +6,7 @@
   "cleanUrls": true,
   "rewrites": [
     {
-      "source": "/((?!admin(?:/|$)).*)",
+      "source": "/((?!admin(?:/|$)|api/).*)",
       "destination": "/"
     }
   ],
