@@ -224,9 +224,13 @@ export function labelRoutes(fastRoutes: Route[], shortest?: Route, noHighways?: 
 }
 
 /** The choices shown before you go: fastest (plus alternatives), shortest, fewest turns and no highways. */
-export async function getRouteOptions(from: LngLat, to: LngLat, signal?: AbortSignal): Promise<Route[]> {
+export async function getRouteOptions(from: LngLat, to: LngLat, signal?: AbortSignal, onFastest?: (routes: Route[]) => void): Promise<Route[]> {
+  // The quickest router answers first: hand its routes over right away so the line can be drawn
+  // while the slower route kinds (shortest, no highways, twisty) are still coming in.
+  const fastest = getRoutes(from, to, signal);
+  if (onFastest) fastest.then((r) => !signal?.aborted && r.length && onFastest(labelRoutes(r)), () => {});
   const [fast, short, noHwy, twisty] = await Promise.allSettled([
-    getRoutes(from, to, signal),
+    fastest,
     valhalla(from, to, 'shortest', signal),
     valhalla(from, to, 'no-highways', signal),
     valhalla(from, to, 'twisty', signal),

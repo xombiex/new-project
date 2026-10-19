@@ -141,6 +141,8 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], onPressCame
     };
     for (const ev of ['dragstart', 'drag', 'zoomstart', 'zoom', 'rotatestart', 'pitchstart'] as const) m.on(ev, userMoved);
     map.current = m;
+    // Local development only: lets browser tests check what's drawn.
+    if (__DEV__) (window as unknown as { __convoyMap?: unknown }).__convoyMap = m;
     m.on('click', 'cameras', (e) => {
       const id = e.features?.[0]?.properties?.id;
       const cam = camerasRef.current.find((c) => c.id === id);
@@ -169,11 +171,19 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], onPressCame
   useEffect(() => {
     const m = map.current;
     if (!loaded || !m) return;
+    let cancelled = false;
+    // Draw as soon as the style is usable. (isStyleLoaded() also waits for every map tile, so after
+    // the camera zooms out to show a route the line used to appear only seconds later.)
     const sync = () => {
-      if (!m.isStyleLoaded()) {
-        m.once('idle', sync);
-        return;
+      if (cancelled) return;
+      try {
+        apply();
+      } catch (e) {
+        if (__DEV__) console.warn('[map] line sync retry', e);
+        m.once('styledata', sync); // style genuinely mid-load: try again when it's ready
       }
+    };
+    const apply = () => {
       const wanted = new Set(lines.map((l) => `line-${l.id}`));
       // Remove lines that went away.
       for (const id of added.current.filter((x) => !wanted.has(x))) {
@@ -186,7 +196,11 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], onPressCame
         const source = m.getSource(id) as GeoJSONSource | undefined;
         if (source) source.setData(lineFeature(line));
         else m.addSource(id, { type: 'geojson', data: lineFeature(line) });
-        for (const l of lineLayers(line, glow)) {
+        const layers = lineLayers(line, glow);
+        // A line that changed style (e.g. plain → route) drops the old style's layers.
+        const keep = new Set(layers.map((l) => `${id}-${l.suffix}`));
+        for (const layer of m.getStyle().layers ?? []) if (layer.id.startsWith(`${id}-`) && !keep.has(layer.id)) m.removeLayer(layer.id);
+        for (const l of layers) {
           const layerId = `${id}-${l.suffix}`;
           if (m.getLayer(layerId)) {
             for (const [k, v] of Object.entries(l.paint)) m.setPaintProperty(layerId, k as 'line-color', v as string);
@@ -199,6 +213,10 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], onPressCame
       added.current = [...wanted];
     };
     sync();
+    // A newer set of lines replaces this one; an older retry must not redraw stale lines.
+    return () => {
+      cancelled = true;
+    };
   }, [loaded, lines, glow]);
 
   useEffect(() => {
