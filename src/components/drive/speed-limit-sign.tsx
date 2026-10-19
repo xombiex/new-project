@@ -24,7 +24,7 @@ export function SpeedLimitSign({
 }) {
   const value = limitIn(units, limit);
   const over = speedMps != null && speedMps > limitMps(limit) + TOLERANCE_MPS;
-  const label = `Speed limit ${value} ${units === 'imperial' ? 'miles' : 'kilometers'} per hour${over ? ', you are over the limit' : ''}`;
+  const label = `${limit.estimated ? 'Estimated speed limit' : 'Speed limit'} ${value} ${units === 'imperial' ? 'miles' : 'kilometers'} per hour${over ? ', you are over the limit' : ''}`;
 
   if (variant === 'neon') {
     return (
@@ -49,10 +49,15 @@ export function SpeedLimitSign({
 
   if (compact) {
     return (
-      <View accessibilityRole="text" accessibilityLabel={label} style={[units === 'imperial' ? styles.badge : styles.badgeEu, over && styles.badgeOver]}>
-        <Text style={[styles.badgeValue, over && styles.white]} numberOfLines={1} adjustsFontSizeToFit>
+      <View
+        accessibilityRole="text"
+        accessibilityLabel={label}
+        style={[units === 'imperial' ? styles.badge : styles.badgeEu, over && styles.badgeOver, limit.estimated && !over && styles.badgeEstimated]}>
+        <Text style={[styles.badgeValue, over && styles.white, limit.estimated && !over && { color: '#5A5650' }]} numberOfLines={1} adjustsFontSizeToFit>
           {value}
         </Text>
+        {/* Not posted, just the usual limit for this kind of street */}
+        {limit.estimated ? <Text style={[styles.badgeEst, over && styles.white]}>EST</Text> : null}
       </View>
     );
   }
@@ -97,6 +102,8 @@ const styles = StyleSheet.create({
   badge: { width: 56, height: 56, borderRadius: 8, borderWidth: 5, borderColor: '#3A362F', backgroundColor: '#FFF9EA', alignItems: 'center', justifyContent: 'center', ...shadow },
   badgeEu: { width: 56, height: 56, borderRadius: 28, borderWidth: 6, borderColor: '#E5281F', backgroundColor: '#FFF9EA', alignItems: 'center', justifyContent: 'center', ...shadow },
   badgeOver: { backgroundColor: '#E5281F', borderColor: '#fff' },
+  badgeEstimated: { borderStyle: 'dashed', borderColor: '#8A8378', backgroundColor: '#F4EFE3' },
+  badgeEst: { position: 'absolute', bottom: 1, fontSize: 8, fontWeight: '900', letterSpacing: 0.5, color: '#8A8378' },
   badgeValue: {
     color: '#111',
     fontSize: 30,

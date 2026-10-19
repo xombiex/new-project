@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -14,9 +15,11 @@ type Props = {
   speeding?: boolean;
   /** Road you're on, shown under the speed during a trip */
   street?: string | null;
+  /** The posted limit, shown beside the number */
+  limitSign?: ReactNode;
 };
 
-export function Speedometer({ sample, units, stale, speeding, street }: Props) {
+export function Speedometer({ sample, units, stale, speeding, street, limitSign }: Props) {
   const theme = useTheme();
   const mps = sample ? reportedSpeed(sample) : null;
   const speed = mps == null ? null : Math.round(speedIn(units, mps));
@@ -30,9 +33,13 @@ export function Speedometer({ sample, units, stale, speeding, street }: Props) {
 
   return (
     <View style={styles.wrap} accessibilityRole="text" accessibilityLabel={`${speed ?? 'unknown'} ${speedUnitLabel(units)}`}>
-      <ThemedText style={[styles.speed, gps !== 'good' && { color: theme.textSecondary }, speeding && gps === 'good' && { color: theme.danger }]}>
-        {speed ?? '--'}
-      </ThemedText>
+      <View>
+        <ThemedText style={[styles.speed, gps !== 'good' && { color: theme.textSecondary }, speeding && gps === 'good' && { color: theme.danger }]}>
+          {speed ?? '--'}
+        </ThemedText>
+        {/* Beside the number, without pushing it off center */}
+        {limitSign ? <View style={styles.sign}>{limitSign}</View> : null}
+      </View>
       <ThemedText style={styles.unit} themeColor="textSecondary">
         {speedUnitLabel(units)}
       </ThemedText>
@@ -65,5 +72,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
   },
   dot: { width: 8, height: 8, borderRadius: 4 },
+  sign: { position: 'absolute', left: '100%', marginLeft: Spacing.three, top: 0, bottom: 0, justifyContent: 'center' },
   street: { marginTop: Spacing.one, maxWidth: 260 },
 });

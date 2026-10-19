@@ -44,7 +44,7 @@ export default async function handler(request) {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json', 'User-Agent': 'Convoy/1.0 (speed limits)' },
         body: `data=${encodeURIComponent(query)}`,
-        signal: AbortSignal.timeout(15000),
+        signal: AbortSignal.timeout(22000),
       });
       if (!res.ok) {
         errors.push(`${new URL(url).host} ${res.status}`);

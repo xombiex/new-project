@@ -24,6 +24,10 @@ export type { ConvoyMapProps, MapLine, MapMarker, MapPerson } from './types';
 setWorkerUrl('/maplibre-gl-worker.mjs');
 
 const EMPTY = { type: 'FeatureCollection' as const, features: [] };
+/** Follow resumes this long after you stop moving the map. */
+const REALIGN_MS = 8000;
+/** Above the speed dial and the side buttons that sit on top of the bottom sheet. */
+const RECENTER_OFFSET = 140;
 
 /** Symbol layers that draw vehicle sprites. Re-run after every style (re)load. */
 function addCameraLayer(m: MLMap) {
@@ -78,6 +82,9 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], onPressCame
   const [vehiclesReady, setVehiclesReady] = useState(false);
   const following = useRef(follow);
   const [followingUi, setFollowingUi] = useState(follow);
+  const realign = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Back to following you (Re-center button, or the idle timer). */
+  const recenterRef = useRef(() => {});
   /** Compass button: lock the map north-up instead of facing the way you're going. */
   const [northUp, setNorthUp] = useState(false);
   const meRef = useRef(me);
@@ -123,11 +130,16 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], onPressCame
         if (!m.hasImage(id)) m.addImage(id, img.data, { pixelRatio: 3 });
       });
     });
-    // Panning by hand stops follow mode (like the native recenter behavior).
-    m.on('dragstart', () => {
+    // Moving the map by hand (drag, pinch/scroll zoom, rotate, tilt) pauses follow mode; it
+    // resumes by itself a few seconds after you stop, or right away with Re-center.
+    const userMoved = (e: { originalEvent?: unknown }) => {
+      if (!e.originalEvent) return; // our own camera moves
       following.current = false;
       setFollowingUi(false);
-    });
+      if (realign.current) clearTimeout(realign.current);
+      realign.current = setTimeout(() => recenterRef.current(), REALIGN_MS);
+    };
+    for (const ev of ['dragstart', 'drag', 'zoomstart', 'zoom', 'rotatestart', 'pitchstart'] as const) m.on(ev, userMoved);
     map.current = m;
     m.on('click', 'cameras', (e) => {
       const id = e.features?.[0]?.properties?.id;
@@ -312,6 +324,19 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], onPressCame
     padding: { top: padding?.top ?? 0, bottom: padding?.bottom ?? 0, left: 0, right: 0 },
   });
 
+  recenterRef.current = () => {
+    if (realign.current) clearTimeout(realign.current);
+    realign.current = null;
+    following.current = true;
+    setFollowingUi(true);
+    const cur = meRef.current;
+    const m = map.current;
+    if (follow && cur && m) m.easeTo({ ...followView(cur), duration: 600 });
+  };
+  useEffect(() => () => {
+    if (realign.current) clearTimeout(realign.current);
+  }, []);
+
   // Follow the driver: jump in on the first fix, then glide along until they pan away.
   const meKey = me ? `${me.coord[0].toFixed(6)},${me.coord[1].toFixed(6)}` : null;
   useEffect(() => {
@@ -382,19 +407,14 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], onPressCame
           <Text style={[styles.compassN, { color: theme.textSecondary }]}>N</Text>
         </Pressable>
       ) : null}
-            {follow && !followingUi && me ? (
+      {follow && !followingUi && me ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Recenter map on my location"
-          onPress={() => {
-            following.current = true;
-            setFollowingUi(true);
-            const cur = meRef.current;
-            const m = map.current;
-            if (cur && m) m.easeTo({ ...followView(cur), duration: 600 });
-          }}
-          style={[styles.recenter, { backgroundColor: theme.backgroundElement, bottom: (padding?.bottom ?? 0) + Spacing.three + 68 }]}>
-          <MaterialCommunityIcons name="crosshairs-gps" size={24} color={theme.accent} />
+          accessibilityLabel="Re-center the map on my location"
+          onPress={() => recenterRef.current()}
+          style={[styles.recenter, { backgroundColor: theme.accent, bottom: (padding?.bottom ?? 0) + RECENTER_OFFSET }]}>
+          <MaterialCommunityIcons name="navigation-variant" size={20} color="#fff" />
+          <Text style={styles.recenterText}>Re-center</Text>
         </Pressable>
       ) : null}
     </View>
@@ -416,12 +436,15 @@ const styles = StyleSheet.create({
   compassN: { fontSize: 9, fontWeight: '800', marginTop: -2 },
   recenter: {
     position: 'absolute',
-    right: Spacing.three,
-    width: 52,
-    height: 52,
-    borderRadius: Radius.pill,
+    alignSelf: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    height: 44,
+    borderRadius: Radius.pill,
     justifyContent: 'center',
     boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
   } as never,
+  recenterText: { color: '#fff', fontWeight: '800', fontSize: 15 },
 });

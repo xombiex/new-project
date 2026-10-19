@@ -1,6 +1,8 @@
 import * as WebBrowser from 'expo-web-browser';
 
-export const SITE_URL = process.env.EXPO_PUBLIC_SITE_URL ?? 'https://convoy-drab.vercel.app';
+import { SITE_URL } from '@/lib/site';
+
+export { SITE_URL };
 
 export const TERMS_URL = `${SITE_URL}/terms`;
 export const PRIVACY_URL = `${SITE_URL}/privacy`;

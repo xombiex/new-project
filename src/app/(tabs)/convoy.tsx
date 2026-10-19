@@ -2,16 +2,19 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Switch, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ConvoyLineup } from '@/components/drive/convoy-lineup';
+import { Glass } from '@/components/glass';
 import { ConvoyMap, type MapPerson } from '@/components/map/convoy-map';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar, Button, Card, EmptyState, Screen, SectionTitle, TextField } from '@/components/ui';
-import { Radius, Spacing } from '@/constants/theme';
+import { BottomTabInset, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { analyzeConvoy, type ConvoyMemberView } from '@/lib/convoy';
 import { formatDistance, type LngLat, speedIn, speedLabel, speedUnitLabel } from '@/lib/geo';
+import { lineup } from '@/lib/lineup';
 import { addReason, removeReason } from '@/lib/location';
 import { formatAgo } from '@/lib/time';
 import { vehicleIcon } from '@/lib/vehicles';
@@ -197,6 +200,8 @@ function ActiveDrive() {
   const myVehicle = useAuth((s) => s.profile?.vehicle);
   const myPaint = useAuth((s) => s.profile?.vehicle_color);
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
+  const map3d = useSettings((st) => st.map3d);
   const [now, setNow] = useState(Date.now());
 
   useFocusEffect(
@@ -243,14 +248,32 @@ function ActiveDrive() {
     [views, members, myId]
   );
 
+  // Front-to-back order for the lineup strip and the member list.
+  const order = useMemo(
+    () =>
+      lineup(
+        Object.entries(members).map(([id, m]) => ({
+          id,
+          name: m.profile.display_name,
+          color: m.profile.avatar_color,
+          coord: id === myId && me ? me : m.position ? ([m.position.lng, m.position.lat] as LngLat) : null,
+          stale: id !== myId && views.find((v) => v.id === id)?.status !== 'live',
+          arrived: Boolean(arrived[id]),
+        })),
+        myId ?? null,
+        last?.speed != null && last.speed > 2 ? last.heading : null,
+        destination,
+        me
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [members, views, arrived, myId, last?.timestamp, destination?.join()]
+  );
+
   if (!drive) return null;
 
-  const sorted = [...views].sort((a, b) => {
-    if (a.id === myId) return -1;
-    if (b.id === myId) return 1;
-    return (a.distanceFromMeM ?? Infinity) - (b.distanceFromMeM ?? Infinity);
-  });
   const behind = views.filter((v) => v.behind && v.id !== myId);
+  const online = Object.values(members).filter((m) => m.online).length;
+  const sheetHeight = Math.round(height * 0.44);
 
   function confirmLeave() {
     Alert.alert(
@@ -265,9 +288,11 @@ function ActiveDrive() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
+      {/* The whole crew live on one map: their cars, initials and speeds (like the Drive map). */}
       <ConvoyMap
-        style={{ height: 300 + insets.top }}
-        padding={{ top: insets.top }}
+        style={StyleSheet.absoluteFill}
+        tilt3d={map3d}
+        padding={{ top: insets.top + 96, bottom: sheetHeight }}
         me={me ? { coord: me, heading: last?.heading ?? null, vehicle: myVehicle, paint: myPaint } : null}
         people={people}
         destination={destination}
@@ -276,21 +301,15 @@ function ActiveDrive() {
           points: [...people.map((p) => p.coord), ...(me ? [me] : []), ...(destination ? [destination] : [])],
         }}
       />
-      <Screen safeTop={false}>
-        <View style={styles.header}>
-          <View style={{ flex: 1 }}>
-            {club ? (
-              <View style={[styles.clubPill, { backgroundColor: club.color }]}>
-                <MaterialCommunityIcons name="account-group" size={14} color="#fff" />
-                <ThemedText type="smallBold" style={{ color: '#fff' }} numberOfLines={1}>
-                  {club.name}
-                </ThemedText>
-              </View>
-            ) : null}
-            <ThemedText style={{ fontSize: 24, fontWeight: 800 }} numberOfLines={1}>
-              {drive.name}
+
+      {/* Top: the group chip and the join code */}
+      <View style={[styles.top, { paddingTop: insets.top + Spacing.two }]} pointerEvents="box-none">
+        <View style={styles.topRow} pointerEvents="box-none">
+          <View style={[styles.chip, { backgroundColor: club?.color ?? theme.accent }]}>
+            <MaterialCommunityIcons name={club ? 'account-group' : 'car-multiple'} size={16} color="#fff" />
+            <ThemedText type="smallBold" style={{ color: '#fff', flexShrink: 1 }} numberOfLines={1}>
+              {drive.name} · {online} online
             </ThemedText>
-            <ConnectionPill status={status} />
           </View>
           <Pressable
             onPress={async () => {
@@ -298,75 +317,79 @@ function ActiveDrive() {
               Alert.alert('Copied', `Code ${drive.code} copied to clipboard.`);
             }}
             accessibilityRole="button"
-            accessibilityLabel={`Drive code ${drive.code}, tap to copy`}
-            style={[styles.code, { backgroundColor: theme.backgroundSelected }]}>
-            <ThemedText style={styles.codeText}>{drive.code}</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              tap to copy
-            </ThemedText>
+            accessibilityLabel={`Drive code ${drive.code}, tap to copy`}>
+            <Glass style={styles.codePill}>
+              <MaterialCommunityIcons name="content-copy" size={14} color={theme.textSecondary} />
+              <ThemedText style={styles.codeText}>{drive.code}</ThemedText>
+            </Glass>
           </Pressable>
         </View>
-
+        <ConnectionPill status={status} />
         {behind.length > 0 ? (
-          <Card style={{ borderColor: theme.warning, flexDirection: 'row', gap: Spacing.two, alignItems: 'center' }}>
-            <MaterialCommunityIcons name="alert" size={22} color={theme.warning} />
-            <ThemedText style={{ flex: 1 }}>
-              {behind.map((v) => members[v.id]?.profile.display_name).join(', ')}{' '}
-              {behind.length === 1 ? 'has' : 'have'} fallen behind. Regroup when it is safe to.
+          <View style={[styles.behind, { backgroundColor: theme.warning }]}>
+            <MaterialCommunityIcons name="alert" size={18} color="#000" />
+            <ThemedText type="smallBold" style={{ color: '#000', flexShrink: 1 }}>
+              {behind.map((v) => members[v.id]?.profile.display_name.split(' ')[0]).join(', ')} {behind.length === 1 ? 'has' : 'have'} fallen behind
             </ThemedText>
-          </Card>
+          </View>
         ) : null}
+      </View>
 
-        <Card style={{ gap: Spacing.three }}>
-          <View style={styles.row}>
-            <MaterialCommunityIcons name={sharing ? 'broadcast' : 'broadcast-off'} size={22} color={sharing ? theme.success : theme.textSecondary} />
-            <View style={{ flex: 1 }}>
-              <ThemedText style={{ fontWeight: 700 }}>{sharing ? 'Sharing your location' : 'Location paused'}</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                {sharing ? 'Visible to this group only, including in the background.' : 'The group sees your last position as stale.'}
-              </ThemedText>
+      {/* Bottom sheet: lineup, sharing, destination, members */}
+      <Glass style={[styles.sheet, { height: sheetHeight }]} intensity={50}>
+        <View style={[styles.grabber, { backgroundColor: theme.textSecondary }]} />
+        <ScrollView contentContainerStyle={styles.sheetBody} showsVerticalScrollIndicator={false}>
+          <ConvoyLineup entries={order} units={units} />
+
+          <Card style={{ gap: Spacing.three }}>
+            <View style={styles.row}>
+              <MaterialCommunityIcons name={sharing ? 'broadcast' : 'broadcast-off'} size={22} color={sharing ? theme.success : theme.textSecondary} />
+              <View style={{ flex: 1 }}>
+                <ThemedText style={{ fontWeight: 700 }}>{sharing ? 'Sharing your location' : 'Location paused'}</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {sharing ? 'Visible to this group only, including in the background.' : 'The group sees your last position as stale.'}
+                </ThemedText>
+              </View>
+              <Switch value={sharing} onValueChange={setSharing} accessibilityLabel="Share location with group" />
             </View>
-            <Switch value={sharing} onValueChange={setSharing} accessibilityLabel="Share location with group" />
-          </View>
-          <View style={styles.row}>
-            <MaterialCommunityIcons name="flag-checkered" size={22} color={theme.textSecondary} />
-            <ThemedText style={{ flex: 1 }} numberOfLines={2}>
-              {drive.destination_name ?? 'No destination set'}
-            </ThemedText>
-            {isOwner ? (
-              <Button
-                label={destination ? 'Change' : 'Set'}
-                variant="secondary"
-                onPress={() => router.push({ pathname: '/search', params: { purpose: 'drive' } })}
-              />
-            ) : null}
-          </View>
-          {isOwner && destination ? (
-            <Button label="Clear destination" variant="ghost" onPress={() => void setDestination(null)} />
-          ) : null}
-        </Card>
+            <View style={styles.row}>
+              <MaterialCommunityIcons name="flag-checkered" size={22} color={theme.textSecondary} />
+              <ThemedText style={{ flex: 1 }} numberOfLines={2}>
+                {drive.destination_name ?? 'No destination set'}
+              </ThemedText>
+              {isOwner ? (
+                <Button label={destination ? 'Change' : 'Set'} variant="secondary" onPress={() => router.push({ pathname: '/search', params: { purpose: 'drive' } })} />
+              ) : null}
+            </View>
+            {isOwner && destination ? <Button label="Clear destination" variant="ghost" onPress={() => void setDestination(null)} /> : null}
+          </Card>
 
-        <SectionTitle action={<Button label="Invite" variant="ghost" onPress={() => router.push('/invite')} />}>
-          {`Members · ${views.length}`}
-        </SectionTitle>
-        <Card style={{ paddingVertical: Spacing.one }}>
-          {sorted.map((v, i) => (
-            <MemberRow
-              key={v.id}
-              member={members[v.id]}
-              view={v}
-              isMe={v.id === myId}
-              isOwner={v.id === drive.owner_id}
-              units={units}
-              now={now}
-              arrivedAt={arrived[v.id]}
-              divider={i > 0}
-            />
-          ))}
-        </Card>
+          <SectionTitle action={<Button label="Invite" variant="ghost" onPress={() => router.push('/invite')} />}>
+            {`Members · ${views.length}`}
+          </SectionTitle>
+          <Card style={{ paddingVertical: Spacing.one }}>
+            {order.map((e, i) => {
+              const v = views.find((x) => x.id === e.id);
+              if (!v || !members[e.id]) return null;
+              return (
+                <MemberRow
+                  key={e.id}
+                  member={members[e.id]}
+                  view={v}
+                  isMe={e.id === myId}
+                  isOwner={e.id === drive.owner_id}
+                  units={units}
+                  now={now}
+                  arrivedAt={arrived[e.id]}
+                  divider={i > 0}
+                />
+              );
+            })}
+          </Card>
 
-        <Button label={isOwner ? 'End drive' : 'Leave drive'} variant="danger" onPress={confirmLeave} />
-      </Screen>
+          <Button label={isOwner ? 'End drive' : 'Leave drive'} variant="danger" onPress={confirmLeave} />
+        </ScrollView>
+      </Glass>
     </View>
   );
 }
@@ -479,8 +502,16 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.one,
   },
   code: { alignItems: 'center', paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.md },
-  codeText: { fontSize: 22, fontWeight: 800, letterSpacing: 3, fontVariant: ['tabular-nums'] },
+  codeText: { fontSize: 16, fontWeight: 800, letterSpacing: 2, fontVariant: ['tabular-nums'] },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   member: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.two + 2 },
   badge: { paddingHorizontal: Spacing.two, paddingVertical: 2, borderRadius: Radius.pill },
+  top: { position: 'absolute', left: Spacing.three, right: Spacing.three, gap: Spacing.two, alignItems: 'flex-start' },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, alignSelf: 'stretch' },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one + 2, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.pill, flexShrink: 1 },
+  codePill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.pill },
+  behind: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.pill },
+  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderBottomWidth: 0 },
+  grabber: { alignSelf: 'center', width: 40, height: 5, borderRadius: 3, opacity: 0.4, marginTop: Spacing.two },
+  sheetBody: { padding: Spacing.three, gap: Spacing.three, paddingBottom: BottomTabInset + Spacing.four },
 });

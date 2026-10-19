@@ -75,6 +75,20 @@ export function ConvoyMap({
 
   useEffect(() => setTracking(follow ? followMode : undefined), [follow, followMode]);
 
+  // Moved the map by hand: snap back to following after a few seconds of not touching it.
+  const realign = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleRealign = () => {
+    if (realign.current) clearTimeout(realign.current);
+    realign.current = follow ? setTimeout(() => setTracking(followMode), REALIGN_MS) : null;
+  };
+  useEffect(() => {
+    if (follow && tracking == null) scheduleRealign();
+    return () => {
+      if (realign.current) clearTimeout(realign.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [follow, tracking, followMode]);
+
   const fitKey = fit?.key;
   useEffect(() => {
     if (!fit || fit.points.length === 0) return;
@@ -100,7 +114,10 @@ export function ConvoyMap({
         compass={false}
         logo={false}
         attribution
-        attributionPosition={{ bottom: (padding?.bottom ?? 0) + 8, left: 8 }}>
+        attributionPosition={{ bottom: (padding?.bottom ?? 0) + 8, left: 8 }}
+        onRegionIsChanging={(e) => {
+          if (e.nativeEvent.userInteraction && follow && tracking == null) scheduleRealign();
+        }}>
         <Camera
           ref={camera}
           initialViewState={lastCoord ? { center: lastCoord, zoom: 15 } : { zoom: 3 }}
@@ -232,16 +249,19 @@ export function ConvoyMap({
           accessibilityRole="button"
           accessibilityLabel="Recenter map on my location"
           onPress={() => setTracking(followMode)}
-          style={[styles.recenter, { backgroundColor: theme.backgroundElement, bottom: (padding?.bottom ?? 0) + RECENTER_OFFSET }]}>
-          <MaterialCommunityIcons name="crosshairs-gps" size={24} color={theme.accent} />
+          style={[styles.recenter, { backgroundColor: theme.accent, bottom: (padding?.bottom ?? 0) + RECENTER_OFFSET }]}>
+          <MaterialCommunityIcons name="navigation-variant" size={20} color="#fff" />
+          <Text style={styles.recenterText}>Re-center</Text>
         </Pressable>
       ) : null}
     </View>
   );
 }
 
-/** Above the screens' floating action button (56pt + gap), so the two never overlap. */
-const RECENTER_OFFSET = Spacing.three + 68;
+/** Above the speed dial and the side buttons that sit on top of the bottom sheet. */
+const RECENTER_OFFSET = 140;
+/** Follow resumes this long after you stop moving the map. */
+const REALIGN_MS = 8000;
 
 const styles = StyleSheet.create({
   container: { overflow: 'hidden' },
@@ -267,11 +287,13 @@ const styles = StyleSheet.create({
   },
   recenter: {
     position: 'absolute',
-    right: Spacing.three,
-    width: 52,
-    height: 52,
-    borderRadius: Radius.pill,
+    alignSelf: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    height: 44,
+    borderRadius: Radius.pill,
     justifyContent: 'center',
     shadowColor: '#000',
     shadowOpacity: 0.25,
@@ -279,4 +301,5 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 4,
   },
+  recenterText: { color: '#fff', fontWeight: '800', fontSize: 15 },
 });

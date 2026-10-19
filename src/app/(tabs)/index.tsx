@@ -6,7 +6,6 @@ import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ConvoyLineup } from '@/components/drive/convoy-lineup';
 import { NavBanner, NavFooter, RouteChooser } from '@/components/drive/nav-overlay';
 import { PlaceCard } from '@/components/drive/place-card';
 import { SpeedDial } from '@/components/drive/speed-dial';
@@ -24,7 +23,6 @@ import { useSpeedLimit } from '@/hooks/use-speed-limit';
 import { useTheme } from '@/hooks/use-theme';
 import { CAMERA_COLOR, CAMERA_LABEL, type Camera } from '@/lib/cameras';
 import { formatDistance, formatDuration, speedIn, speedLabel, speedUnitLabel, haversine } from '@/lib/geo';
-import { lineup } from '@/lib/lineup';
 import { addReason, removeReason } from '@/lib/location';
 import { useCompassHeading } from '@/lib/compass';
 import { haptic } from '@/lib/haptics';
@@ -99,7 +97,6 @@ export default function DriveScreen() {
   );
   const drive = useDrive((s) => s.drive);
   const members = useDrive((s) => s.members);
-  const arrivedAt = useDrive((s) => s.arrived);
   const myId = useAuth((s) => s.session?.user.id);
   const myVehicle = useAuth((s) => s.profile?.vehicle);
   const myPaint = useAuth((s) => s.profile?.vehicle_color);
@@ -281,30 +278,6 @@ export default function DriveScreen() {
     pitch: followPitch(navigating, map3d),
     heading: headingNow,
   };
-  // Group drive: who's where, front to back.
-  const convoyOrder = useMemo(() => {
-    if (!drive) return [];
-    return lineup(
-      Object.entries(members).map(([id, m]) => {
-        const mine = id === myId && lastSample;
-        return {
-          id,
-          name: m.profile.display_name,
-          color: m.profile.avatar_color,
-          coord: mine ? ([lastSample.lng, lastSample.lat] as [number, number]) : m.position ? ([m.position.lng, m.position.lat] as [number, number]) : null,
-          stale: id !== myId && (!m.online || !m.position || now - m.position.t > MEMBER_STALE_MS),
-          arrived: Boolean(arrivedAt[id]),
-        };
-      }),
-      myId ?? null,
-      headingNow,
-      drive.dest_lat != null && drive.dest_lng != null ? [drive.dest_lng, drive.dest_lat] : null,
-      lastSample ? [lastSample.lng, lastSample.lat] : null
-    );
-    // `now` ticks every second; the order only needs that pace.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drive, members, arrivedAt, myId, Math.floor(now / 3000)]);
-  const showLineup = convoyOrder.length >= 2;
 
   // Rain, snow or storms on the road ahead (or on the route option you're looking at).
   const weather = useRouteWeather(navigating ? navRoute : null, navProgress, navigating ? undefined : route);
@@ -367,7 +340,6 @@ export default function DriveScreen() {
 
       {navigating ? (
         <NavBanner units={units} top={insets.top + Spacing.two}>
-          {showLineup ? <ConvoyLineup entries={convoyOrder} units={units} /> : null}
           {alerts}
         </NavBanner>
       ) : (
@@ -397,21 +369,16 @@ export default function DriveScreen() {
               </ThemedText>
             </Pressable>
           ) : null}
-          {showLineup ? <ConvoyLineup entries={convoyOrder} units={units} /> : null}
           {alerts}
         </View>
       )}
 
       <LocationPrompt />
 
-      {/* Navigating: speed dial wearing the limit. Otherwise the panel shows your speed, so just the limit. */}
+      {/* Navigating: the speed dial with the limit beside it (otherwise both live in the bottom panel). */}
       {navigating ? (
         <View style={[styles.limit, { bottom: panelHeight + BottomTabInset + Spacing.two }]} pointerEvents="none">
           <SpeedDial mps={stale ? null : speedNow} units={units} limit={speedLimit} speeding={speeding} variant={themeVariant} />
-        </View>
-      ) : speedLimit ? (
-        <View style={[styles.limit, { bottom: panelHeight + BottomTabInset + Spacing.three }]} pointerEvents="none">
-          <SpeedLimitSign limit={speedLimit} units={units} speedMps={stale ? null : (lastSample?.speed ?? null)} variant={themeVariant} compact />
         </View>
       ) : null}
 
@@ -497,7 +464,14 @@ export default function DriveScreen() {
             <NavFooter units={units} onEnd={nav.clear} onRoutes={() => void openRoutes()} />
           )
         ) : (
-          <Speedometer sample={lastSample} units={units} stale={stale} speeding={speeding} street={active ? road.name : null} />
+          <Speedometer
+            sample={lastSample}
+            units={units}
+            stale={stale}
+            speeding={speeding}
+            street={active ? road.name : null}
+            limitSign={speedLimit ? <SpeedLimitSign limit={speedLimit} units={units} speedMps={stale ? null : (lastSample?.speed ?? null)} variant={themeVariant} compact /> : null}
+          />
         )}
 
         {placeOpen || navigating ? null : active ? (
