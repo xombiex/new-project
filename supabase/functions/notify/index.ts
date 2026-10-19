@@ -184,6 +184,15 @@ Deno.serve(async (req) => {
         sent = await send(me, (members ?? []).map((m) => m.user_id), body.type, 'drive_activity', drive.name, text, { drive_id: drive.id });
         break;
       }
+      case 'regroup': {
+        // Only the leader picks a regroup point; everyone else in the drive hears about it.
+        const drive = await activeDriveFor(me, uuid(body.drive_id));
+        const { data: row } = await admin.from('group_drives').select('owner_id, regroup_name').eq('id', drive.id).single();
+        if (!row || row.owner_id !== me || !row.regroup_name) throw new HttpError(403, 'only the leader can regroup');
+        const { data: members } = await admin.from('group_members').select('user_id').eq('drive_id', drive.id);
+        sent = await send(me, (members ?? []).map((m) => m.user_id), 'regroup', 'drive_activity', `${drive.name}: regroup`, `${name} wants everyone to meet at ${row.regroup_name}. Tap to see it.`, { drive_id: drive.id });
+        break;
+      }
       case 'admin_message': {
         // The send was created by admin_send_message() (which checks the caller is an admin).
         // Claim it atomically: only its own admin, only once, only while fresh.

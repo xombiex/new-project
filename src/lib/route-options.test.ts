@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { OsrmStep } from './instructions';
-import { countTurns, labelRoutes, type Route } from './places';
+import { countTurns, curviness, labelRoutes, pickTwisty, type Route } from './places';
 
 const step = (type: string, modifier?: string): OsrmStep => ({ distance: 100, duration: 10, name: '', maneuver: { type, modifier, location: [0, 0] } });
 
@@ -46,5 +46,38 @@ describe('labelRoutes', () => {
     const out = labelRoutes([route(10_000, 600, 5), route(10_500, 640, 6)]);
     expect(out[0].tags).toEqual(['fastest', 'shortest', 'fewest-turns']);
     expect(out[1].tags).toEqual([]);
+  });
+});
+
+describe('twisty roads', () => {
+  // ~5 km north–south; one straight, one weaving gently side to side like a back road.
+  const straight: [number, number][] = Array.from({ length: 100 }, (_, i) => [0, i * 0.00045]);
+  const wiggly: [number, number][] = Array.from({ length: 100 }, (_, i) => [Math.sin(i / 3) * 0.0006, i * 0.00045]);
+  const grid: [number, number][] = [
+    [0, 0],
+    [0, 0.01],
+    [0.01, 0.01],
+    [0.01, 0.02],
+    [0.02, 0.02],
+  ];
+
+  it('scores bends, not straight roads or right-angle city turns', () => {
+    expect(curviness(straight)).toBe(0);
+    expect(curviness(wiggly)).toBeGreaterThan(60);
+    expect(curviness(grid)).toBe(0);
+  });
+
+  it('picks the bendiest route that is not a silly detour', () => {
+    const fast = { ...route(5000, 300, 2), curviness: 10 };
+    const bendy = { ...route(6000, 420, 9), curviness: 120 };
+    const tooSlow = { ...route(9000, 900, 20), curviness: 300 };
+    expect(pickTwisty([fast, bendy, tooSlow])?.curviness).toBe(120);
+  });
+
+  it('labels a twisty option only when it is clearly bendier', () => {
+    const fast = { ...route(5000, 300, 2), curviness: 10 };
+    const bendy = { ...route(6000, 420, 9, 'twisty'), curviness: 120 };
+    expect(labelRoutes([fast], undefined, undefined, [bendy]).find((r) => r.tags?.includes('twisty'))?.curviness).toBe(120);
+    expect(labelRoutes([fast], undefined, undefined, [{ ...bendy, curviness: 11 }]).some((r) => r.tags?.includes('twisty'))).toBe(false);
   });
 });

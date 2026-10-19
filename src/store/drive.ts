@@ -25,6 +25,11 @@ export type GroupDrive = {
   destination_name: string | null;
   dest_lat: number | null;
   dest_lng: number | null;
+  /** where the leader asked everyone to gather (a gas station ahead, usually) */
+  regroup_name: string | null;
+  regroup_lat: number | null;
+  regroup_lng: number | null;
+  regroup_at: string | null;
   status: 'active' | 'ended';
   club_id: string | null;
 };
@@ -62,6 +67,8 @@ type DriveState = {
   resume: () => Promise<void>;
   setSharing: (on: boolean) => void;
   setDestination: (destination: { name: string; lat: number; lng: number } | null) => Promise<string | null>;
+  /** Leader only: ask everyone to gather somewhere (null clears it). */
+  setRegroup: (spot: { name: string; lat: number; lng: number } | null) => Promise<string | null>;
   leave: () => Promise<void>;
 };
 
@@ -333,6 +340,27 @@ export const useDrive = create<DriveState>()(
           if (error) return error.message;
           set({ drive: data });
           void channel?.send({ type: 'broadcast', event: 'drive', payload: {} });
+          return null;
+        },
+
+        setRegroup: async (spot) => {
+          const drive = get().drive;
+          if (!drive) return 'Not in a drive';
+          const { data, error } = await supabase
+            .from('group_drives')
+            .update({
+              regroup_name: spot?.name.slice(0, 80) ?? null,
+              regroup_lat: spot?.lat ?? null,
+              regroup_lng: spot?.lng ?? null,
+              regroup_at: spot ? new Date().toISOString() : null,
+            })
+            .eq('id', drive.id)
+            .select('*')
+            .single();
+          if (error) return error.message;
+          set({ drive: data });
+          void channel?.send({ type: 'broadcast', event: 'drive', payload: {} });
+          if (spot) void notify({ type: 'regroup', drive_id: drive.id });
           return null;
         },
 

@@ -5,6 +5,7 @@ import { sideImage } from '@/components/map/vehicle-sprites';
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { specLine } from '@/lib/car-specs';
 import type { Car } from '@/store/garage';
 
 /** A garage card: name and year up top, a showroom render of the car below. */
@@ -22,6 +23,11 @@ export function CarCard({ car, primary, onMenu }: { car: Car; primary?: boolean;
           {subtitle ? (
             <ThemedText type="small" themeColor="textSecondary">
               {subtitle}
+            </ThemedText>
+          ) : null}
+          {specLine(car.specs) ? (
+            <ThemedText type="smallBold" style={{ color: theme.accent, marginTop: 2 }} numberOfLines={1}>
+              {specLine(car.specs)}
             </ThemedText>
           ) : null}
         </View>

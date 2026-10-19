@@ -71,7 +71,7 @@ export async function unregisterPush() {
 export type NotifyRequest =
   | { type: 'friend_request' | 'friend_accepted'; to: string }
   | { type: 'drive_invite'; drive_id: string; to: string[] }
-  | { type: 'member_joined' | 'arrived'; drive_id: string };
+  | { type: 'member_joined' | 'arrived' | 'regroup'; drive_id: string };
 
 /** Ask the server to notify other people. Failures are logged, never thrown (notifications are best-effort). */
 export async function notify(req: NotifyRequest) {

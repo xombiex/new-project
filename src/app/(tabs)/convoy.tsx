@@ -6,6 +6,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Switch, useWindowDimensions, 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ConvoyLineup } from '@/components/drive/convoy-lineup';
+import { RegroupCard } from '@/components/drive/regroup-card';
 import { Glass } from '@/components/glass';
 import { ConvoyMap, type MapPerson } from '@/components/map/convoy-map';
 import { ThemedText } from '@/components/themed-text';
@@ -21,6 +22,7 @@ import { vehicleIcon } from '@/lib/vehicles';
 import { useAuth } from '@/store/auth';
 import { useClubs } from '@/store/clubs';
 import { useDrive, type Member } from '@/store/drive';
+import { useNav } from '@/store/nav';
 import { useEntitled } from '@/store/pro';
 import { useSettings } from '@/store/settings';
 import { useTrips } from '@/store/trips';
@@ -271,6 +273,7 @@ function ActiveDrive() {
 
   if (!drive) return null;
 
+  const regroupAt: LngLat | null = drive.regroup_lat != null && drive.regroup_lng != null ? [drive.regroup_lng, drive.regroup_lat] : null;
   const behind = views.filter((v) => v.behind && v.id !== myId);
   const online = Object.values(members).filter((m) => m.online).length;
   const sheetHeight = Math.round(height * 0.44);
@@ -295,10 +298,10 @@ function ActiveDrive() {
         padding={{ top: insets.top + 96, bottom: sheetHeight }}
         me={me ? { coord: me, heading: last?.heading ?? null, vehicle: myVehicle, paint: myPaint } : null}
         people={people}
-        destination={destination}
+        destination={regroupAt ?? destination}
         fit={{
-          key: `${drive.id}-${people.length}-${destination?.join()}`,
-          points: [...people.map((p) => p.coord), ...(me ? [me] : []), ...(destination ? [destination] : [])],
+          key: `${drive.id}-${people.length}-${destination?.join()}-${regroupAt?.join()}`,
+          points: [...people.map((p) => p.coord), ...(me ? [me] : []), ...((regroupAt ?? destination) ? [(regroupAt ?? destination)!] : [])],
         }}
       />
 
@@ -340,6 +343,21 @@ function ActiveDrive() {
         <View style={[styles.grabber, { backgroundColor: theme.textSecondary }]} />
         <ScrollView contentContainerStyle={styles.sheetBody} showsVerticalScrollIndicator={false}>
           <ConvoyLineup entries={order} units={units} />
+
+          <RegroupCard
+            drive={drive}
+            members={members}
+            myId={myId ?? null}
+            me={me}
+            myHeading={last?.speed != null && last.speed > 2 ? last.heading : null}
+            isOwner={isOwner}
+            units={units}
+            onNavigate={(spot) => {
+              if (!me) return;
+              void useNav.getState().planTo({ id: `regroup-${drive.id}`, name: spot.name, detail: 'Regroup point', coord: spot.coord, category: 'Regroup point' }, me);
+              router.navigate('/');
+            }}
+          />
 
           <Card style={{ gap: Spacing.three }}>
             <View style={styles.row}>

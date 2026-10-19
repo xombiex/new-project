@@ -98,7 +98,7 @@ export default function RootLayout() {
       const data = res.notification.request.content.data as { type?: string; code?: string; event_id?: string };
       if (data.type === 'drive_invite' && data.code) router.push({ pathname: '/convoy', params: { code: data.code } });
       else if (data.type === 'friend_request' || data.type === 'friend_accepted') router.push('/friends');
-      else if (data.type === 'member_joined' || data.type === 'arrived') router.push('/convoy');
+      else if (data.type === 'member_joined' || data.type === 'arrived' || data.type === 'regroup') router.push('/convoy');
       else if (data.type === 'admin_message') router.push('/inbox');
       else if (data.type === 'event_reminder' && data.event_id) router.push({ pathname: '/event/[id]', params: { id: data.event_id } });
     });

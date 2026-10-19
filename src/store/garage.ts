@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import type { CarSpecs } from '@/lib/car-specs';
 import { isDemo } from '@/lib/demo';
 import { supabase } from '@/lib/supabase';
 import type { Paint, Vehicle } from '@/lib/vehicles';
@@ -12,14 +13,18 @@ export type Car = {
   model: string;
   year: number | null;
   nickname: string | null;
+  /** e.g. "Carrera S" or the EPA trim text */
+  trim?: string | null;
+  /** horsepower, 0-60, drivetrain, transmission, MPG… (EPA / VIN / the owner) */
+  specs?: CarSpecs | null;
   body: Vehicle;
   paint: Paint;
   created_at: string;
 };
 
-export type CarInput = Pick<Car, 'make' | 'model' | 'year' | 'nickname' | 'body' | 'paint'>;
+export type CarInput = Pick<Car, 'make' | 'model' | 'year' | 'nickname' | 'body' | 'paint' | 'trim' | 'specs'>;
 
-const COLS = 'id, user_id, make, model, year, nickname, body, paint, created_at';
+const COLS = 'id, user_id, make, model, year, nickname, trim, specs, body, paint, created_at';
 
 /** Server rule messages → something a person can act on. */
 function friendly(message: string): string {
@@ -79,6 +84,8 @@ export const useGarage = create<GarageState>()((set, get) => ({
       nickname: input.nickname?.trim() || null,
       body: input.body,
       paint: input.paint,
+      trim: input.trim?.trim().slice(0, 80) || null,
+      specs: input.specs && Object.keys(input.specs).length ? input.specs : null,
     };
     const query = id ? supabase.from('cars').update(row).eq('id', id) : supabase.from('cars').insert(row);
     const { data, error } = await query.select(COLS).single();
