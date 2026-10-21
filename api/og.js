@@ -4,7 +4,7 @@ import { ImageResponse } from '@vercel/og';
 
 import { ACCENT, DEFAULT, describe } from './_preview.js';
 
-export const config = { runtime: 'edge' };
+// Node, not edge: the edge runtime won't compile the image renderer's WebAssembly.
 
 const W = 1200;
 const H = 630;
@@ -97,7 +97,7 @@ function defaultCard(icon) {
   );
 }
 
-export default async function handler(request) {
+export async function GET(request) {
   const url = new URL(request.url);
   const kind = url.searchParams.get('kind');
   const info = kind ? await describe(kind, url.searchParams.get('key')) : { card: null };
@@ -112,16 +112,27 @@ export default async function handler(request) {
   const icon = dataUrl(iconBytes);
   const vehicle = vehicleBytes ? dataUrl(vehicleBytes) : null;
 
-  return new ImageResponse(info.card ? linkCard(info.card, icon, vehicle) : defaultCard(icon), {
-    width: W,
-    height: H,
-    emoji: 'twemoji',
-    fonts: [
-      { name: 'Inter', data: bold.buffer, weight: 700, style: 'normal' },
-      { name: 'Inter', data: semibold.buffer, weight: 600, style: 'normal' },
-    ],
-    headers: {
-      'Cache-Control': kind === 'eta' ? 'public, max-age=60, s-maxage=60' : 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800',
-    },
-  });
+  // Render it all here rather than streaming: a failed render must not reach a cache as an empty
+  // 200, and ImageResponse's own one-year "immutable" header is wrong for live ETAs.
+  try {
+    const png = await new ImageResponse(info.card ? linkCard(info.card, icon, vehicle) : defaultCard(icon), {
+      width: W,
+      height: H,
+      emoji: 'twemoji',
+      fonts: [
+        { name: 'Inter', data: bold.buffer, weight: 700, style: 'normal' },
+        { name: 'Inter', data: semibold.buffer, weight: 600, style: 'normal' },
+      ],
+    }).arrayBuffer();
+    if (!png.byteLength) throw new Error('empty render');
+    return new Response(png, {
+      headers: {
+        'Content-Type': 'image/png',
+        'Cache-Control': kind === 'eta' ? 'public, max-age=60, s-maxage=60' : 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800',
+      },
+    });
+  } catch (err) {
+    console.error('og render failed', err);
+    return new Response('Preview unavailable', { status: 500, headers: { 'Cache-Control': 'no-store' } });
+  }
 }
