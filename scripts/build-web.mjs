@@ -2,11 +2,17 @@
 // The admin portal is published only when ADMIN_PATH is set (a Vercel env var, never committed),
 // at /<ADMIN_PATH>/. /admin itself is a 404.
 import { execSync } from 'node:child_process';
-import { copyFileSync, cpSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 
 rmSync('dist', { recursive: true, force: true });
 execSync('npx expo export --platform web', { stdio: 'inherit' });
 cpSync('web', 'dist', { recursive: true });
+
+// The live ETA page (/eta/<token>) loads the map library from here, same-origin (the CSP allows
+// only our own scripts). The worker is already published at /maplibre-gl-worker.mjs.
+mkdirSync('dist/vendor', { recursive: true });
+copyFileSync('node_modules/maplibre-gl/dist/maplibre-gl.mjs', 'dist/vendor/maplibre-gl.mjs');
+copyFileSync('node_modules/maplibre-gl/dist/maplibre-gl.css', 'dist/vendor/maplibre-gl.css');
 
 // Installable on phones (Add to Home Screen): manifest, icon and full-screen hints.
 const HEAD = [

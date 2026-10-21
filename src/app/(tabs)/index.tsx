@@ -1,13 +1,15 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View, useWindowDimensions, Platform, Share } from 'react-native';
 import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { convoyStop, ConvoyRoster, rosterEntries } from '@/components/drive/convoy-roster';
-import { NavBanner, NavFooter, RouteChooser } from '@/components/drive/nav-overlay';
+import { GasChooser, NavBanner, NavFooter, RouteChooser } from '@/components/drive/nav-overlay';
+import { QuickCallBanner, QuickCallButton } from '@/components/drive/quick-calls';
 import { PlaceCard } from '@/components/drive/place-card';
 import { SpeedDial } from '@/components/drive/speed-dial';
 import { SpeedLimitSign } from '@/components/drive/speed-limit-sign';
@@ -34,6 +36,7 @@ import { limitMps } from '@/lib/speed-limit';
 import { formatAgo } from '@/lib/time';
 import { averageSpeedMps } from '@/lib/trip-recorder';
 import { vehicleIcon } from '@/lib/vehicles';
+import { gasAlong, type GasStop } from '@/lib/gas-along';
 import { describeAlert, WEATHER_ICON } from '@/lib/weather';
 import { useAuth } from '@/store/auth';
 import { useCameras } from '@/store/cameras';
@@ -78,11 +81,17 @@ export default function DriveScreen() {
   const navRoute = useNavigation((s) => s.route);
   const navProgress = useNavigation((s) => s.progress);
   const navDestination = useNavigation((s) => s.destination);
+  const via = useNavigation((s) => s.via);
   const muted = useNavigation((s) => s.muted);
+  /** Gas-ahead list (null = closed; stops null = loading). */
+  const [gas, setGas] = useState<{ stops: GasStop[] | null; error: string | null } | null>(null);
   /** Mid-drive route picker (null = closed; routes null = loading). */
   const [choosing, setChoosing] = useState<{ routes: Route[] | null; error: string | null } | null>(null);
   useEffect(() => {
-    if (!navigating) setChoosing(null);
+    if (!navigating) {
+      setChoosing(null);
+      setGas(null);
+    }
   }, [navigating]);
   const reports = useReports((s) => s.reports);
   const allCameras = useCameras((s) => s.cameras);
@@ -163,14 +172,17 @@ export default function DriveScreen() {
   );
 
   const markers = useMemo<MapMarker[]>(
-    () =>
-      reports.map((r) => {
+    () => [
+      ...reports.map((r) => {
         const meta = reportMeta(r.type);
-        return { id: r.id, coord: [r.lng, r.lat], icon: meta.icon, color: meta.color, onPress: () => onPressReport(r.id) };
+        return { id: r.id, coord: [r.lng, r.lat] as [number, number], icon: meta.icon, color: meta.color, onPress: () => onPressReport(r.id) };
       }),
+      // A gas stop added on the way.
+      ...(via ? [{ id: 'via-stop', coord: via.coord, icon: 'gas-station', color: '#0A84FF' }] : []),
+    ],
     // onPressReport reads fresh state itself
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [reports]
+    [reports, via]
   );
 
   const route = nav.routes[nav.selected];
@@ -235,12 +247,49 @@ export default function DriveScreen() {
   async function openRoutes() {
     const dest = useNavigation.getState().destination;
     if (!dest || !lastSample) return;
+    setGas(null);
     setChoosing({ routes: null, error: null });
     try {
       const routes = await getRouteOptions([lastSample.lng, lastSample.lat], dest.coord);
       setChoosing((c) => (c ? { routes, error: null } : c));
     } catch (e) {
       setChoosing((c) => (c ? { routes: null, error: e instanceof Error ? e.message : 'Couldn’t find routes' } : c));
+    }
+  }
+
+  /** Gas stations near the road ahead. */
+  async function openGas() {
+    setChoosing(null);
+    const nav = useNavigation.getState();
+    if (!nav.route) return;
+    setGas({ stops: null, error: null });
+    try {
+      const stops = await gasAlong(nav.route, nav.progress?.snap.along ?? 0, nav.progress?.snap.segment ?? 0);
+      setGas((g) => (g ? { stops, error: null } : g));
+    } catch (e) {
+      setGas((g) => (g ? { stops: null, error: e instanceof Error ? e.message : 'Couldn’t look for gas' } : g));
+    }
+  }
+
+  /** Share a live link to this drive: the share sheet on phones, else copy the link. */
+  async function shareEta() {
+    const res = await useNavigation.getState().shareEta();
+    if ('error' in res) {
+      Alert.alert('Couldn’t share', res.error);
+      return;
+    }
+    const dest = useNavigation.getState().destination?.name ?? 'my destination';
+    const message = `I'm driving to ${dest}. Follow along live and see when I'll get there: ${res.url}`;
+    try {
+      if (Platform.OS === 'web') {
+        if (typeof navigator.share === 'function') await navigator.share({ title: 'My ETA', text: message, url: res.url });
+        else {
+          await Clipboard.setStringAsync(res.url);
+          Alert.alert('Link copied', 'Paste it into a message. It updates live until you arrive.');
+        }
+      } else await Share.share({ message });
+    } catch {
+      // closed the share sheet
     }
   }
 
@@ -271,7 +320,7 @@ export default function DriveScreen() {
 
   const elapsed = active ? (now - active.startedAt) / 1000 : 0;
   const placeOpen = !navigating && Boolean(nav.destination);
-  const panelHeight = navigating ? (choosing ? 330 : 128) : placeOpen ? 400 : active ? 330 : 270;
+  const panelHeight = navigating ? (choosing || gas ? 330 : 128) : placeOpen ? 400 : active ? 330 : 270;
   // Map faces the way you're driving; standing still, the compass (web) takes over.
   const compass = useCompassHeading();
   const speedNow = !stale && lastSample?.speed != null && lastSample.speed >= 0 ? lastSample.speed : 0;
@@ -283,7 +332,9 @@ export default function DriveScreen() {
   };
 
   // Group drive: everyone down the left side, with speed and distance to the stop.
-  const { height: screenH } = useWindowDimensions();
+  const { height: windowH } = useWindowDimensions();
+  // The screen's own height: on web the tab bar sits below it rather than over it.
+  const [screenH, setScreenH] = useState(windowH);
   const stop = drive ? convoyStop(drive) : null;
   const roster = useMemo(
     () =>
@@ -298,7 +349,8 @@ export default function DriveScreen() {
     // Rain, snow or storms on the road ahead (or on the route option you're looking at).
   const weather = useRouteWeather(navigating ? navRoute : null, navProgress, navigating ? undefined : route);
   const rosterTop = insets.top + (navigating ? 190 : 80 + (drive ? 48 : 0) + (regroup ? 48 : 0)) + (cameraAheadNow || (navigating && weather) ? 48 : 0);
-  const rosterMax = screenH - rosterTop - (panelHeight + BottomTabInset + 150);
+  // 150 for the speed dial + its sign, 28 for the roster's own header above the list.
+  const rosterMax = screenH - rosterTop - (panelHeight + BottomTabInset + 150 + 28);
 
   // Posted limit while a ride is on (recording a trip or navigating).
   const road = useSpeedLimit(Boolean(active || navigating));
@@ -309,10 +361,10 @@ export default function DriveScreen() {
     if (speeding) haptic.warning();
   }, [speeding]);
 
-  // Heads-ups that stack under the top bar: a camera coming up, and bad weather on the route.
-  const alerts =
-    cameraAheadNow || (navigating && weather) ? (
+  // Heads-ups that stack under the top bar: convoy calls, a camera coming up, bad weather ahead.
+  const alerts = (
       <View style={styles.alerts} pointerEvents="none">
+        {drive ? <QuickCallBanner /> : null}
         {cameraAheadNow ? (
           <View style={[styles.cameraPill, { backgroundColor: CAMERA_COLOR[cameraAheadNow.camera.kind] }]}>
             <MaterialCommunityIcons name={CAMERA_ICON[cameraAheadNow.camera.kind]} size={18} color="#fff" />
@@ -333,10 +385,10 @@ export default function DriveScreen() {
           </Animated.View>
         ) : null}
       </View>
-    ) : null;
+  );
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.background }}>
+    <View style={{ flex: 1, backgroundColor: theme.background }} onLayout={(e) => setScreenH(e.nativeEvent.layout.height)}>
       {keepScreenOn && (active || navigating) ? <KeepAwake /> : null}
 
       <ConvoyMap
@@ -448,6 +500,9 @@ export default function DriveScreen() {
         </Animated.View>
       ) : null}
 
+      {/* Group drive: one-tap calls to the convoy, at the top of the right-hand column */}
+      {drive ? <QuickCallButton style={[styles.sideBtn, { bottom: panelHeight + BottomTabInset + Spacing.three + (navigating ? 128 : 64) }]} /> : null}
+
       {/* While navigating, voice on/off floats above the report button */}
       {navigating ? (
         <Pressable
@@ -489,7 +544,25 @@ export default function DriveScreen() {
             />
           </ScrollView>
         ) : navigating ? (
-          choosing ? (
+          gas ? (
+            <GasChooser
+              stops={via && gas.stops ? gas.stops.filter((g) => haversine(g.coord, via.coord) > 30) : gas.stops}
+              error={gas.error}
+              units={units}
+              current={via?.name ?? null}
+              onClose={() => setGas(null)}
+              onRemove={() => {
+                if (lastSample) void useNavigation.getState().removeStop([lastSample.lng, lastSample.lat]);
+                setGas(null);
+              }}
+              onPick={async (s) => {
+                if (!lastSample) return;
+                const err = await useNavigation.getState().addStop({ name: s.name, coord: s.coord }, [lastSample.lng, lastSample.lat]);
+                if (err) setGas((g) => (g ? { ...g, error: err } : g));
+                else setGas(null);
+              }}
+            />
+          ) : choosing ? (
             <RouteChooser
               routes={choosing.routes}
               error={choosing.error}
@@ -501,7 +574,7 @@ export default function DriveScreen() {
               }}
             />
           ) : (
-            <NavFooter units={units} onEnd={nav.clear} onRoutes={() => void openRoutes()} />
+            <NavFooter units={units} onEnd={nav.clear} onRoutes={() => void openRoutes()} onGas={() => void openGas()} onShare={() => void shareEta()} />
           )
         ) : (
           <Speedometer
@@ -581,6 +654,7 @@ const styles = StyleSheet.create({
   limit: { position: 'absolute', left: Spacing.three },
   alerts: { alignSelf: 'stretch', alignItems: 'center', gap: Spacing.two },
   roster: { position: 'absolute', left: Spacing.two },
+  sideBtn: { position: 'absolute', right: Spacing.three },
   scoutCard: {
     position: 'absolute',
     left: Spacing.three,

@@ -1,11 +1,12 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useEffect, type ReactNode } from 'react';
 import Animated, { cancelAnimation, FadeIn, FadeInDown, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming, ZoomIn } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import type { GasStop } from '@/lib/gas-along';
 import { formatDistance, formatEta, type Units } from '@/lib/geo';
 import { ROUTE_TAG_LABEL, type Route } from '@/lib/places';
 import { laneArrow, type Lane } from '@/lib/navigation';
@@ -87,9 +88,9 @@ function Lanes({ lanes, modifier }: { lanes: Lane[]; modifier?: string }) {
 }
 
 /** Bottom bar while navigating (Apple Maps style): time left in green, distance and arrival; change route; end. */
-export function NavFooter({ units, onEnd, onRoutes }: { units: Units; onEnd?: () => void; onRoutes: () => void }) {
+export function NavFooter({ units, onEnd, onRoutes, onGas, onShare }: { units: Units; onEnd?: () => void; onRoutes: () => void; onGas: () => void; onShare: () => void }) {
   const theme = useTheme();
-  const { route, progress, stop } = useNavigation();
+  const { route, progress, stop, shareUrl } = useNavigation();
   if (!route) return null;
   const remainingS = progress?.remainingS ?? route.totalS;
   const remainingM = progress?.remainingM ?? route.totalM;
@@ -102,7 +103,21 @@ export function NavFooter({ units, onEnd, onRoutes }: { units: Units; onEnd?: ()
         <ThemedText themeColor="textSecondary" numberOfLines={1}>
           {formatDistance(units, remainingM)} · {formatClock(Date.now() + remainingS * 1000)}
         </ThemedText>
+        {/* Send someone a live link: your car on a map with your arrival time */}
+        <Pressable onPress={onShare} hitSlop={8} accessibilityRole="button" accessibilityLabel={shareUrl ? 'Sharing your ETA live. Share the link again' : 'Share your ETA'} style={styles.share}>
+          {shareUrl ? <View style={[styles.liveDot, { backgroundColor: theme.success }]} /> : <MaterialCommunityIcons name="share-variant" size={14} color={theme.accent} />}
+          <ThemedText type="smallBold" style={{ color: shareUrl ? theme.success : theme.accent }}>
+            {shareUrl ? 'Sharing live' : 'Share ETA'}
+          </ThemedText>
+        </Pressable>
       </View>
+      <Pressable
+        onPress={onGas}
+        accessibilityRole="button"
+        accessibilityLabel="Gas stations ahead"
+        style={({ pressed }) => [styles.roundBtn, { borderColor: theme.text, transform: [{ scale: pressed ? 0.92 : 1 }] }]}>
+        <MaterialCommunityIcons name="gas-station" size={24} color={theme.text} />
+      </Pressable>
       <Pressable
         onPress={onRoutes}
         accessibilityRole="button"
@@ -121,6 +136,83 @@ export function NavFooter({ units, onEnd, onRoutes }: { units: Units; onEnd?: ()
         <MaterialCommunityIcons name="close" size={28} color="#fff" />
       </Pressable>
     </View>
+  );
+}
+
+/** "Gas ahead": stations near the route, soonest first. Tap one to stop there on the way. */
+export function GasChooser({
+  stops,
+  error,
+  units,
+  current,
+  onPick,
+  onRemove,
+  onClose,
+}: {
+  stops: GasStop[] | null;
+  error: string | null;
+  units: Units;
+  /** the stop already added, if any */
+  current: string | null;
+  onPick: (s: GasStop) => void;
+  onRemove: () => void;
+  onClose: () => void;
+}) {
+  const theme = useTheme();
+  return (
+    <Animated.View entering={FadeIn.duration(200)} style={{ alignSelf: 'stretch', gap: Spacing.two }}>
+      <View style={styles.chooserHead}>
+        <ThemedText style={{ fontSize: 20, fontWeight: 800, flex: 1 }}>Gas ahead</ThemedText>
+        <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close" style={[styles.close, { backgroundColor: theme.backgroundSelected }]}>
+          <MaterialCommunityIcons name="close" size={18} color={theme.textSecondary} />
+        </Pressable>
+      </View>
+      {current ? (
+        <Pressable onPress={onRemove} accessibilityRole="button" style={[styles.option, { backgroundColor: theme.backgroundSelected }]}>
+          <MaterialCommunityIcons name="gas-station" size={22} color={theme.accent} />
+          <ThemedText style={{ flex: 1, fontWeight: 700 }} numberOfLines={1}>
+            Stopping at {current}
+          </ThemedText>
+          <ThemedText type="smallBold" style={{ color: theme.danger }}>
+            Remove
+          </ThemedText>
+        </Pressable>
+      ) : null}
+      {error ? (
+        <ThemedText type="small" style={{ color: theme.danger }}>
+          {error}
+        </ThemedText>
+      ) : !stops ? (
+        <ActivityIndicator color={theme.accent} style={{ marginVertical: Spacing.three }} />
+      ) : stops.length === 0 ? (
+        <ThemedText themeColor="textSecondary">No gas stations near the road in the next 25 miles.</ThemedText>
+      ) : (
+        <ScrollView style={{ maxHeight: current ? 160 : 230 }} contentContainerStyle={{ gap: Spacing.two }} showsVerticalScrollIndicator={false}>
+          {stops.map((s) => (
+            <Pressable
+              key={`${s.name}-${s.coord.join()}`}
+              onPress={() => onPick(s)}
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.option, { backgroundColor: theme.backgroundSelected, opacity: pressed ? 0.7 : 1 }]}>
+              <MaterialCommunityIcons name="gas-station" size={22} color={theme.accent} />
+              <View style={{ flex: 1 }}>
+                <ThemedText style={{ fontWeight: 800 }} numberOfLines={1}>
+                  {s.name}
+                </ThemedText>
+                <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+                  In {formatDistance(units, s.aheadM)} · {s.offRouteM < 60 ? 'on your route' : `${formatDistance(units, s.offRouteM)} off route`}
+                </ThemedText>
+              </View>
+              <View style={[styles.goPill, { backgroundColor: theme.accent }]}>
+                <ThemedText type="smallBold" style={{ color: '#fff' }}>
+                  Add stop
+                </ThemedText>
+              </View>
+            </Pressable>
+          ))}
+        </ScrollView>
+      )}
+    </Animated.View>
   );
 }
 
@@ -199,9 +291,11 @@ const styles = StyleSheet.create({
   then: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, backgroundColor: 'rgba(255,255,255,0.08)' },
   thenLabel: { color: '#B0B5BD', fontSize: 14, fontWeight: '700' },
   thenText: { color: '#fff', fontSize: 15, fontWeight: '600', flex: 1 },
-  footer: { flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch', gap: Spacing.three },
+  footer: { flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch', gap: Spacing.two + 2 },
+  share: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4, alignSelf: 'flex-start' },
+  liveDot: { width: 8, height: 8, borderRadius: 4 },
   eta: { fontSize: 30, lineHeight: 36, fontWeight: 800, fontVariant: ['tabular-nums'] },
-  roundBtn: { width: 52, height: 52, borderRadius: 26, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  roundBtn: { width: 48, height: 48, borderRadius: 24, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   endBtn: { borderWidth: 0 },
   chooserHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   close: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },

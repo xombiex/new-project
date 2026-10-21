@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ConvoyLineup } from '@/components/drive/convoy-lineup';
 import { convoyStop, ConvoyRoster, rosterEntries } from '@/components/drive/convoy-roster';
+import { QuickCallBanner, QuickCallRow } from '@/components/drive/quick-calls';
 import { RegroupCard } from '@/components/drive/regroup-card';
 import { Glass } from '@/components/glass';
 import { ConvoyMap, type MapPerson } from '@/components/map/convoy-map';
@@ -331,6 +332,7 @@ function ActiveDrive() {
           </Pressable>
         </View>
         <ConnectionPill status={status} />
+        <QuickCallBanner />
         {behind.length > 0 ? (
           <View style={[styles.behind, { backgroundColor: theme.warning }]}>
             <MaterialCommunityIcons name="alert" size={18} color="#000" />
@@ -353,6 +355,8 @@ function ActiveDrive() {
         <View style={[styles.grabber, { backgroundColor: theme.textSecondary }]} />
         <ScrollView contentContainerStyle={styles.sheetBody} showsVerticalScrollIndicator={false}>
           <ConvoyLineup entries={order} units={units} />
+
+          <QuickCallRow />
 
           <RegroupCard
             drive={drive}

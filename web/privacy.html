@@ -55,6 +55,7 @@
   <li><strong>While the app is open</strong>, location shows you on the map and powers the speedometer.</li>
   <li><strong>In the background</strong>, location is used only while you’re recording a trip, navigating, sharing with a group drive, or have <em>automatic drive detection</em> turned on. Your phone shows an indicator when this is happening, and you can turn it off in Convoy or your device settings.</li>
   <li><strong>Group drives:</strong> your live position is sent over an encrypted connection to the members of that drive only, while you share. <strong>These live positions are not saved on our servers.</strong></li>
+  <li><strong>Share my ETA:</strong> if you share a live ETA link, anyone with that link can see your first name, your destination, your current position on a map and your arrival time until you arrive or end navigation (at most 6 hours). The latest position is kept only for that link and deleted a day after it expires.</li>
   <li><strong>Friends:</strong> if you start sharing with friends, your last-known position is stored so they can see it. It is deleted when you stop sharing.</li>
   <li><strong>Speed limits and cameras:</strong> during a trip, the area around you is sent to the Overpass API to look up nearby roads. Camera locations come from our own cache: the app asks our server for cameras in your general area (cells of roughly 100 km), and we don’t record who asked.</li>
   <li><strong>Search and routes:</strong> when you search for a place or start navigation, the search text or start and end points are sent to the map services listed in section 4. Map tiles are loaded from OpenFreeMap.</li>
@@ -84,6 +85,7 @@
   <li>Account, profile, trips, friends and clubs: until you delete them or your account.</li>
   <li>Live drive positions: not stored. Drive membership records are kept while your account exists.</li>
   <li>Friend location: deleted when you stop sharing.</li>
+  <li>Live ETA links: deleted one day after they expire (6 hours after you start sharing).</li>
   <li>Online status: only your latest check-in is kept; it is deleted when you turn sharing off or delete your account.</li>
   <li>Road reports: expire automatically (from 30 minutes to 7 days depending on the type) and are deleted a day after they expire.</li>
   <li>Purchase records: kept as long as required for tax and accounting laws, even after account deletion.</li>

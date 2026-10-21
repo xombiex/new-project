@@ -25,7 +25,7 @@ function tileTemplate(): Promise<string> {
   return template;
 }
 
-function tileXY([lng, lat]: LngLat): [number, number] {
+export function tileXY([lng, lat]: LngLat): [number, number] {
   const n = 2 ** Z;
   const rad = (lat * Math.PI) / 180;
   return [Math.floor(((lng + 180) / 360) * n), Math.floor(((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * n)];
@@ -38,36 +38,50 @@ function toLngLat(tx: number, ty: number, px: number, py: number, extent: number
   return [x * 360 - 180, (Math.atan(Math.sinh(Math.PI * (1 - 2 * y))) * 180) / Math.PI];
 }
 
+export type TilePlace = Omit<RegroupSpot, 'distanceM'>;
+
+/** Tiles already read this session (places don't move). */
+const tileCache = new Map<string, Promise<TilePlace[]>>();
+
+/** Gas stations and parking in one ~1.5 km map tile. */
+export function tilePlaces(x: number, y: number, signal?: AbortSignal): Promise<TilePlace[]> {
+  const key = `${x}/${y}`;
+  const hit = tileCache.get(key);
+  if (hit) return hit;
+  const job = (async () => {
+    const url = await tileTemplate();
+    const res = await fetch(url.replace('{z}', String(Z)).replace('{x}', String(x)).replace('{y}', String(y)), { signal });
+    if (!res.ok) throw new Error(`tile ${res.status}`);
+    const layer = new VectorTile(new PbfReader(new Uint8Array(await res.arrayBuffer()))).layers.poi;
+    const out: TilePlace[] = [];
+    for (let i = 0; i < (layer?.length ?? 0); i++) {
+      const f = layer.feature(i);
+      const cls = f.properties.class;
+      if (cls !== 'fuel' && cls !== 'parking') continue;
+      // EV chargers are tagged like gas stations; they're not a gas stop.
+      const nm = String(f.properties.name ?? '');
+      if (f.properties.subclass === 'charging_station' || /supercharger|charging|chargepoint|evgo|electrify|blink/i.test(nm)) continue;
+      const pt = f.loadGeometry()[0]?.[0];
+      if (!pt) continue;
+      out.push({
+        name: String(f.properties.name ?? f.properties['name:latin'] ?? '') || (cls === 'fuel' ? 'Gas station' : 'Parking lot'),
+        kind: cls,
+        coord: toLngLat(x, y, pt.x, pt.y, layer.extent),
+      });
+    }
+    return out;
+  })();
+  tileCache.set(key, job);
+  job.catch(() => tileCache.delete(key)); // let a failed tile be tried again later
+  return job;
+}
+
 /** Gas stations and parking in the 3×3 map tiles (≈4–5 km square) around a point. */
-export async function placesAround(center: LngLat, signal?: AbortSignal): Promise<Omit<RegroupSpot, 'distanceM'>[]> {
-  const url = await tileTemplate();
+export async function placesAround(center: LngLat, signal?: AbortSignal): Promise<TilePlace[]> {
   const [cx, cy] = tileXY(center);
   const tiles: [number, number][] = [];
   for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) tiles.push([cx + dx, cy + dy]);
-  const found = await Promise.all(
-    tiles.map(async ([x, y]) => {
-      const res = await fetch(url.replace('{z}', String(Z)).replace('{x}', String(x)).replace('{y}', String(y)), { signal });
-      if (!res.ok) return [];
-      const layer = new VectorTile(new PbfReader(new Uint8Array(await res.arrayBuffer()))).layers.poi;
-      const out: Omit<RegroupSpot, 'distanceM'>[] = [];
-      for (let i = 0; i < (layer?.length ?? 0); i++) {
-        const f = layer.feature(i);
-        const cls = f.properties.class;
-        if (cls !== 'fuel' && cls !== 'parking') continue;
-        // EV chargers are tagged like gas stations; they're no place for a mixed convoy to gather.
-        const nm = String(f.properties.name ?? '');
-        if (f.properties.subclass === 'charging_station' || /supercharger|charging|chargepoint|evgo|electrify|blink/i.test(nm)) continue;
-        const pt = f.loadGeometry()[0]?.[0];
-        if (!pt) continue;
-        out.push({
-          name: String(f.properties.name ?? f.properties['name:latin'] ?? '') || (cls === 'fuel' ? 'Gas station' : 'Parking lot'),
-          kind: cls,
-          coord: toLngLat(x, y, pt.x, pt.y, layer.extent),
-        });
-      }
-      return out;
-    })
-  );
+  const found = await Promise.all(tiles.map(([x, y]) => tilePlaces(x, y, signal).catch(() => [])));
   return found.flat();
 }
 

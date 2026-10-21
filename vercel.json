@@ -6,7 +6,11 @@
   "cleanUrls": true,
   "rewrites": [
     {
-      "source": "/((?!admin(?:/|$)|api/).*)",
+      "source": "/eta/:token",
+      "destination": "/eta"
+    },
+    {
+      "source": "/((?!admin(?:/|$)|api/|eta/).*)",
       "destination": "/"
     }
   ],

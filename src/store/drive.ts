@@ -10,6 +10,7 @@ import { isDemo } from '@/lib/demo';
 import { haptic } from '@/lib/haptics';
 import { addReason, onLocation, removeReason } from '@/lib/location';
 import { notify } from '@/lib/notifications';
+import { CALL_COOLDOWN_MS, quickCall, type QuickCallKind } from '@/lib/quick-calls';
 import { supabase } from '@/lib/supabase';
 import type { LocationSample } from '@/lib/trip-recorder';
 import type { Profile } from '@/store/auth';
@@ -61,6 +62,11 @@ type DriveState = {
   sharing: boolean;
   /** member id → epoch ms they reached the destination */
   arrived: Record<string, number>;
+  /** recent quick calls ("Need gas", "Cop ahead"…), newest last */
+  calls: { id: string; from: string; name: string; kind: QuickCallKind; at: number }[];
+  /** One-tap call to the whole convoy. Returns false if you just sent one. */
+  /** 'wait' while on cooldown, 'offline' with no live connection to the drive. */
+  sendCall: (kind: QuickCallKind) => 'sent' | 'wait' | 'offline';
   create: (name: string, destination?: { name: string; lat: number; lng: number }) => Promise<string | null>;
   join: (code: string) => Promise<string | null>;
   /** Start (owner/admin) or join (member) a club drive — no code needed. */
@@ -79,6 +85,7 @@ const SEND_INTERVAL_MS = 2000;
 const SEND_FORCE_DISTANCE_M = 40;
 
 let channel: RealtimeChannel | null = null;
+let lastCallAt = 0;
 let stopListening: (() => void) | null = null;
 let lastSent: LocationSample | null = null;
 let myId: string | null = null;
@@ -175,6 +182,17 @@ export const useDrive = create<DriveState>()(
           .on('broadcast', { event: 'drive' }, () => {
             void refreshDrive(drive.id);
           })
+          .on('broadcast', { event: 'call' }, ({ payload }) => {
+            const { from, kind } = payload as { from?: string; kind?: string };
+            const member = from ? get().members[from] : undefined;
+            const call = kind ? quickCall(kind) : undefined;
+            if (!member || !call) return;
+            const name = member.profile.display_name.split(' ')[0];
+            addCall({ from: from!, name, kind: call.kind });
+            haptic.warning();
+            // Read it out (unless voice is muted), so the driver doesn't have to look.
+            if (!useNavigation.getState().muted) Speech.speak(`${name} ${call.spoken}.`, { language: 'en-US' });
+          })
           .on('broadcast', { event: 'arrived' }, ({ payload }) => {
             const from = (payload as { from?: string }).from;
             if (from && get().members[from]) set({ arrived: { ...get().arrived, [from]: Date.now() } });
@@ -264,7 +282,23 @@ export const useDrive = create<DriveState>()(
         set({ status: 'idle' });
       }
 
+      function addCall(c: { from: string; name: string; kind: QuickCallKind }) {
+        const at = Date.now();
+        set({ calls: [...get().calls.filter((x) => at - x.at < 60_000), { ...c, id: `${c.from}-${at}`, at }].slice(-5) });
+      }
+
       return {
+        calls: [],
+        sendCall: (kind) => {
+          if (Date.now() - lastCallAt < CALL_COOLDOWN_MS) return 'wait';
+          // The demo drive has no live channel: just show the call here.
+          if (!isDemo() && (!channel || !myId)) return 'offline';
+          lastCallAt = Date.now();
+          if (channel && myId) void channel.send({ type: 'broadcast', event: 'call', payload: { from: myId, kind } });
+          addCall({ from: myId ?? 'me', name: 'You', kind });
+          haptic.tap();
+          return 'sent';
+        },
         drive: null,
         members: {},
         status: 'idle',

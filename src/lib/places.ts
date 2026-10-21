@@ -244,6 +244,14 @@ export async function getRouteOptions(from: LngLat, to: LngLat, signal?: AbortSi
   return routes;
 }
 
+/** Fastest route that stops at `via` on the way to `to` (e.g. a gas station). */
+export async function routeVia(from: LngLat, via: LngLat, to: LngLat, signal?: AbortSignal): Promise<Route | undefined> {
+  const coords = [from, via, to].map((c) => `${c[0]},${c[1]}`).join(';');
+  const res = await fetch(`${OSRM_URL}/route/v1/driving/${coords}?overview=full&geometries=geojson&steps=true`, { signal });
+  if (!res.ok) throw new Error(`Routing failed (${res.status})`);
+  return parse(await res.json(), 'fastest')[0];
+}
+
 /** Driving routes, best first (includes alternatives when the router finds them). */
 export async function getRoutes(from: LngLat, to: LngLat, signal?: AbortSignal): Promise<Route[]> {
   const coords = `${from[0]},${from[1]};${to[0]},${to[1]}`;
