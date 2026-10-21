@@ -2,7 +2,7 @@
 // (vercel.json). It serves the same page as before (the web app, or the live ETA page) with the
 // title, description and picture for that link written into <head>, since chat apps read the HTML
 // and never run the page's scripts.
-import { describe } from './_preview.js';
+import { describe } from './_preview.mjs';
 
 export const config = { runtime: 'edge' };
 
