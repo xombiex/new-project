@@ -66,6 +66,10 @@ function StartDrive() {
   const params = useLocalSearchParams<{ code?: string }>();
   const [name, setName] = useState('');
   const [code, setCode] = useState(params.code?.toUpperCase() ?? '');
+  // An invite link (/join/<code>) opened while this tab is already up.
+  useEffect(() => {
+    if (params.code) setCode(params.code.toUpperCase());
+  }, [params.code]);
   const [busy, setBusy] = useState<'create' | 'join' | null>(null);
   const [error, setError] = useState<{ create?: string; join?: string }>({});
 
@@ -125,7 +129,11 @@ function ClubsSection() {
   const router = useRouter();
   const { mine, loadMine, join } = useClubs();
   const canCreate = useEntitled('club');
-  const [code, setCode] = useState('');
+  const params = useLocalSearchParams<{ club?: string }>();
+  const [code, setCode] = useState(params.club?.toUpperCase() ?? '');
+  useEffect(() => {
+    if (params.club) setCode(params.club.toUpperCase());
+  }, [params.club]);
   const [error, setError] = useState<string | null>(null);
 
   useFocusEffect(

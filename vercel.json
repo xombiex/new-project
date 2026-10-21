@@ -7,10 +7,18 @@
   "rewrites": [
     {
       "source": "/eta/:token",
-      "destination": "/eta"
+      "destination": "/api/page?kind=eta&key=:token"
     },
     {
-      "source": "/((?!admin(?:/|$)|api/|eta/).*)",
+      "source": "/add/:username",
+      "destination": "/api/page?kind=user&key=:username"
+    },
+    {
+      "source": "/join/:code",
+      "destination": "/api/page?kind=join&key=:code"
+    },
+    {
+      "source": "/((?!admin(?:/|$)|api/|eta/|add/|join/).*)",
       "destination": "/"
     }
   ],

@@ -9,6 +9,7 @@ import { Avatar, Button, Card, SectionTitle } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatPrice, setUpPayouts } from '@/lib/payments';
+import { SITE_URL } from '@/lib/site';
 import { useClubs, type ClubDetail } from '@/store/clubs';
 import { useDrive } from '@/store/drive';
 
@@ -158,7 +159,7 @@ export default function ClubScreen() {
                 <Button label="Copy" variant="secondary" onPress={() => void Clipboard.setStringAsync(club.invite_code)} />
                 <Button
                   label="Share"
-                  onPress={() => void Share.share({ message: `Join ${club.name} on Convoy with code ${club.invite_code}` })}
+                  onPress={() => void Share.share({ message: `Join ${club.name} on Convoy: ${SITE_URL}/join/${club.invite_code} (code ${club.invite_code})` })}
                 />
               </Card>
             </>

@@ -8,6 +8,7 @@ import { Avatar, Button, Card, SectionTitle } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { notify } from '@/lib/notifications';
+import { SITE_URL } from '@/lib/site';
 import { useDrive } from '@/store/drive';
 import { useFriends } from '@/store/friends';
 
@@ -47,7 +48,7 @@ export default function InviteScreen() {
         label={`Share code ${drive.code}`}
         variant="secondary"
         icon={<MaterialCommunityIcons name="share-variant" size={20} color={theme.text} />}
-        onPress={() => void Share.share({ message: `Join my Convoy drive "${drive.name}" with code ${drive.code}` })}
+        onPress={() => void Share.share({ message: `Join my Convoy drive "${drive.name}": ${SITE_URL}/join/${drive.code} (code ${drive.code})` })}
       />
       <SectionTitle>Friends</SectionTitle>
       {friends.length === 0 ? (

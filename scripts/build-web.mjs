@@ -39,6 +39,26 @@ const indexHtml = readFileSync('dist/index.html', 'utf8')
   .replace('</head>', `${HEAD}</head>`);
 writeFileSync('dist/index.html', indexHtml);
 
+// Link previews (iMessage, Discord, WhatsApp...): every page gets a title, description and the
+// Convoy card. Shared links (/add, /join, /eta) swap in their own through api/page.js.
+const SITE = process.env.EXPO_PUBLIC_SITE_URL ?? 'https://convoy-drab.vercel.app';
+const PREVIEW_TITLE = 'Convoy · Drive together';
+const PREVIEW_TEXT = 'Track every drive, ride with friends on one live map, build your 3D garage, and get speed limit and camera alerts. Free.';
+for (const [file, path] of [['index.html', '/'], ['about.html', '/about'], ['privacy.html', '/privacy'], ['terms.html', '/terms'], ['eta.html', '/eta']]) {
+  let html = readFileSync(`dist/${file}`, 'utf8');
+  // Both are read out of the HTML already escaped. The app's own title is just "Convoy": say what it is.
+  const own = html.match(/<title>([^<]*)<\/title>/i)?.[1];
+  const title = own && own !== 'Convoy' ? own : PREVIEW_TITLE;
+  const text = html.match(/<meta name="description" content="([^"]*)"/i)?.[1] || PREVIEW_TEXT;
+  if (!/<meta name="description"/i.test(html)) html = html.replace('</head>', `<meta name="description" content="${text}" /></head>`);
+  const tags = [
+    ['og:type', 'website'], ['og:site_name', 'Convoy'], ['og:url', SITE + path], ['og:title', title], ['og:description', text],
+    ['og:image', `${SITE}/api/og`], ['og:image:width', '1200'], ['og:image:height', '630'],
+  ].map(([k, v]) => `<meta property="${k}" content="${v}" />`)
+    .concat(['<meta name="twitter:card" content="summary_large_image" />', `<meta name="twitter:image" content="${SITE}/api/og" />`]);
+  writeFileSync(`dist/${file}`, html.replace('</head>', `${tags.join('')}</head>`));
+}
+
 const slug = process.env.ADMIN_PATH?.trim();
 if (slug) {
   if (!/^[a-z0-9-]{20,}$/.test(slug)) throw new Error('ADMIN_PATH must be 20+ chars of a-z, 0-9, -');
