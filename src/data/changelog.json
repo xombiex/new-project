@@ -1,0 +1,135 @@
+{
+  "_readme": "Convoy's update log, newest first. Shown once in the app after each update (What's new), on Profile > What's new, and at /updates on the website. Add a release at the top whenever a user-facing change ships. id must be unique and new ids must sort after old ones (use the date, plus -2 for a second release that day). icon is a MaterialCommunityIcons name.",
+  "releases": [
+    {
+      "id": "2026-10-21",
+      "date": "2026-10-21",
+      "title": "Links that show what they are",
+      "items": [
+        {
+          "icon": "card-text-outline",
+          "title": "Link previews",
+          "text": "Convoy links now unfurl in iMessage, Discord, WhatsApp and friends: who's inviting you, where the drive is heading, or a live arrival time."
+        },
+        {
+          "icon": "link-variant",
+          "title": "Invite links for drives and clubs",
+          "text": "Sharing a group drive or club sends a link instead of just a code. Opening it fills the code in for you."
+        },
+        {
+          "icon": "history",
+          "title": "What's new",
+          "text": "A list of every update, under Profile in the app and at /updates on the website."
+        }
+      ]
+    },
+    {
+      "id": "2026-10-20",
+      "date": "2026-10-20",
+      "title": "Quick calls, live ETA and gas stops",
+      "items": [
+        {
+          "icon": "bullhorn-outline",
+          "title": "Convoy quick calls",
+          "text": "One tap to tell the whole group \"Need gas\", \"Pull over\", \"Cop ahead\" and more. Everyone sees it and hears it read out."
+        },
+        {
+          "icon": "map-marker-path",
+          "title": "Share my ETA",
+          "text": "Send anyone a live link while you navigate. They see your car on a map and when you'll arrive, no app needed."
+        },
+        {
+          "icon": "gas-station",
+          "title": "Gas along the route",
+          "text": "See the stations coming up on your route and add one as a stop in a tap."
+        }
+      ]
+    },
+    {
+      "id": "2026-10-19",
+      "date": "2026-10-19",
+      "title": "Convoy roster and smoother navigation",
+      "items": [
+        {
+          "icon": "account-group-outline",
+          "title": "Who's where",
+          "text": "During a group drive, everyone is stacked down the left side with their speed and distance to the stop."
+        },
+        {
+          "icon": "flag-checkered",
+          "title": "Drive to the convoy's destination",
+          "text": "When the leader sets a destination you get the same one-tap route prompt as regroup points."
+        },
+        {
+          "icon": "speedometer-slow",
+          "title": "Real speed limit sign",
+          "text": "The limit now sits on the speedometer as a proper road sign."
+        },
+        {
+          "icon": "vector-polyline",
+          "title": "Faster route line",
+          "text": "The blue route line shows up right away, even right after ending a drive."
+        }
+      ]
+    },
+    {
+      "id": "2026-10-18",
+      "date": "2026-10-18",
+      "title": "Regroup points, Twisty Roads and Camera Scouts",
+      "items": [
+        {
+          "icon": "map-marker-radius-outline",
+          "title": "Regroup points",
+          "text": "Someone got split up? The leader picks a gas station ahead and everyone gets routed there."
+        },
+        {
+          "icon": "road-variant",
+          "title": "Twisty Roads",
+          "text": "A route option that picks the curvy way, for when the drive is the point."
+        },
+        {
+          "icon": "car-info",
+          "title": "Car specs in the garage",
+          "text": "Find your exact car by make and model (or VIN) and see horsepower, 0-60, drivetrain and more."
+        },
+        {
+          "icon": "cctv",
+          "title": "Camera Scouts",
+          "text": "Report speed, red light and plate cameras. Once enough drivers confirm one, it goes on everyone's map."
+        },
+        {
+          "icon": "speedometer",
+          "title": "Speed ring",
+          "text": "The ring around your speed fills toward the limit and turns red when you're over."
+        }
+      ]
+    },
+    {
+      "id": "2026-10-17",
+      "date": "2026-10-17",
+      "title": "Navigation, rebuilt",
+      "items": [
+        {
+          "icon": "directions-fork",
+          "title": "Route options",
+          "text": "Pick fastest, shortest, fewest turns or no highways."
+        },
+        {
+          "icon": "microphone-outline",
+          "title": "Search by voice",
+          "text": "Search over the map, with pinned places, suggestions and voice input."
+        },
+        {
+          "icon": "camera-outline",
+          "title": "Cameras on the map",
+          "text": "Speed and red light cameras show where they are. Tap one for details."
+        },
+        {
+          "icon": "weather-partly-rainy",
+          "title": "Lanes, weather and recaps",
+          "text": "Lane guidance at turns, weather along the route, and a nicer recap when you finish."
+        }
+      ]
+    }
+  ]
+}

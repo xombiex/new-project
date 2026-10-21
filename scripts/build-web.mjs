@@ -39,12 +39,27 @@ const indexHtml = readFileSync('dist/index.html', 'utf8')
   .replace('</head>', `${HEAD}</head>`);
 writeFileSync('dist/index.html', indexHtml);
 
+// The public update log (/updates), from the same list the app's "What's new" shows.
+const escHtml = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const longDate = (d) => new Date(`${d}T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+const { releases } = JSON.parse(readFileSync('src/data/changelog.json', 'utf8'));
+const releasesHtml = releases
+  .map(
+    (r) => `<section class="release" id="${escHtml(r.id)}">
+<p class="updated">${longDate(r.date)}</p>
+<h2>${escHtml(r.title)}</h2>
+<ul>${r.items.map((i) => `<li><strong>${escHtml(i.title)}.</strong> ${escHtml(i.text)}</li>`).join('')}</ul>
+</section>`,
+  )
+  .join('\n');
+writeFileSync('dist/updates.html', readFileSync('dist/updates.html', 'utf8').replace(/<!-- RELEASES:[^>]*-->/, releasesHtml));
+
 // Link previews (iMessage, Discord, WhatsApp...): every page gets a title, description and the
 // Convoy card. Shared links (/add, /join, /eta) swap in their own through api/page.js.
 const SITE = process.env.EXPO_PUBLIC_SITE_URL ?? 'https://convoy-drab.vercel.app';
 const PREVIEW_TITLE = 'Convoy · Drive together';
 const PREVIEW_TEXT = 'Track every drive, ride with friends on one live map, build your 3D garage, and get speed limit and camera alerts. Free.';
-for (const [file, path] of [['index.html', '/'], ['about.html', '/about'], ['privacy.html', '/privacy'], ['terms.html', '/terms'], ['eta.html', '/eta']]) {
+for (const [file, path] of [['index.html', '/'], ['about.html', '/about'], ['privacy.html', '/privacy'], ['terms.html', '/terms'], ['updates.html', '/updates'], ['eta.html', '/eta']]) {
   let html = readFileSync(`dist/${file}`, 'utf8');
   // Both are read out of the HTML already escaped. The app's own title is just "Convoy": say what it is.
   const own = html.match(/<title>([^<]*)<\/title>/i)?.[1];

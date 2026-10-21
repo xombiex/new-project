@@ -10,6 +10,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Avatar, Button, Card, SectionTitle, Segmented } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { LATEST_RELEASE, releaseDate } from '@/lib/changelog';
 import { GLOW_PRESETS, type GlowPreset } from '@/lib/glow';
 import { openBillingPortal } from '@/lib/payments';
 import { supabase } from '@/lib/supabase';
@@ -373,6 +374,19 @@ export default function ProfileScreen() {
             <ThemedText style={{ fontWeight: 700 }}>Garage</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
               Pick the 3D car and paint your friends see on the map
+            </ThemedText>
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={22} color={theme.textSecondary} />
+        </Card>
+      </Pressable>
+
+      <Pressable onPress={() => router.push('/whats-new')} accessibilityRole="button">
+        <Card style={styles.row}>
+          <MaterialCommunityIcons name="history" size={24} color={theme.accent} />
+          <View style={{ flex: 1 }}>
+            <ThemedText style={{ fontWeight: 700 }}>What’s new</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+              {LATEST_RELEASE ? `${releaseDate(LATEST_RELEASE.date)} · ${LATEST_RELEASE.title}` : 'Every update to Convoy'}
             </ThemedText>
           </View>
           <MaterialCommunityIcons name="chevron-right" size={22} color={theme.textSecondary} />

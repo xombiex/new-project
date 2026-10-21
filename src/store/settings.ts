@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import { LATEST_RELEASE } from '@/lib/changelog';
 import type { Units } from '@/lib/geo';
 import type { GlowPreset } from '@/lib/glow';
 import type { MapTheme } from '@/lib/map-style';
@@ -24,6 +25,9 @@ type SettingsState = {
   reportAlerts: boolean;
   /** Seen the welcome screens */
   onboarded: boolean;
+  /** Newest "What's new" release seen (null: never) */
+  seenRelease: string | null;
+  setSeenRelease: (id: string) => void;
   setOnboarded: (on: boolean) => void;
   /** Let friends see when I'm in the app */
   shareOnline: boolean;
@@ -91,7 +95,10 @@ export const useSettings = create<SettingsState>()(
       privacyZones: [],
       reportAlerts: true,
       onboarded: false,
-      setOnboarded: (onboarded) => set({ onboarded }),
+      // New people just had the tour: today's "What's new" would only repeat it.
+      setOnboarded: (onboarded) => set(onboarded ? { onboarded, seenRelease: LATEST_RELEASE?.id ?? null } : { onboarded }),
+      seenRelease: null,
+      setSeenRelease: (seenRelease) => set({ seenRelease }),
       shareOnline: true,
       speedCameraAlerts: !CAMERA_ALERTS_OFF.has(deviceRegion() ?? ''),
       setSpeedCameraAlerts: (speedCameraAlerts) => set({ speedCameraAlerts }),

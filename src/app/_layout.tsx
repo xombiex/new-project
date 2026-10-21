@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { hasUnseenRelease } from '@/lib/changelog';
 import { exposeStoresForTesting, isDemo, seedDemo } from '@/lib/demo';
 import { startPresence } from '@/lib/presence';
 import { registerForPush, setDrivingCheck } from '@/lib/notifications';
@@ -73,6 +74,14 @@ export default function RootLayout() {
   useEffect(() => {
     if (ready && onboarded && session && !profile && !profileLoading && segments[0] !== 'profile-setup') router.push('/profile-setup');
   }, [ready, onboarded, session, profile, profileLoading, segments, router]);
+
+  // After an update: "What's new", once. Not over the welcome or profile setup, nor in demo shots.
+  const seenRelease = useSettings((s) => s.seenRelease);
+  const needsProfile = Boolean(session && !profile);
+  useEffect(() => {
+    if (!ready || !settingsReady || !onboarded || needsProfile || isDemo() || !hasUnseenRelease(seenRelease)) return;
+    if (segments[0] !== 'whats-new') router.push('/whats-new');
+  }, [ready, settingsReady, onboarded, needsProfile, seenRelease, segments, router]);
 
   // Online status for friends: a heartbeat while the app is open (if the user shares it).
   const shareOnline = useSettings((s) => s.shareOnline);
@@ -153,6 +162,7 @@ export default function RootLayout() {
         <Stack.Screen name="car/[id]" options={{ presentation: 'modal', title: 'Car' }} />
         <Stack.Screen name="friend/[id]" options={{ title: 'Friend' }} />
         <Stack.Screen name="inbox" options={{ title: 'Inbox' }} />
+        <Stack.Screen name="whats-new" options={{ title: 'What’s new', presentation: 'modal' }} />
         <Stack.Screen name="stripe-return" options={{ headerShown: false }} />
         <Stack.Screen name="invite" options={{ title: 'Invite to drive', presentation: 'modal' }} />
         <Stack.Screen name="report" options={{ title: 'Report', presentation: 'formSheet', sheetAllowedDetents: [0.85, 1] }} />
