@@ -278,6 +278,30 @@ export default function ProfileScreen() {
         </View>
       </Card>
 
+      <Card>
+        <View style={styles.row}>
+          <View style={{ flex: 1 }}>
+            <ThemedText style={{ fontWeight: 700 }}>Terrain</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              Shades hills and mountains. With the 3D map on, the web map raises them too.
+            </ThemedText>
+          </View>
+          <Switch value={settings.terrain} onValueChange={settings.setTerrain} />
+        </View>
+      </Card>
+
+      <Card>
+        <View style={styles.row}>
+          <View style={{ flex: 1 }}>
+            <ThemedText style={{ fontWeight: 700 }}>Weather radar</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              Live rain and snow radar over the map, from NOAA. US only.
+            </ThemedText>
+          </View>
+          <Switch value={settings.radar} onValueChange={settings.setRadar} />
+        </View>
+      </Card>
+
       {session ? (
         <Card>
           <View style={styles.row}>

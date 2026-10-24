@@ -2,6 +2,28 @@
   "_readme": "Convoy's update log, newest first. Shown once in the app after each update (What's new), on Profile > What's new, and at /updates on the website. Add a release at the top whenever a user-facing change ships. id must be unique and new ids must sort after old ones (use the date, plus -2 for a second release that day). icon is a MaterialCommunityIcons name.",
   "releases": [
     {
+      "id": "2026-10-24",
+      "date": "2026-10-24",
+      "title": "A richer map: hills, radar and weather warnings",
+      "items": [
+        {
+          "icon": "terrain",
+          "title": "Terrain",
+          "text": "Hills and mountains are shaded on the map. Turn on the 3D map on the web to see them rise."
+        },
+        {
+          "icon": "radar",
+          "title": "Weather radar",
+          "text": "Live NOAA rain and snow radar over the map (US). Switch it on under Profile."
+        },
+        {
+          "icon": "weather-lightning-rainy",
+          "title": "Severe weather warnings",
+          "text": "National Weather Service warnings where you are and at your destination, like a Winter Storm Warning. Tap one for the details."
+        }
+      ]
+    },
+    {
       "id": "2026-10-21",
       "date": "2026-10-21",
       "title": "Links that show what they are",

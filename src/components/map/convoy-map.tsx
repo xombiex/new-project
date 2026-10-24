@@ -6,9 +6,12 @@ import {
   Layer,
   Map,
   Marker,
+  RasterDEMSource,
+  RasterSource,
   UserLocation,
   type CameraRef,
   type FillExtrusionLayerSpecification,
+  type HillshadeLayerSpecification,
   type LineLayerSpecification,
   type SymbolLayerSpecification,
   type TrackUserLocation,
@@ -27,6 +30,21 @@ import { useMapLook } from './use-map-look';
 import { useSteadyHeading } from './use-steady-heading';
 import { buildingsLayer, TILT_3D } from './buildings';
 import { cameraFeatures } from './camera-features';
+import {
+  DEM_ATTRIBUTION,
+  DEM_MAXZOOM,
+  DEM_SOURCE,
+  DEM_TILES,
+  HILLSHADE_BEFORE,
+  HILLSHADE_LAYER,
+  hillshadePaint,
+  RADAR_ATTRIBUTION,
+  RADAR_LAYER,
+  RADAR_OPACITY,
+  RADAR_REFRESH_MS,
+  RADAR_SOURCE,
+  radarTiles,
+} from './overlays';
 import { BLOCK_IMAGES, CAMERA_IMAGES, CAMERA_LAYOUT, VEHICLE_IMAGES, VEHICLE_LAYOUT, vehicleSprite } from './vehicle-sprites';
 import type { ConvoyMapProps } from './types';
 
@@ -52,6 +70,16 @@ export function ConvoyMap({
   const places = useMemo(() => (styleHasPlaces(styleUrl) ? [] : poiLayers(scheme === 'dark')), [styleUrl, scheme]);
   const theme = useTheme();
   const lastCoord = useSettings((s) => s.lastCoord);
+  const terrain = useSettings((s) => s.terrain);
+  const radar = useSettings((s) => s.radar);
+  // A new radar sweep every few minutes (the tile URLs change, so the source is rebuilt).
+  const [radarUrls, setRadarUrls] = useState(() => radarTiles());
+  useEffect(() => {
+    if (!radar) return;
+    setRadarUrls(radarTiles());
+    const id = setInterval(() => setRadarUrls(radarTiles()), RADAR_REFRESH_MS);
+    return () => clearInterval(id);
+  }, [radar]);
   const camera = useRef<CameraRef>(null);
   // 'course' turns the map to the way you're driving; 'default' keeps north up (compass button).
   const [northUp, setNorthUp] = useState(false);
@@ -130,6 +158,18 @@ export function ConvoyMap({
         />
 
         <Images images={{ ...VEHICLE_IMAGES, ...CAMERA_IMAGES, ...BLOCK_IMAGES }} />
+
+        {/* Hills under roads and buildings; radar over the base map but under everything of ours. */}
+        {terrain ? (
+          <RasterDEMSource id={DEM_SOURCE} tiles={DEM_TILES} encoding="terrarium" tileSize={256} maxzoom={DEM_MAXZOOM} attribution={DEM_ATTRIBUTION}>
+            <Layer id={HILLSHADE_LAYER} type="hillshade" beforeId={HILLSHADE_BEFORE} paint={hillshadePaint(scheme === 'dark', variant) as HillshadeLayerSpecification['paint']} />
+          </RasterDEMSource>
+        ) : null}
+        {radar ? (
+          <RasterSource key={radarUrls[0]} id={RADAR_SOURCE} tiles={radarUrls} tileSize={256} maxzoom={12} attribution={RADAR_ATTRIBUTION}>
+            <Layer id={RADAR_LAYER} type="raster" paint={{ 'raster-opacity': RADAR_OPACITY, 'raster-fade-duration': 0 }} />
+          </RasterSource>
+        ) : null}
 
         {tilt3d ? (
           <Layer

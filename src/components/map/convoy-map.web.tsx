@@ -1,6 +1,6 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-import { LngLatBounds, Map as MLMap, Marker, setWorkerUrl, type GeoJSONSource } from 'maplibre-gl';
+import { LngLatBounds, Map as MLMap, Marker, setWorkerUrl, type GeoJSONSource, type RasterTileSource } from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -15,6 +15,23 @@ import { useMapLook } from './use-map-look';
 import { useSteadyHeading } from './use-steady-heading';
 import { buildingsLayer, TILT_3D } from './buildings';
 import { cameraFeatures } from './camera-features';
+import {
+  DEM_3D_SOURCE,
+  DEM_ATTRIBUTION,
+  DEM_MAXZOOM,
+  DEM_SOURCE,
+  DEM_TILES,
+  HILLSHADE_BEFORE,
+  HILLSHADE_LAYER,
+  hillshadePaint,
+  RADAR_ATTRIBUTION,
+  RADAR_LAYER,
+  RADAR_OPACITY,
+  RADAR_REFRESH_MS,
+  RADAR_SOURCE,
+  radarTiles,
+  TERRAIN_EXAGGERATION,
+} from './overlays';
 import { CAMERA_LAYOUT, VEHICLE_IMAGES, VEHICLE_LAYOUT, vehicleSprite } from './vehicle-sprites';
 import type { ConvoyMapProps } from './types';
 
@@ -37,6 +54,23 @@ function addCameraLayer(m: MLMap) {
   }
   if (!m.getSource('cameras')) m.addSource('cameras', { type: 'geojson', data: EMPTY });
   if (!m.getLayer('cameras')) m.addLayer({ id: 'cameras', type: 'symbol', source: 'cameras', minzoom: 10, layout: CAMERA_LAYOUT as any });
+}
+
+/** Terrain (hill shading, 3D source) and weather radar, hidden until switched on. Before our own layers. */
+function addOverlayLayers(m: MLMap, dark: boolean, variant: Parameters<typeof hillshadePaint>[1]) {
+  const dem = { type: 'raster-dem' as const, tiles: DEM_TILES, encoding: 'terrarium' as const, tileSize: 256, maxzoom: DEM_MAXZOOM, attribution: DEM_ATTRIBUTION };
+  if (!m.getSource(DEM_SOURCE)) m.addSource(DEM_SOURCE, dem);
+  if (!m.getSource(DEM_3D_SOURCE)) m.addSource(DEM_3D_SOURCE, dem);
+  if (!m.getLayer(HILLSHADE_LAYER)) {
+    m.addLayer(
+      { id: HILLSHADE_LAYER, type: 'hillshade', source: DEM_SOURCE, layout: { visibility: 'none' }, paint: hillshadePaint(dark, variant) },
+      m.getLayer(HILLSHADE_BEFORE) ? HILLSHADE_BEFORE : undefined
+    );
+  }
+  if (!m.getSource(RADAR_SOURCE)) m.addSource(RADAR_SOURCE, { type: 'raster', tiles: radarTiles(), tileSize: 256, maxzoom: 12, attribution: RADAR_ATTRIBUTION });
+  if (!m.getLayer(RADAR_LAYER)) {
+    m.addLayer({ id: RADAR_LAYER, type: 'raster', source: RADAR_SOURCE, layout: { visibility: 'none' }, paint: { 'raster-opacity': RADAR_OPACITY, 'raster-fade-duration': 0 } });
+  }
 }
 
 function addVehicleLayers(m: MLMap) {
@@ -96,6 +130,8 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], onPressCame
   const glide = useRef<number | null>(null);
   const centeredOnce = useRef(false);
   const myHeading = useSteadyHeading(me?.heading);
+  const terrain = useSettings((s) => s.terrain);
+  const radar = useSettings((s) => s.radar);
 
   useEffect(() => {
     const m = new MLMap({
@@ -108,7 +144,9 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], onPressCame
     });
     m.on('load', () => {
       setLoaded(true);
-      // Nearby places first, so routes and cars draw on top of them.
+      // Hills and radar sit on the base map, under everything of ours.
+      addOverlayLayers(m, scheme === 'dark', variant);
+      // Nearby places next, so routes and cars draw on top of them.
       if (!styleHasPlaces(styleUrl)) for (const l of poiLayers(scheme === 'dark')) if (!m.getLayer(l.id)) m.addLayer(l as never);
       // Raised buildings sit under cameras and cars; hidden unless the 3D view is on.
       if (!m.getLayer('convoy-buildings-3d')) m.addLayer(buildingsLayer(scheme === 'dark', variant) as never);
@@ -332,6 +370,26 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], onPressCame
     if (!loaded || !m || !m.getLayer('convoy-buildings-3d')) return;
     m.setLayoutProperty('convoy-buildings-3d', 'visibility', tilt3d ? 'visible' : 'none');
   }, [loaded, tilt3d]);
+
+  // Terrain: hill shading, plus real 3D mountains when the 3D map is on.
+  useEffect(() => {
+    const m = map.current;
+    if (!loaded || !m || !m.getLayer(HILLSHADE_LAYER)) return;
+    m.setLayoutProperty(HILLSHADE_LAYER, 'visibility', terrain ? 'visible' : 'none');
+    m.setTerrain(terrain && tilt3d ? { source: DEM_3D_SOURCE, exaggeration: TERRAIN_EXAGGERATION } : null);
+  }, [loaded, terrain, tilt3d]);
+
+  // Weather radar: shown on request, with a fresh sweep every few minutes.
+  useEffect(() => {
+    const m = map.current;
+    if (!loaded || !m || !m.getLayer(RADAR_LAYER)) return;
+    m.setLayoutProperty(RADAR_LAYER, 'visibility', radar ? 'visible' : 'none');
+    if (!radar) return;
+    const refresh = () => (m.getSource(RADAR_SOURCE) as RasterTileSource | undefined)?.setTiles(radarTiles());
+    refresh();
+    const id = setInterval(refresh, RADAR_REFRESH_MS);
+    return () => clearInterval(id);
+  }, [loaded, radar]);
 
   /** Camera for "following you": zoom/tilt from the caller, facing your heading unless north-up. */
   const followView = (cur: NonNullable<typeof me>) => ({

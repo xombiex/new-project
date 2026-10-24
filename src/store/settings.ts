@@ -25,6 +25,12 @@ type SettingsState = {
   reportAlerts: boolean;
   /** Seen the welcome screens */
   onboarded: boolean;
+  /** Hill shading (and 3D mountains with the 3D map) */
+  terrain: boolean;
+  setTerrain: (on: boolean) => void;
+  /** NOAA weather radar over the map */
+  radar: boolean;
+  setRadar: (on: boolean) => void;
   /** Newest "What's new" release seen (null: never) */
   seenRelease: string | null;
   setSeenRelease: (id: string) => void;
@@ -108,6 +114,10 @@ export const useSettings = create<SettingsState>()(
       setAvoidAlprCameras: (avoidAlprCameras) => set({ avoidAlprCameras }),
       map3d: true,
       setMap3d: (map3d) => set({ map3d }),
+      terrain: true,
+      setTerrain: (terrain) => set({ terrain }),
+      radar: false,
+      setRadar: (radar) => set({ radar }),
       setShareOnline: (shareOnline) => set({ shareOnline }),
       autoDetect: false,
       setUnits: (units) => set({ units }),

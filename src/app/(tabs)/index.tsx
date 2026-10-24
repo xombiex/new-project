@@ -21,6 +21,7 @@ import { Speedometer } from '@/components/speedometer';
 import { ThemedText } from '@/components/themed-text';
 import { Button, Stat } from '@/components/ui';
 import { BottomTabInset, Radius, Spacing } from '@/constants/theme';
+import { useNwsAlert } from '@/hooks/use-nws-alert';
 import { useRouteWeather } from '@/hooks/use-route-weather';
 import { useSpeedLimit } from '@/hooks/use-speed-limit';
 import { useTheme } from '@/hooks/use-theme';
@@ -37,6 +38,7 @@ import { formatAgo } from '@/lib/time';
 import { averageSpeedMps } from '@/lib/trip-recorder';
 import { vehicleIcon } from '@/lib/vehicles';
 import { gasAlong, type GasStop } from '@/lib/gas-along';
+import { NWS_COLOR, nwsIcon, type NwsAlert } from '@/lib/nws-alerts';
 import { describeAlert, WEATHER_ICON } from '@/lib/weather';
 import { useAuth } from '@/store/auth';
 import { useCameras } from '@/store/cameras';
@@ -348,7 +350,10 @@ export default function DriveScreen() {
 
     // Rain, snow or storms on the road ahead (or on the route option you're looking at).
   const weather = useRouteWeather(navigating ? navRoute : null, navProgress, navigating ? undefined : route);
-  const rosterTop = insets.top + (navigating ? 190 : 80 + (drive ? 48 : 0) + (regroup ? 48 : 0)) + (cameraAheadNow || (navigating && weather) ? 48 : 0);
+  // National Weather Service warnings where you are (and where you're headed).
+  const nws = useNwsAlert(lastSample ? [lastSample.lng, lastSample.lat] : null, navigating ? (navDestination?.coord ?? null) : null);
+  const rosterTop =
+    insets.top + (navigating ? 190 : 80 + (drive ? 48 : 0) + (regroup ? 48 : 0)) + (cameraAheadNow || (navigating && weather) ? 48 : 0) + (nws ? 48 : 0);
   // 150 for the speed dial + its sign, 28 for the roster's own header above the list.
   const rosterMax = screenH - rosterTop - (panelHeight + BottomTabInset + 150 + 28);
 
@@ -361,9 +366,25 @@ export default function DriveScreen() {
     if (speeding) haptic.warning();
   }, [speeding]);
 
+  /** The full warning from the forecasters, with a shortcut to the radar. */
+  function showNws(a: NwsAlert) {
+    // NWS text is hard-wrapped at ~70 columns: join the lines, keep the paragraphs.
+    const body = (a.instruction || a.description)
+      .split(/\n{2,}/)
+      .map((p) => p.replace(/\s*\n\s*/g, ' ').trim())
+      .join('\n\n')
+      .slice(0, 700);
+    const until = a.ends ? `Until ${new Date(a.ends).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })}. ` : '';
+    const radarOn = useSettings.getState().radar;
+    Alert.alert(a.event, `${until}${a.areaDesc}\n\n${body}\n\nNational Weather Service`, [
+      ...(radarOn ? [] : [{ text: 'Show radar', onPress: () => useSettings.getState().setRadar(true) }]),
+      { text: 'OK', style: 'cancel' as const },
+    ]);
+  }
+
   // Heads-ups that stack under the top bar: convoy calls, a camera coming up, bad weather ahead.
   const alerts = (
-      <View style={styles.alerts} pointerEvents="none">
+      <View style={styles.alerts} pointerEvents="box-none">
         {drive ? <QuickCallBanner /> : null}
         {cameraAheadNow ? (
           <View style={[styles.cameraPill, { backgroundColor: CAMERA_COLOR[cameraAheadNow.camera.kind] }]}>
@@ -383,6 +404,19 @@ export default function DriveScreen() {
               {describeAlert(weather)}
             </ThemedText>
           </Animated.View>
+        ) : null}
+        {nws ? (
+          // The width cap goes on the pressable: a % width inside a shrink-wrapped parent squeezes the pill.
+          <Pressable onPress={() => showNws(nws)} accessibilityRole="button" accessibilityHint="Shows the full weather warning" style={{ maxWidth: '94%' }}>
+            <Animated.View entering={FadeInDown.duration(250)} style={[styles.cameraPill, { backgroundColor: NWS_COLOR[nws.severity], maxWidth: '100%' }]}>
+              <MaterialCommunityIcons name={nwsIcon(nws.event) as 'alert'} size={18} color="#fff" />
+              <ThemedText style={[styles.cameraText, { flexShrink: 1 }]} numberOfLines={1}>
+                {nws.event}
+                {nws.where === 'destination' ? ' at your destination' : ''}
+              </ThemedText>
+              <MaterialCommunityIcons name="chevron-right" size={18} color="#fff" />
+            </Animated.View>
+          </Pressable>
         ) : null}
       </View>
   );
