@@ -219,6 +219,159 @@ const BUILD = {
     wheels(g, 1.14, [-1.3, 1.3], 0.6, 0.52);
     lights(g, 0.66, 0.92, -2.07, 2.02, 0.3, 0.26);
   },
+  tuner(g, p, c) {
+    // Slammed coupe: bolt-on flares, tall wing, a stripe down the flank.
+    loft(g, [st(-2.2, 0.22, 0.5, 0.6, 0.96, 0.78), st(-2.0, 0.18, 0.58, 0.72, 1.16, 0.94), st(-0.8, 0.18, 0.66, 0.82, 1.2, 0.98), st(1.3, 0.18, 0.68, 0.86, 1.24, 1), st(2.05, 0.22, 0.68, 0.84, 1.16, 0.94), st(2.2, 0.32, 0.62, 0.74, 0.98, 0.8)], p);
+    cabin(g, p, { front: -0.85, peakF: -0.2, peakR: 0.7, rear: 1.5, base: 0.82, top: 1.28, w: 0.92, t: 0.7 });
+    for (const s of [-1, 1]) {
+      for (const z of [-1.35, 1.35]) box(g, 0.2, 0.28, 1.08, p, s * 1.2, 0.56, z); // flares
+      box(g, 0.03, 0.14, 3.0, c, s * 1.235, 0.5, 0); // flank stripe
+      box(g, 0.1, 0.42, 0.14, M.trim, s * 0.8, 1.05, 2.0); // wing posts
+    }
+    box(g, 2.5, 0.07, 0.46, M.trim, 0, 1.3, 2.05);
+    for (const s of [-1, 1]) box(g, 0.07, 0.3, 0.6, c, s * 1.25, 1.3, 2.05);
+    box(g, 0.7, 0.04, 0.42, M.trim, 0, 0.82, -1.25, -0.09); // hood vent
+    box(g, 2.1, 0.1, 0.12, M.trim, 0, 0.22, -2.2); // lip
+    wheels(g, 1.16, [-1.35, 1.35], 0.42, 0.42);
+    lights(g, 0.68, 0.52, -2.21, 2.21, 0.46, 0.1);
+  },
+  muscle(g, p, c) {
+    // Long nose, big hips: blacked-out hood, a shaker scoop and fat rear tires.
+    loft(g, [st(-2.5, 0.3, 0.66, 0.78, 1.0, 0.86), st(-2.28, 0.26, 0.74, 0.9, 1.14, 0.96), st(-0.45, 0.26, 0.78, 0.98, 1.14, 0.96), st(0.5, 0.26, 0.76, 0.96, 1.1, 0.94), st(1.5, 0.26, 0.86, 1.02, 1.24, 1.02), st(2.3, 0.3, 0.84, 1, 1.18, 0.98), st(2.46, 0.4, 0.78, 0.9, 1.02, 0.88)], p);
+    cabin(g, p, { front: -0.55, peakF: 0.05, peakR: 0.7, rear: 1.95, base: 0.96, top: 1.44, w: 0.94, t: 0.72 });
+    loft(g, [st(-2.4, 0.78, 0.8, 0.82, 0.62, 0.62, 0.62), st(-2.26, 0.9, 0.92, 0.94, 0.66, 0.66, 0.66), st(-0.55, 0.98, 1, 1.02, 0.66, 0.66, 0.66)], M.trim); // black hood
+    box(g, 0.56, 0.2, 0.7, c, 0, 1.08, -1.25); // scoop
+    box(g, 0.44, 0.06, 0.1, M.trim, 0, 1.1, -1.62);
+    for (const s of [-1, 1]) stripe(g, [[1.75, 1.05], [2.3, 1.03]], s * 0.28, 0.13, c);
+    box(g, 2.2, 0.16, 0.14, M.trim, 0, 0.42, -2.5);
+    box(g, 2.28, 0.12, 0.08, M.tail, 0, 0.76, 2.47); // full-width taillight
+    for (const s of [-1, 1]) {
+      wheel(g, s * 1.04, -1.5, 0.42, 0.34);
+      wheel(g, s * 1.1, 1.55, 0.5, 0.5);
+    }
+    for (const s of [-1, 1]) box(g, 0.42, 0.14, 0.08, M.head, s * 0.62, 0.68, -2.51);
+  },
+  super(g, p, c) {
+    // Mid-engine wedge: cabin pushed forward, side intakes, a long tail and no room for luggage.
+    loft(g, [st(-2.5, 0.18, 0.3, 0.36, 0.98, 0.72), st(-2.1, 0.14, 0.42, 0.5, 1.2, 0.92), st(-1.0, 0.14, 0.5, 0.62, 1.28, 0.98), st(0.2, 0.14, 0.52, 0.68, 1.22, 0.96), st(1.3, 0.14, 0.66, 0.84, 1.34, 1.04), st(2.3, 0.2, 0.68, 0.84, 1.26, 1), st(2.5, 0.3, 0.64, 0.72, 1.06, 0.86)], p);
+    cabin(g, p, { front: -1.35, peakF: -0.6, peakR: 0.15, rear: 1.45, base: 0.62, top: 1.06, w: 0.88, t: 0.56 });
+    for (const s of [-1, 1]) {
+      loft(g, [st(0.1, 0.24, 0.3, 0.56, 0.1, 0.1, 0.1), st(0.75, 0.24, 0.3, 0.62, 0.1, 0.1, 0.1)], M.trim, s * 1.22); // side intake
+      box(g, 0.5, 0.08, 0.1, M.head, s * 0.72, 0.38, -2.38); // slit headlights
+      box(g, 0.58, 0.08, 0.08, M.tail, s * 0.66, 0.7, 2.48);
+    }
+    stripe(g, [[-2.44, 0.39], [-2.1, 0.53], [-1.35, 0.66]], 0, 0.1, c);
+    stripe(g, [[-0.65, 1.14], [0.2, 1.14]], 0, 0.1, c);
+    box(g, 1.1, 0.04, 0.6, M.glass, 0, 0.87, 1.5, 0.05); // engine cover
+    box(g, 2.2, 0.08, 0.24, M.trim, 0, 0.18, 2.42); // diffuser
+    wheels(g, 1.18, [-1.5, 1.45], 0.42, 0.46);
+  },
+  rally(g, p, c) {
+    // Stage car: tall on its springs, roof scoop, mud flaps, a pod of spotlights on the nose.
+    loft(g, [st(-1.95, 0.5, 0.82, 0.94, 0.94, 0.82), st(-1.72, 0.46, 0.94, 1.08, 1.12, 0.96), st(-0.75, 0.46, 1, 1.18, 1.16, 1), st(1.6, 0.46, 1, 1.18, 1.16, 1), st(1.9, 0.54, 0.96, 1.12, 1.04, 0.9)], p);
+    cabin(g, p, { front: -0.85, peakF: -0.25, peakR: 1.3, rear: 1.72, base: 1.16, top: 1.78, w: 1.02, t: 0.82 });
+    box(g, 0.44, 0.14, 0.5, M.trim, 0, 1.92, 0.25); // roof scoop
+    for (const s of [-1, 1]) {
+      box(g, 0.03, 0.42, 0.58, M.white, s * 1.17, 0.82, 0); // door number roundel
+      box(g, 0.02, 0.24, 0.3, M.trim, s * 1.19, 0.82, 0);
+      box(g, 0.42, 0.34, 0.05, M.trim, s * 0.94, 0.3, 1.78); // mud flaps
+      box(g, 0.42, 0.34, 0.05, M.trim, s * 0.94, 0.3, -0.72);
+      for (const x of [0.18, 0.5]) box(g, 0.24, 0.24, 0.12, M.head, s * x, 1.05, -1.82); // spot pod
+    }
+    stripe(g, [[-1.88, 0.97], [-1.72, 1.11], [-0.85, 1.21]], 0.5, 0.17, c);
+    box(g, 1.4, 0.05, 0.06, M.trim, 0, 0.88, -1.86);
+    wheels(g, 1.08, [-1.18, 1.22], 0.48, 0.42);
+    lights(g, 0.72, 0.88, -1.97, 1.91, 0.3, 0.14);
+  },
+  wagon(g, p, c) {
+    // Long-roof family hauler: wood on the flanks and a rack up top.
+    const wood = flat(0x8a5a2e);
+    const trim = flat(0xd9c49a);
+    loft(g, [st(-2.45, 0.34, 0.66, 0.78, 0.94, 0.8), st(-2.22, 0.3, 0.76, 0.92, 1.1, 0.94), st(-1, 0.3, 0.84, 1.02, 1.14, 0.96), st(2.3, 0.3, 0.84, 1.02, 1.14, 0.96), st(2.46, 0.38, 0.8, 0.96, 1.02, 0.88)], p);
+    cabin(g, p, { front: -1.1, peakF: -0.5, peakR: 2.15, rear: 2.38, base: 1, top: 1.62, w: 1, t: 0.84 });
+    for (const s of [-1, 1]) {
+      box(g, 0.03, 0.42, 3.3, wood, s * 1.135, 0.72, 0.55);
+      box(g, 0.04, 0.05, 3.36, trim, s * 1.14, 0.96, 0.55);
+      box(g, 0.04, 0.05, 3.36, trim, s * 1.14, 0.48, 0.55);
+      box(g, 0.08, 0.08, 2.5, M.trim, s * 0.72, 1.78, 0.85); // rack rails
+    }
+    for (const z of [0.05, 0.85, 1.65]) box(g, 1.5, 0.05, 0.06, M.trim, 0, 1.82, z);
+    box(g, 2.1, 0.14, 0.14, M.chrome, 0, 0.42, -2.47);
+    box(g, 2.1, 0.14, 0.14, M.chrome, 0, 0.42, 2.48);
+    wheels(g, 1.02, [-1.5, 1.6], 0.42, 0.36);
+    lights(g, 0.68, 0.74, -2.46, 2.47, 0.4, 0.16);
+  },
+  hotrod(g, p, c) {
+    // Chopped roof, engine out in the open, skinny fronts and huge rears.
+    loft(g, [st(-2.45, 0.56, 0.72, 0.82, 0.42, 0.36), st(-1.25, 0.56, 0.8, 0.98, 0.56, 0.48), st(-0.55, 0.42, 0.86, 1.08, 0.82, 0.74), st(1.5, 0.42, 0.86, 1.1, 0.88, 0.8), st(2.15, 0.52, 0.8, 0.98, 0.72, 0.62)], p);
+    cabin(g, p, { front: -0.6, peakF: -0.45, peakR: 0.85, rear: 1.2, base: 1.06, top: 1.42, w: 0.8, t: 0.72, roof: c });
+    box(g, 0.76, 0.4, 1.0, M.chrome, 0, 1.08, -1.25); // engine
+    box(g, 0.32, 0.18, 0.66, M.tail, 0, 1.36, -1.25); // valve cover
+    for (const s of [-1, 1]) {
+      for (const z of [-1.55, -1.25, -0.95]) box(g, 0.12, 0.3, 0.12, M.trim, s * 0.28, 1.52, z); // stacks
+      box(g, 0.14, 0.12, 2.4, M.chrome, s * 0.72, 0.46, 0.1); // side pipes
+      wheel(g, s * 0.9, -1.95, 0.34, 0.22);
+      wheel(g, s * 1.02, 1.5, 0.6, 0.6);
+      const h = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.14, 8), M.head);
+      h.rotation.x = Math.PI / 2;
+      h.position.set(s * 0.56, 0.86, -2.25);
+      g.add(h);
+    }
+    box(g, 0.36, 0.44, 0.1, M.chrome, 0, 0.84, -2.47); // grille
+    box(g, 1.1, 0.1, 0.08, M.tail, 0, 0.82, 2.16);
+  },
+  buggy(g, p, c) {
+    // Sand rail: a little tub, a tube cage, all wheel and no body.
+    loft(g, [st(-2.0, 0.62, 0.72, 0.82, 0.5, 0.42), st(-1.05, 0.54, 0.82, 0.98, 0.72, 0.62), st(0.6, 0.54, 0.84, 1, 0.82, 0.72), st(1.15, 0.62, 0.8, 0.94, 0.62, 0.54)], p);
+    stripe(g, [[-1.95, 0.85], [-1.05, 1.01]], 0, 0.14, c);
+    for (const s of [-1, 1]) {
+      box(g, 0.5, 0.26, 0.5, M.seat, s * 0.34, 1.1, 0.1); // seats
+      box(g, 0.09, 0.09, 1.9, M.trim, s * 0.62, 2.06, 0.3); // cage
+      box(g, 0.09, 1.1, 0.09, M.trim, s * 0.74, 1.5, 1.2);
+      box(g, 0.09, 1.1, 0.09, M.trim, s * 0.74, 1.5, -0.65);
+      box(g, 0.08, 0.08, 1.5, M.trim, s * 0.74, 0.86, 1.55); // rear tubes
+      box(g, 1.3, 0.08, 0.08, M.trim, 0, 0.72, -1.72); // front axle
+      wheel(g, s * 1.08, -1.65, 0.5, 0.38);
+      wheel(g, s * 1.16, 1.5, 0.66, 0.6);
+      box(g, 0.24, 0.24, 0.14, M.head, s * 0.26, 2.2, -0.65);
+    }
+    box(g, 1.3, 0.09, 0.09, M.trim, 0, 2.06, 1.2);
+    box(g, 1.3, 0.09, 0.09, M.trim, 0, 2.06, -0.65);
+    box(g, 0.72, 0.44, 0.7, M.chrome, 0, 0.96, 1.62); // rear engine
+    box(g, 0.34, 0.16, 0.42, M.trim, 0, 1.26, 1.62);
+    box(g, 0.26, 0.1, 0.06, M.tail, 0, 0.92, 2.0);
+  },
+  truck(g, p, c) {
+    // Delivery box truck: a stubby painted cab and a tall white box.
+    loft(g, [st(-2.85, 0.5, 0.92, 1.1, 0.98, 0.86), st(-2.6, 0.44, 1.04, 1.26, 1.14, 0.98), st(-1.2, 0.44, 1.1, 1.36, 1.16, 1)], p);
+    loft(g, [st(-2.2, 1.28, 1.3, 1.36, 1.08, 0.98, 1.08), st(-1.7, 1.32, 1.36, 2.04, 1.08, 0.92, 1.08), st(-1.22, 1.32, 1.36, 2.04, 1.08, 0.92, 1.08)], M.glass);
+    box(g, 1.92, 0.08, 0.72, p, 0, 2.06, -1.48);
+    box(g, 2.3, 0.2, 4.0, M.trim, 0, 0.56, 0.8); // chassis
+    box(g, 2.3, 1.9, 3.95, M.white, 0, 1.62, 0.82); // the box
+    box(g, 2.34, 0.34, 3.97, p, 0, 2.26, 0.82); // painted band
+    for (const s of [-1, 1]) box(g, 0.02, 0.1, 3.97, p, s * 1.16, 1.0, 0.82);
+    box(g, 1.9, 1.6, 0.03, flat(0xb9bcc2), 0, 1.5, 2.81); // roll-up door
+    for (const y of [1, 1.3, 1.6, 1.9]) box(g, 1.9, 0.03, 0.04, M.trim, 0, y, 2.82);
+    box(g, 2.2, 0.2, 0.12, M.trim, 0, 0.52, -2.87);
+    wheels(g, 1.06, [-1.95, 1.75], 0.52, 0.44);
+    lights(g, 0.72, 0.9, -2.86, 2.82, 0.36, 0.2);
+  },
+  bus(g, p, c) {
+    // Short city bus: a long glass band, a contrasting stripe and a sign on the nose.
+    loft(g, [st(-2.9, 0.34, 1.1, 2.3, 1.08, 0.92), st(-2.62, 0.3, 1.1, 2.56, 1.2, 1.02), st(2.72, 0.3, 1.1, 2.56, 1.2, 1.02), st(2.9, 0.36, 1.08, 2.44, 1.1, 0.94)], p);
+    for (const s of [-1, 1]) {
+      box(g, 0.03, 0.62, 4.9, M.glass, s * 1.2, 1.62, 0.1); // windows
+      for (const z of [-1.7, -0.9, -0.1, 0.7, 1.5]) box(g, 0.04, 0.62, 0.1, p, s * 1.205, 1.62, z);
+      box(g, 0.03, 0.2, 5.3, c, s * 1.205, 0.98, 0); // stripe
+    }
+    loft(g, [st(-2.92, 1.2, 1.26, 1.32, 1.02, 0.98, 1.02), st(-2.82, 1.3, 1.36, 2.1, 1.02, 0.92, 1.02), st(-2.78, 1.3, 1.36, 2.1, 1.02, 0.92, 1.02)], M.glass); // windshield
+    box(g, 1.3, 0.2, 0.05, M.head, 0, 2.32, -2.78); // destination sign
+    box(g, 1.7, 0.08, 3.6, c, 0, 2.6, 0); // roof stripe
+    box(g, 0.8, 0.14, 1.3, flat(0xb9bcc2), 0, 2.68, 1.2); // AC pod
+    wheels(g, 1.1, [-1.75, 1.9], 0.5, 0.36);
+    lights(g, 0.8, 0.72, -2.92, 2.91, 0.34, 0.2);
+    box(g, 2.3, 0.18, 0.1, M.trim, 0, 0.46, -2.91);
+  },
   moto(g, p, c) {
     g.scale.setScalar(1.5); // a bike at true scale is unreadable on the map
     wheel(g, 0, -1.0, 0.44, 0.2);
@@ -265,13 +418,16 @@ function render(name, paint) {
   const contrast = paint.light ? flat(0xe0431c) : M.white;
   BUILD[name](g, M.paint(paint.hex), contrast);
   scene.add(g);
+  // Long and tall: they'd run off the edge of a top-down sprite at full size.
+  if (!side && (name === 'truck' || name === 'bus')) g.scale.setScalar(0.84);
 
-  // The bike stands tallest (rider and all), so its showroom shot pulls back a little.
-  const camera = new THREE.PerspectiveCamera(side ? (name === 'moto' ? 25 : 19) : 24, side ? SIDE_W / SIDE_H : 1, 1, 100);
+  // The bike, truck and bus stand tallest, so their showroom shots pull back a little.
+  const tall = name === 'moto' || name === 'truck' || name === 'bus';
+  const camera = new THREE.PerspectiveCamera(side ? (tall ? 25 : 19) : 24, side ? SIDE_W / SIDE_H : 1, 1, 100);
   if (side) {
     // Showroom: a low three-quarter view of the right side, nose pointing right.
     camera.position.set(9.6, 4.2, -5.4);
-    camera.lookAt(0, name === 'moto' ? 1.4 : 0.75, -0.1);
+    camera.lookAt(0, tall ? 1.3 : 0.75, -0.1);
   } else {
     // Slight tilt from behind shows the rear and the cabin's sides without fighting the map's rotation.
     const tilt = THREE.MathUtils.degToRad(16);

@@ -150,9 +150,13 @@ export async function decodeVin(vin: string, signal?: AbortSignal): Promise<VinR
   };
 }
 
-/** Suggest a 3D body from an EPA size class or NHTSA body class. */
+/** Suggest a 3D body from a car's name, an EPA size class or an NHTSA body class. */
 export function bodyFromText(text: string | undefined): Vehicle | null {
   const t = (text ?? '').toLowerCase();
+  if (/ferrari|lamborghini|mclaren|bugatti|koenigsegg|pagani|\bnsx\b|\br8\b/.test(t)) return 'super';
+  if (/mustang|camaro|challenger|charger|firebird|barracuda|\bgto\b/.test(t)) return 'muscle';
+  if (/supra|skyline|\bgt-?r\b|\b350z\b|\b370z\b|silvia|rx-?7|\bbrz\b|\bgr86\b|\bfr-s\b/.test(t)) return 'tuner';
+  if (/\bwrx\b|\bsti\b|lancer evo|\bgr yaris\b|\bgr corolla\b/.test(t)) return 'rally';
   if (/pickup|truck/.test(t)) return 'pickup';
   if (/van/.test(t)) return 'van';
   if (/sport utility|suv|multipurpose/.test(t)) return 'suv';

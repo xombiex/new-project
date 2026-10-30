@@ -46,5 +46,9 @@ describe('car specs', () => {
     expect(s.mpgComb).toBe(20);
     expect(bodyFromText(s.vehicleClass)).toBe('sport');
     expect(bodyFromText('Standard Pickup Trucks 4WD')).toBe('pickup');
+    expect(bodyFromText('Ford Mustang Subcompact Cars')).toBe('muscle');
+    expect(bodyFromText('Ferrari 488 Two Seaters')).toBe('super');
+    expect(bodyFromText('Toyota Supra Two Seaters')).toBe('tuner');
+    expect(bodyFromText('Subaru WRX Compact Cars')).toBe('rally');
   });
 });

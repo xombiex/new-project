@@ -1,4 +1,4 @@
-export type Vehicle = 'car' | 'hatch' | 'sport' | 'classic' | 'suv' | 'van' | 'pickup' | 'jeep' | 'moto';
+export type Vehicle = 'car' | 'hatch' | 'sport' | 'tuner' | 'muscle' | 'super' | 'rally' | 'classic' | 'hotrod' | 'wagon' | 'suv' | 'van' | 'pickup' | 'jeep' | 'buggy' | 'truck' | 'bus' | 'moto';
 export type Paint = 'blue' | 'red' | 'orange' | 'yellow' | 'green' | 'purple' | 'white' | 'silver' | 'black';
 
 /**
@@ -9,11 +9,20 @@ export const VEHICLES: { value: Vehicle; label: string; icon: string; premium: b
   { value: 'car', label: 'Sedan', icon: 'car', premium: false },
   { value: 'hatch', label: 'Hatchback', icon: 'car-hatchback', premium: false },
   { value: 'sport', label: 'Sports', icon: 'car-sports', premium: true },
+  { value: 'tuner', label: 'Tuner', icon: 'car-sports', premium: true },
+  { value: 'muscle', label: 'Muscle', icon: 'car-sports', premium: true },
+  { value: 'super', label: 'Supercar', icon: 'car-sports', premium: true },
+  { value: 'rally', label: 'Rally', icon: 'car-hatchback', premium: true },
   { value: 'classic', label: 'Classic', icon: 'car-convertible', premium: true },
+  { value: 'hotrod', label: 'Hot rod', icon: 'car-convertible', premium: true },
+  { value: 'wagon', label: 'Woody wagon', icon: 'car-estate', premium: true },
   { value: 'suv', label: 'SUV', icon: 'car-estate', premium: true },
   { value: 'van', label: 'Van', icon: 'van-passenger', premium: true },
   { value: 'pickup', label: 'Pickup', icon: 'car-pickup', premium: true },
   { value: 'jeep', label: 'Off-road', icon: 'jeepney', premium: true },
+  { value: 'buggy', label: 'Dune buggy', icon: 'jeepney', premium: true },
+  { value: 'truck', label: 'Box truck', icon: 'truck', premium: true },
+  { value: 'bus', label: 'Bus', icon: 'bus', premium: true },
   { value: 'moto', label: 'Motorcycle', icon: 'motorbike', premium: true },
 ];
 

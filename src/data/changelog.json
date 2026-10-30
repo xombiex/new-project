@@ -7,6 +7,11 @@
       "title": "Convoy got some character",
       "items": [
         {
+          "icon": "car-multiple",
+          "title": "Twice the lineup",
+          "text": "Nine new rides: tuner, muscle, supercar, rally, hot rod, woody wagon, dune buggy, box truck and bus."
+        },
+        {
           "icon": "car-sports",
           "title": "All-new low-poly cars",
           "text": "Every car on the map and in the garage was rebuilt: chunky, faceted and full of character."

@@ -109,7 +109,7 @@ export default function CarEditor() {
       setModel(pick.model ?? '');
       setTrim(item.text);
       setSpecs((s) => ({ ...specsFromEpa(v), ...keepCustom(s) }));
-      suggestBody(bodyFromText(v.VClass));
+      suggestBody(bodyFromText(`${pick.make ?? ''} ${pick.model ?? ''} ${v.VClass ?? ''}`));
     } catch (e) {
       setFinderError(e instanceof Error ? e.message : 'Couldn’t load that car');
     } finally {
