@@ -12,8 +12,9 @@ import { RegroupCard } from '@/components/drive/regroup-card';
 import { Glass } from '@/components/glass';
 import { ConvoyMap, type MapPerson } from '@/components/map/convoy-map';
 import { ThemedText } from '@/components/themed-text';
+import { LicensePlate, ScreenTitle } from '@/components/shop';
 import { Avatar, Button, Card, EmptyState, Screen, SectionTitle, TextField } from '@/components/ui';
-import { BottomTabInset, Radius, Spacing } from '@/constants/theme';
+import { BottomTabInset, Display, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { analyzeConvoy, type ConvoyMemberView } from '@/lib/convoy';
 import { formatDistance, haversine, type LngLat, speedIn, speedLabel, speedUnitLabel } from '@/lib/geo';
@@ -48,11 +49,9 @@ export default function ConvoyScreen() {
 }
 
 function Hero() {
-  const theme = useTheme();
   return (
     <View style={{ gap: Spacing.two, marginTop: Spacing.three }}>
-      <MaterialCommunityIcons name="car-multiple" size={40} color={theme.accent} />
-      <ThemedText type="subtitle">Drive together</ThemedText>
+      <ScreenTitle kicker="Round up the crew" title="Drive together" />
       <ThemedText themeColor="textSecondary">
         Start a group drive, share the code, and see everyone on one live map: where they are, how fast they are
         going, and who has fallen behind.
@@ -91,12 +90,12 @@ function StartDrive() {
     <Screen>
       <Hero />
       <Card style={{ gap: Spacing.three }}>
-        <ThemedText style={styles.cardTitle}>Start a drive</ThemedText>
+        <ThemedText type="label" themeColor="textSecondary">Start a drive</ThemedText>
         <TextField placeholder="Sunday canyon run" value={name} onChangeText={setName} maxLength={60} error={error.create} />
         <Button label="Create group drive" onPress={onCreate} loading={busy === 'create'} disabled={busy !== null} />
       </Card>
       <Card style={{ gap: Spacing.three }}>
-        <ThemedText style={styles.cardTitle}>Join with a code</ThemedText>
+        <ThemedText type="label" themeColor="textSecondary">Got a plate? Join with the code</ThemedText>
         <TextField
           placeholder="ABC123"
           value={code}
@@ -333,10 +332,7 @@ function ActiveDrive() {
             }}
             accessibilityRole="button"
             accessibilityLabel={`Drive code ${drive.code}, tap to copy`}>
-            <Glass style={styles.codePill}>
-              <MaterialCommunityIcons name="content-copy" size={14} color={theme.textSecondary} />
-              <ThemedText style={styles.codeText}>{drive.code}</ThemedText>
-            </Glass>
+            <LicensePlate text={drive.code} width={84} top={null} bottom={null} />
           </Pressable>
         </View>
         <ConnectionPill status={status} />
@@ -539,8 +535,8 @@ function MemberRow({
 }
 
 const styles = StyleSheet.create({
-  cardTitle: { fontSize: 18, fontWeight: 700 },
-  codeInput: { fontSize: 24, fontWeight: 800, letterSpacing: 6, textAlign: 'center' },
+  // Typed onto a blank plate.
+  codeInput: { fontFamily: Display.bold, fontSize: 40, letterSpacing: 6, textAlign: 'center', minHeight: 76, backgroundColor: '#F4EFE2', color: '#1B1A17', borderColor: '#1B1A17' },
   header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   clubPill: {
     flexDirection: 'row',
@@ -553,7 +549,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.one,
   },
   code: { alignItems: 'center', paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.md },
-  codeText: { fontSize: 16, fontWeight: 800, letterSpacing: 2, fontVariant: ['tabular-nums'] },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   member: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.two + 2 },
   badge: { paddingHorizontal: Spacing.two, paddingVertical: 2, borderRadius: Radius.pill },
@@ -561,7 +556,6 @@ const styles = StyleSheet.create({
   roster: { position: 'absolute', left: Spacing.two },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, alignSelf: 'stretch' },
   chip: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one + 2, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.pill, flexShrink: 1 },
-  codePill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.pill },
   behind: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.pill },
   sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderBottomWidth: 0 },
   grabber: { alignSelf: 'center', width: 40, height: 5, borderRadius: 3, opacity: 0.4, marginTop: Spacing.two },

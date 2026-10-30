@@ -18,7 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { sideImage } from '@/components/map/vehicle-sprites';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar, Button } from '@/components/ui';
-import { Radius, Spacing } from '@/constants/theme';
+import { Display, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { requestForegroundPermission } from '@/lib/location';
 import { speedBands } from '@/lib/speed-bands';
@@ -41,7 +41,7 @@ export default function Welcome() {
     {
       key: 'track',
       title: 'Every drive,',
-      accent: 'tracked',
+      accent: 'in the logbook',
       body: 'Speed, distance and a route colored by how fast you went. Convoy can even notice when you start driving.',
       art: () => <TrackArt />,
     },
@@ -55,7 +55,7 @@ export default function Welcome() {
     {
       key: 'garage',
       title: 'Your',
-      accent: 'garage',
+      accent: 'shop',
       body: 'Add your cars, pick a paint, and choose the one your friends see you driving.',
       art: () => <GarageArt />,
     },
@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
   top: { height: 44, alignItems: 'flex-end', justifyContent: 'center', paddingHorizontal: Spacing.four },
   page: { flex: 1, paddingHorizontal: Spacing.four, justifyContent: 'center', gap: Spacing.five },
   art: { alignItems: 'center', justifyContent: 'center', minHeight: 240 },
-  title: { fontSize: 36, lineHeight: 42, fontWeight: 900, letterSpacing: -0.6 },
+  title: { fontFamily: Display.italic, fontSize: 56, lineHeight: 58 },
   body: { fontSize: 17, lineHeight: 25 },
   locationArt: { width: 132, height: 132, borderRadius: 66, alignItems: 'center', justifyContent: 'center' },
   bottom: { padding: Spacing.four, gap: Spacing.three },

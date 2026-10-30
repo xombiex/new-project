@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Leaderboard } from '@/components/leaderboard';
 import { OnlineDot } from '@/components/online-status';
 import { ThemedText } from '@/components/themed-text';
+import { ScreenTitle } from '@/components/shop';
 import { Avatar, Button, Card, EmptyState, Screen, SectionTitle, Skeleton, TextField } from '@/components/ui';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -89,7 +90,7 @@ export default function FriendsScreen() {
         contentContainerStyle={{ padding: Spacing.three, paddingBottom: BottomTabInset + Spacing.four, gap: Spacing.three }}
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} />}>
-        <ThemedText type="subtitle">Friends</ThemedText>
+        <ScreenTitle kicker={friends.length ? `${friends.length} in your crew` : 'Your crew'} title="Friends" />
 
         <Card style={{ gap: Spacing.two }}>
           <View style={styles.row}>
@@ -188,7 +189,7 @@ export default function FriendsScreen() {
             ))}
           </View>
         ) : friends.length === 0 ? (
-          <ThemedText themeColor="textSecondary">No friends yet. Add someone by their username above.</ThemedText>
+          <ThemedText themeColor="textSecondary">No crew yet. Add someone by their username above.</ThemedText>
         ) : (
           <Card style={{ paddingVertical: Spacing.one }}>
             {friends.map((f, i) => (

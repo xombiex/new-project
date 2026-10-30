@@ -4,6 +4,7 @@ import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-rou
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
 
+import { LicensePlate } from '@/components/shop';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar, Button, Card, SectionTitle } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
@@ -154,7 +155,7 @@ export default function ClubScreen() {
                   <ThemedText type="small" themeColor="textSecondary">
                     Club code
                   </ThemedText>
-                  <ThemedText style={{ fontSize: 22, fontWeight: 800, letterSpacing: 2 }}>{club.invite_code}</ThemedText>
+                  <LicensePlate text={club.invite_code} width={132} top={null} bottom={null} style={{ marginTop: Spacing.one }} />
                 </View>
                 <Button label="Copy" variant="secondary" onPress={() => void Clipboard.setStringAsync(club.invite_code)} />
                 <Button

@@ -1,10 +1,10 @@
 import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
 
-import { Fonts, ThemeColor } from '@/constants/theme';
+import { Display, Fonts, ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type ThemedTextProps = TextProps & {
-  type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
+  type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code' | 'display' | 'label';
   themeColor?: ThemeColor;
 };
 
@@ -15,6 +15,20 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
 }
 
 const styles = StyleSheet.create({
+  /** Big italic screen titles */
+  display: {
+    fontFamily: Display.italic,
+    fontSize: 46,
+    lineHeight: 50,
+  },
+  /** Stamped labels: section headings, captions on readouts */
+  label: {
+    fontFamily: Display.semi,
+    fontSize: 15,
+    lineHeight: 18,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
   small: {
     fontSize: 14,
     lineHeight: 20,

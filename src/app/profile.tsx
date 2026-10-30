@@ -6,9 +6,10 @@ import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, Vi
 
 import { LegalLinks } from '@/components/legal-links';
 import { ScoutCard } from '@/components/scout-card';
+import { LicensePlate } from '@/components/shop';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar, Button, Card, SectionTitle, Segmented } from '@/components/ui';
-import { Radius, Spacing } from '@/constants/theme';
+import { Display, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { LATEST_RELEASE, releaseDate } from '@/lib/changelog';
 import { GLOW_PRESETS, type GlowPreset } from '@/lib/glow';
@@ -63,8 +64,10 @@ export default function ProfileScreen() {
         <Card style={styles.row}>
           <Avatar name={profile.display_name} color={profile.avatar_color} size={60} />
           <View style={{ flex: 1 }}>
-            <ThemedText style={{ fontSize: 20, fontWeight: 800 }}>{profile.display_name}</ThemedText>
-            <ThemedText themeColor="textSecondary">@{profile.username}</ThemedText>
+            <ThemedText style={{ fontFamily: Display.italic, fontSize: 30, lineHeight: 34 }} numberOfLines={1}>
+              {profile.display_name}
+            </ThemedText>
+            <LicensePlate text={profile.username} width={112} top={null} bottom={null} style={{ marginTop: Spacing.one }} />
           </View>
           <Button label="Edit" variant="secondary" onPress={() => router.push('/profile-setup')} />
         </Card>

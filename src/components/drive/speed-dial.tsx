@@ -1,13 +1,11 @@
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
+import { Display } from '@/constants/theme';
 import { speedIn, speedUnitLabel, type Units } from '@/lib/geo';
 import { limitMps, type SpeedLimit } from '@/lib/speed-limit';
 
 import { SpeedLimitSign } from './speed-limit-sign';
-
-/** Tall, narrow numerals like a car's cluster display. */
-const CONDENSED = Platform.select({ ios: 'AvenirNextCondensed-Bold', android: 'sans-serif-condensed', default: '"Arial Narrow", "Roboto Condensed", system-ui, sans-serif' });
 
 const SIZE = 104;
 const STROKE = 6;
@@ -119,6 +117,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   faceOver: { backgroundColor: '#45302D' },
-  value: { color: '#FFF4D6', fontFamily: CONDENSED, fontSize: 42, lineHeight: 44, fontWeight: '800', fontVariant: ['tabular-nums'], paddingHorizontal: 6 },
-  unit: { color: '#E9E0C8', fontSize: 13, lineHeight: 15, fontWeight: '500', marginTop: -2 },
+  value: { color: '#FFF4D6', fontFamily: Display.italic, fontSize: 50, lineHeight: 50, fontVariant: ['tabular-nums'], paddingHorizontal: 6 },
+  unit: { color: '#E9E0C8', fontFamily: Display.semi, fontSize: 13, lineHeight: 15, letterSpacing: 1.5, textTransform: 'uppercase', marginTop: -2 },
 });

@@ -3,6 +3,7 @@ import { AppState, Platform } from 'react-native';
 import '@/lib/web-alert';
 
 import * as Notifications from 'expo-notifications';
+import { BarlowCondensed_600SemiBold, BarlowCondensed_700Bold, BarlowCondensed_700Bold_Italic, useFonts } from '@expo-google-fonts/barlow-condensed';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -34,6 +35,8 @@ export default function RootLayout() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
+  // Not waited on: until it lands, text just shows in the system font.
+  useFonts({ BarlowCondensed_600SemiBold, BarlowCondensed_700Bold, BarlowCondensed_700Bold_Italic });
   const { ready, session, profile, profileLoading } = useAuth();
   const segments = useSegments();
   const router = useRouter();

@@ -6,10 +6,11 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { BarChart } from '@/components/bar-chart';
 import { DrivesView } from '@/components/drives-view';
 import { Glass } from '@/components/glass';
+import { DashPlaque, Odometer, ScreenTitle } from '@/components/shop';
 import { ThemedText } from '@/components/themed-text';
 import { UnreadBadge } from '@/components/unread-badge';
 import { Avatar, Button, Card, Screen, SectionTitle, Segmented, Stat } from '@/components/ui';
-import { Radius, Spacing } from '@/constants/theme';
+import { Display, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { evaluate } from '@/lib/achievements';
 import { formatDistance, formatDuration, speedIn, speedUnitLabel } from '@/lib/geo';
@@ -66,6 +67,7 @@ function StatsOverview({ toggle }: { toggle: ReactNode }) {
     // `now` changes every render; the day boundary is all that matters here
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [history, period]);
+  const lifetime = useMemo(() => totals(history), [history]);
   const rec = useMemo(() => records(history), [history]);
   const streak = useMemo(() => streaks(history, now), [history, now]);
   const achievements = useMemo(() => evaluate(history, now), [history, now]);
@@ -74,26 +76,40 @@ function StatsOverview({ toggle }: { toggle: ReactNode }) {
 
   return (
     <Screen>
-      <View style={styles.header}>
-        <ThemedText style={styles.title}>Stats</ThemedText>
-        <Pressable onPress={() => router.push('/profile')} accessibilityRole="button" accessibilityLabel="Profile">
-          {profile ? (
-            <Avatar name={profile.display_name} color={profile.avatar_color} size={44} />
-          ) : (
-            <View style={[styles.avatarFallback, { backgroundColor: theme.backgroundSelected }]}>
-              <MaterialCommunityIcons name="account" size={26} color={theme.textSecondary} />
-            </View>
-          )}
-          <UnreadBadge />
-        </Pressable>
-      </View>
+      <ScreenTitle
+        kicker="The logbook"
+        title="Stats"
+        right={
+          <Pressable onPress={() => router.push('/profile')} accessibilityRole="button" accessibilityLabel="Profile">
+            {profile ? (
+              <Avatar name={profile.display_name} color={profile.avatar_color} size={44} />
+            ) : (
+              <View style={[styles.avatarFallback, { backgroundColor: theme.backgroundSelected }]}>
+                <MaterialCommunityIcons name="account" size={26} color={theme.textSecondary} />
+              </View>
+            )}
+            <UnreadBadge />
+          </Pressable>
+        }
+      />
       {toggle}
+
+      {/* Everything you've ever logged, on the one gauge that only goes up. */}
+      <Card style={{ gap: Spacing.two, alignItems: 'center' }}>
+        <ThemedText type="label" themeColor="textSecondary">
+          Lifetime odometer
+        </ThemedText>
+        <Odometer value={lifetime.distanceM / (units === 'imperial' ? 1609.344 : 1000)} unit={units === 'imperial' ? 'mi' : 'km'} />
+        <ThemedText type="small" themeColor="textSecondary">
+          {lifetime.count ? `${lifetime.count} ${lifetime.count === 1 ? 'drive' : 'drives'} in the log` : 'Zero on the clock. Go put some miles on it.'}
+        </ThemedText>
+      </Card>
 
       <Segmented
         options={[
           { value: 'week', label: 'Week' },
-          { value: 'month', label: pro ? 'Month' : 'Month 🔒' },
-          { value: 'year', label: pro ? 'Year' : 'Year 🔒' },
+          { value: 'month', label: pro ? 'Month' : 'Month · Pro' },
+          { value: 'year', label: pro ? 'Year' : 'Year · Pro' },
         ]}
         value={period}
         onChange={setPeriod}
@@ -102,7 +118,7 @@ function StatsOverview({ toggle }: { toggle: ReactNode }) {
       {locked ? (
         <Card style={{ alignItems: 'center', gap: Spacing.two, paddingVertical: Spacing.five }}>
           <MaterialCommunityIcons name="chart-timeline-variant-shimmer" size={36} color={theme.speed} />
-          <ThemedText style={{ fontSize: 18, fontWeight: 700 }}>Monthly & yearly stats are Pro</ThemedText>
+          <ThemedText style={{ fontFamily: Display.italic, fontSize: 28, lineHeight: 32, textAlign: 'center' }}>Monthly & yearly stats are Pro</ThemedText>
           <ThemedText themeColor="textSecondary" style={{ textAlign: 'center' }}>
             See every month and year at a glance, plus your personal records.
           </ThemedText>
@@ -111,7 +127,7 @@ function StatsOverview({ toggle }: { toggle: ReactNode }) {
       ) : (
         <Card style={{ gap: Spacing.three }}>
           <View>
-            <ThemedText type="small" themeColor="textSecondary">
+            <ThemedText type="label" themeColor="textSecondary">
               This {PERIOD_NOUN[period]}
             </ThemedText>
             <View style={styles.bigRow}>
@@ -148,29 +164,29 @@ function StatsOverview({ toggle }: { toggle: ReactNode }) {
 
       <View style={{ flexDirection: 'row', gap: Spacing.three }}>
         <Card style={styles.streak}>
-          <MaterialCommunityIcons name="fire" size={26} color={streak.current > 0 ? theme.speed : theme.textSecondary} />
+          <MaterialCommunityIcons name="fire" size={26} color={streak.current > 0 ? theme.accent : theme.textSecondary} />
           <ThemedText style={styles.streakValue}>{streak.current}</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            day streak
+          <ThemedText type="label" themeColor="textSecondary">
+            Day streak
           </ThemedText>
         </Card>
         <Card style={styles.streak}>
-          <MaterialCommunityIcons name="trophy-outline" size={26} color={theme.accent} />
+          <MaterialCommunityIcons name="trophy-outline" size={26} color={theme.textSecondary} />
           <ThemedText style={styles.streakValue}>{streak.best}</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            best streak
+          <ThemedText type="label" themeColor="textSecondary">
+            Best streak
           </ThemedText>
         </Card>
         <Card style={styles.streak}>
-          <MaterialCommunityIcons name="map-marker-multiple-outline" size={26} color={theme.success} />
+          <MaterialCommunityIcons name="map-marker-multiple-outline" size={26} color={theme.textSecondary} />
           <ThemedText style={styles.streakValue}>{places}</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            places
+          <ThemedText type="label" themeColor="textSecondary">
+            Places
           </ThemedText>
         </Card>
       </View>
 
-      <SectionTitle>Personal records</SectionTitle>
+      <SectionTitle>Personal bests</SectionTitle>
       {pro ? (
         <Card style={{ paddingVertical: Spacing.one }}>
           {[
@@ -204,7 +220,7 @@ function StatsOverview({ toggle }: { toggle: ReactNode }) {
                   </ThemedText>
                 ) : null}
               </View>
-              <ThemedText style={{ fontWeight: 800, fontSize: 17 }}>{(value as string | null) ?? '—'}</ThemedText>
+              <ThemedText style={{ fontFamily: Display.italic, fontSize: 24, lineHeight: 28 }}>{(value as string | null) ?? '—'}</ThemedText>
             </Pressable>
           ))}
         </Card>
@@ -218,33 +234,10 @@ function StatsOverview({ toggle }: { toggle: ReactNode }) {
         </Pressable>
       )}
 
-      <SectionTitle>{`Achievements · ${earned}/${achievements.length}`}</SectionTitle>
+      <SectionTitle>{`Dash plaques · ${earned}/${achievements.length}`}</SectionTitle>
       <View style={styles.grid}>
         {achievements.map((a) => (
-          <Card key={a.id} style={styles.badge}>
-            <View
-              style={[
-                styles.badgeIcon,
-                { backgroundColor: a.earned ? theme.speed : theme.backgroundSelected },
-              ]}>
-              <MaterialCommunityIcons
-                name={a.icon as 'fire'}
-                size={24}
-                color={a.earned ? '#fff' : theme.textSecondary}
-              />
-            </View>
-            <ThemedText style={{ fontWeight: 700, textAlign: 'center' }} numberOfLines={1}>
-              {a.title}
-            </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }} numberOfLines={2}>
-              {a.description}
-            </ThemedText>
-            {!a.earned ? (
-              <View style={[styles.progress, { backgroundColor: theme.backgroundSelected }]}>
-                <View style={[styles.progressFill, { width: `${(a.value / a.goal) * 100}%`, backgroundColor: theme.accent }]} />
-              </View>
-            ) : null}
-          </Card>
+          <DashPlaque key={a.id} icon={a.icon} title={a.title} description={a.description} earned={a.earned} progress={a.value / a.goal} />
         ))}
       </View>
     </Screen>
@@ -252,18 +245,12 @@ function StatsOverview({ toggle }: { toggle: ReactNode }) {
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontSize: 34, lineHeight: 40, fontWeight: 800, letterSpacing: -0.5 },
   avatarFallback: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   bigRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, flexWrap: 'wrap' },
-  big: { fontSize: 36, lineHeight: 42, fontWeight: 800, fontVariant: ['tabular-nums'] },
+  big: { fontFamily: Display.italic, fontSize: 56, lineHeight: 60, fontVariant: ['tabular-nums'] },
   delta: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: Spacing.two, paddingVertical: 2, borderRadius: Radius.pill },
   streak: { flex: 1, alignItems: 'center', gap: Spacing.half },
-  streakValue: { fontSize: 28, lineHeight: 34, fontWeight: 800 },
+  streakValue: { fontFamily: Display.italic, fontSize: 40, lineHeight: 44 },
   record: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.three },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three },
-  badge: { width: '47%', flexGrow: 1, alignItems: 'center', gap: Spacing.one },
-  badgeIcon: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.one },
-  progress: { alignSelf: 'stretch', height: 4, borderRadius: 2, overflow: 'hidden', marginTop: Spacing.one },
-  progressFill: { height: '100%' },
 });

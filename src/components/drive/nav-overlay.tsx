@@ -4,7 +4,7 @@ import { useEffect, type ReactNode } from 'react';
 import Animated, { cancelAnimation, FadeIn, FadeInDown, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming, ZoomIn } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
-import { Radius, Spacing } from '@/constants/theme';
+import { Display, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { GasStop } from '@/lib/gas-along';
 import { formatDistance, formatEta, type Units } from '@/lib/geo';
@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
   footer: { flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch', gap: Spacing.two + 2 },
   share: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4, alignSelf: 'flex-start' },
   liveDot: { width: 8, height: 8, borderRadius: 4 },
-  eta: { fontSize: 30, lineHeight: 36, fontWeight: 800, fontVariant: ['tabular-nums'] },
+  eta: { fontFamily: Display.italic, fontSize: 38, lineHeight: 40, fontVariant: ['tabular-nums'] },
   roundBtn: { width: 48, height: 48, borderRadius: 24, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   endBtn: { borderWidth: 0 },
   chooserHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },

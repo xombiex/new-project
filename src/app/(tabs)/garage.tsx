@@ -5,11 +5,12 @@ import { Alert, Image, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { CarCard } from '@/components/car-card';
+import { ScreenTitle } from '@/components/shop';
 import { sideImage } from '@/components/map/vehicle-sprites';
 import { ThemedText } from '@/components/themed-text';
 import { UnreadBadge } from '@/components/unread-badge';
 import { Avatar, Button, Card, Screen, Skeleton } from '@/components/ui';
-import { BottomTabInset, Radius, Spacing } from '@/constants/theme';
+import { BottomTabInset, Display, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/store/auth';
 import { useGarage, type Car } from '@/store/garage';
@@ -63,24 +64,27 @@ export default function GarageTab() {
 
   return (
     <Screen>
-      <View style={styles.header}>
-        <ThemedText style={styles.title}>Garage</ThemedText>
-        <Pressable onPress={() => router.push('/profile')} accessibilityRole="button" accessibilityLabel="Profile">
-          {profile ? (
-            <Avatar name={profile.display_name} color={profile.avatar_color} size={44} />
-          ) : (
-            <View style={[styles.avatarFallback, { backgroundColor: theme.backgroundSelected }]}>
-              <MaterialCommunityIcons name="account" size={26} color={theme.textSecondary} />
-            </View>
-          )}
-          <UnreadBadge />
-        </Pressable>
-      </View>
+      <ScreenTitle
+        kicker={profile && cars.length ? `${cars.length} ${cars.length === 1 ? 'car' : 'cars'} in the shop` : 'Your shop'}
+        title="Garage"
+        right={
+          <Pressable onPress={() => router.push('/profile')} accessibilityRole="button" accessibilityLabel="Profile">
+            {profile ? (
+              <Avatar name={profile.display_name} color={profile.avatar_color} size={44} />
+            ) : (
+              <View style={[styles.avatarFallback, { backgroundColor: theme.backgroundSelected }]}>
+                <MaterialCommunityIcons name="account" size={26} color={theme.textSecondary} />
+              </View>
+            )}
+            <UnreadBadge />
+          </Pressable>
+        }
+      />
 
       {!profile ? (
         <Card style={{ gap: Spacing.three, alignItems: 'center' }}>
           <Image source={sideImage('sport', 'red')} style={styles.teaser} resizeMode="contain" />
-          <ThemedText type="subtitle" style={{ textAlign: 'center' }}>
+          <ThemedText style={{ fontFamily: Display.italic, fontSize: 34, lineHeight: 38, textAlign: 'center' }}>
             All your cars in one garage
           </ThemedText>
           <ThemedText themeColor="textSecondary" style={{ textAlign: 'center' }}>
@@ -92,7 +96,7 @@ export default function GarageTab() {
         <>
           {loaded && cars.length === 0 ? (
             <ThemedText themeColor="textSecondary">
-              Your garage is empty. Add your first car and it becomes the one friends see you driving.
+              Empty shop. Every good garage starts with one car, and your first one is what friends see you driving.
             </ThemedText>
           ) : null}
 
@@ -101,7 +105,7 @@ export default function GarageTab() {
           {cars.map((car, i) => (
             <Animated.View key={car.id} entering={FadeInDown.delay(i * 70).duration(300)}>
               <Pressable onPress={() => openMenu(car)} onLongPress={() => openMenu(car)} style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.98 : 1 }] })}>
-                <CarCard car={car} primary={profile.primary_car_id === car.id} onMenu={() => openMenu(car)} />
+                <CarCard car={car} bay={i + 1} primary={profile.primary_car_id === car.id} onMenu={() => openMenu(car)} />
               </Pressable>
             </Animated.View>
           ))}
@@ -110,14 +114,19 @@ export default function GarageTab() {
             onPress={() => (full ? router.push('/paywall') : router.push({ pathname: '/car/[id]', params: { id: 'new' } }))}
             accessibilityRole="button"
             style={[styles.add, { borderColor: theme.border }]}>
-            <MaterialCommunityIcons name={full ? 'lock-outline' : 'plus'} size={22} color={theme.accent} />
-            <ThemedText style={{ color: theme.accent, fontWeight: 700 }}>
-              {full ? 'Unlimited cars with Convoy Pro' : 'Add a car'}
+            <ThemedText type="label" themeColor="textSecondary">
+              {full ? 'Shop’s full' : `Bay ${cars.length + 1} · open`}
             </ThemedText>
+            <View style={styles.addRow}>
+              <MaterialCommunityIcons name={full ? 'lock-outline' : 'plus'} size={22} color={theme.accent} />
+              <ThemedText style={{ color: theme.accent, fontFamily: Display.bold, fontSize: 21, lineHeight: 24, letterSpacing: 0.6, textTransform: 'uppercase' }}>
+                {full ? 'More bays with Convoy Pro' : 'Add a car'}
+              </ThemedText>
+            </View>
           </Pressable>
           {!pro ? (
             <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
-              {cars.length}/{FREE_CARS} cars on the free plan
+              {cars.length} of {FREE_CARS} bays filled on the free plan
             </ThemedText>
           ) : null}
         </>
@@ -128,18 +137,17 @@ export default function GarageTab() {
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontSize: 34, lineHeight: 40, fontWeight: 800, letterSpacing: -0.5 },
   avatarFallback: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   teaser: { width: '100%', aspectRatio: 2 },
+  // Painted parking lines: an empty bay waiting for a car.
   add: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.two,
-    paddingVertical: Spacing.four,
+    gap: Spacing.one,
+    paddingVertical: Spacing.five,
     borderRadius: Radius.lg,
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderStyle: 'dashed',
   },
+  addRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
 });

@@ -9,40 +9,40 @@ import { Platform } from 'react-native';
 
 export const Colors = {
   light: {
-    text: '#0A0A0B',
-    background: '#F2F3F5',
-    backgroundElement: '#FFFFFF',
-    backgroundSelected: '#EBEDF0',
-    textSecondary: '#6B7280',
-    border: 'rgba(10,10,11,0.08)',
-    accent: '#0A84FF',
+    text: '#1A1814',
+    background: '#F3F0E8',
+    backgroundElement: '#FFFDF8',
+    backgroundSelected: '#E9E5DA',
+    textSecondary: '#6E695C',
+    border: 'rgba(26,24,20,0.10)',
+    accent: '#D9500A',
     accentText: '#FFFFFF',
-    success: '#16A34A',
-    warning: '#D97706',
-    danger: '#E5372B',
-    speed: '#F07A0A',
-    chip: 'rgba(255,255,255,0.75)',
+    success: '#15803D',
+    warning: '#B45309',
+    danger: '#D92D20',
+    speed: '#D9500A',
+    chip: 'rgba(255,253,248,0.8)',
     /** tint laid over the blurred map for floating panels */
-    glass: 'rgba(255,255,255,0.62)',
+    glass: 'rgba(255,253,248,0.7)',
   },
   dark: {
-    text: '#FFFFFF',
-    background: '#000000',
-    backgroundElement: '#111214',
-    backgroundSelected: '#1C1D21',
-    textSecondary: '#A1A1AA',
-    border: '#232428',
-    accent: '#1E9BFF',
+    text: '#F6F2E9',
+    background: '#0D0C0A',
+    backgroundElement: '#181714',
+    backgroundSelected: '#24221E',
+    textSecondary: '#A9A497',
+    border: '#2E2B26',
+    accent: '#F0600F',
     accentText: '#FFFFFF',
-    success: '#30D158',
-    warning: '#FF9F0A',
-    danger: '#FF453A',
+    success: '#4CCB6E',
+    warning: '#F5A524',
+    danger: '#FF4D3D',
     /** speed figures (top speed, speedometer accents) */
-    speed: '#FFA630',
+    speed: '#F0600F',
     /** unselected filter chips */
-    chip: '#17181B',
+    chip: '#1D1B18',
     /** tint laid over the blurred map for floating panels */
-    glass: 'rgba(17,18,20,0.78)',
+    glass: 'rgba(24,23,20,0.82)',
   },
 } as const;
 
@@ -77,6 +77,17 @@ export const Fonts = Platform.select({
     mono: 'var(--font-mono)',
   },
 });
+
+/**
+ * Barlow Condensed: drawn after California license plates, highway signs and buses. The italic is
+ * for big readouts and titles, upright for buttons and stamped labels. Body text stays the system
+ * font. Set no fontWeight with these: the weight is in the family name.
+ */
+export const Display = {
+  italic: 'BarlowCondensed_700Bold_Italic',
+  bold: 'BarlowCondensed_700Bold',
+  semi: 'BarlowCondensed_600SemiBold',
+} as const;
 
 export const Spacing = {
   half: 2,

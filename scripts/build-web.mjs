@@ -18,8 +18,8 @@ copyFileSync('node_modules/maplibre-gl/dist/maplibre-gl.css', 'dist/vendor/mapli
 const HEAD = [
   '<link rel="manifest" href="/manifest.webmanifest" />',
   '<link rel="apple-touch-icon" href="/apple-touch-icon.png" />',
-  '<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />',
-  '<meta name="theme-color" media="(prefers-color-scheme: light)" content="#F2F3F5" />',
+  '<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0D0C0A" />',
+  '<meta name="theme-color" media="(prefers-color-scheme: light)" content="#F3F0E8" />',
   '<meta name="mobile-web-app-capable" content="yes" />',
   '<meta name="apple-mobile-web-app-capable" content="yes" />',
   '<meta name="apple-mobile-web-app-status-bar-style" content="black" />',
@@ -27,8 +27,8 @@ const HEAD = [
   // Pin the app to the whole screen and paint behind it in the app's colors, so no strip of
   // white shows at the edges; stop the page itself from rubber-banding or zooming on double tap.
   `<style>
-    html, body { background: #F2F3F5; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
-    @media (prefers-color-scheme: dark) { html, body { background: #000; } }
+    html, body { background: #F3F0E8; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+    @media (prefers-color-scheme: dark) { html, body { background: #0D0C0A; } }
     body { touch-action: manipulation; -webkit-text-size-adjust: 100%; }
     #root { position: fixed; inset: 0; height: auto; }
   </style>`,

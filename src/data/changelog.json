@@ -4,8 +4,28 @@
     {
       "id": "2026-10-30",
       "date": "2026-10-30",
-      "title": "A map that faces the way you're going",
+      "title": "Convoy got some character",
       "items": [
+        {
+          "icon": "speedometer",
+          "title": "A new look",
+          "text": "New gauge-style numbers, license-plate type and warm shop colors all through the app."
+        },
+        {
+          "icon": "counter",
+          "title": "Lifetime odometer",
+          "text": "Every mile you've logged, rolling on real-looking drums at the top of Stats."
+        },
+        {
+          "icon": "garage-variant",
+          "title": "Garage bays",
+          "text": "Cars now park in numbered bays, your daily driver is marked, and an open bay waits for the next one."
+        },
+        {
+          "icon": "card-text-outline",
+          "title": "Plates and plaques",
+          "text": "Convoy codes and usernames are license plates, and achievements are car-show dash plaques."
+        },
         {
           "icon": "navigation-variant",
           "title": "Follows your direction",

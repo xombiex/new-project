@@ -40,6 +40,7 @@ import { averageSpeedMps } from '@/lib/trip-recorder';
 import { vehicleIcon } from '@/lib/vehicles';
 import { gasAlong, type GasStop } from '@/lib/gas-along';
 import { NWS_COLOR, nwsIcon, type NwsAlert } from '@/lib/nws-alerts';
+import { driveKicker } from '@/lib/drive-kicker';
 import { describeAlert, WEATHER_ICON } from '@/lib/weather';
 import { useAuth } from '@/store/auth';
 import { useCameras } from '@/store/cameras';
@@ -323,7 +324,7 @@ export default function DriveScreen() {
 
   const elapsed = active ? (now - active.startedAt) / 1000 : 0;
   const placeOpen = !navigating && Boolean(nav.destination);
-  const panelHeight = navigating ? (choosing || gas ? 330 : 128) : placeOpen ? 400 : active ? 330 : 270;
+  const panelHeight = navigating ? (choosing || gas ? 330 : 128) : placeOpen ? 400 : active ? 376 : 316;
   // Map faces the way you're travelling and holds that at a stop. Until you've first moved, the
   // compass (web) points it. Never the compass while driving: a mounted phone isn't facing the road.
   const compass = useCompassHeading();
@@ -614,6 +615,12 @@ export default function DriveScreen() {
             <NavFooter units={units} onEnd={nav.clear} onRoutes={() => void openRoutes()} onGas={() => void openGas()} onShare={() => void shareEta()} />
           )
         ) : (
+          <>
+          {active ? null : (
+            <ThemedText type="label" themeColor="textSecondary" numberOfLines={1}>
+              {driveKicker(new Date(now))}
+            </ThemedText>
+          )}
           <Speedometer
             sample={lastSample}
             units={units}
@@ -622,6 +629,7 @@ export default function DriveScreen() {
             street={active ? road.name : null}
             limitSign={speedLimit ? <SpeedLimitSign limit={speedLimit} units={units} speedMps={stale ? null : (lastSample?.speed ?? null)} variant={themeVariant} compact /> : null}
           />
+          </>
         )}
 
         {placeOpen || navigating ? null : active ? (

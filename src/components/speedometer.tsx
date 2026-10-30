@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Radius, Spacing } from '@/constants/theme';
+import { Display, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { speedIn, speedUnitLabel, type Units } from '@/lib/geo';
 import { isAccurate, reportedSpeed, type LocationSample } from '@/lib/trip-recorder';
@@ -60,8 +60,8 @@ export function Speedometer({ sample, units, stale, speeding, street, limitSign 
 
 const styles = StyleSheet.create({
   wrap: { alignItems: 'center' },
-  speed: { fontSize: 84, lineHeight: 88, fontWeight: 800, fontVariant: ['tabular-nums'], letterSpacing: -2 },
-  unit: { fontSize: 16, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, marginTop: -4 },
+  speed: { fontFamily: Display.italic, fontSize: 116, lineHeight: 112, fontVariant: ['tabular-nums'] },
+  unit: { fontFamily: Display.semi, fontSize: 17, lineHeight: 20, textTransform: 'uppercase', letterSpacing: 2.5, marginTop: -6 },
   gps: {
     marginTop: Spacing.two,
     flexDirection: 'row',

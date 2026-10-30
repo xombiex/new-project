@@ -1,15 +1,15 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { sideImage } from '@/components/map/vehicle-sprites';
 import { ThemedText } from '@/components/themed-text';
-import { Radius, Spacing } from '@/constants/theme';
+import { Display, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { specLine } from '@/lib/car-specs';
 import type { Car } from '@/store/garage';
 
-/** A garage card: name and year up top, a showroom render of the car below. */
-export function CarCard({ car, primary, onMenu }: { car: Car; primary?: boolean; onMenu?: () => void }) {
+/** A garage bay: name and year up top, the car parked on the shop floor with its bay number painted behind it. */
+export function CarCard({ car, bay, primary, onMenu }: { car: Car; bay?: number; primary?: boolean; onMenu?: () => void }) {
   const theme = useTheme();
   const title = `${car.make} ${car.model}`;
   const subtitle = [car.year, car.nickname ? `“${car.nickname}”` : null].filter(Boolean).join(' · ');
@@ -26,7 +26,7 @@ export function CarCard({ car, primary, onMenu }: { car: Car; primary?: boolean;
             </ThemedText>
           ) : null}
           {specLine(car.specs) ? (
-            <ThemedText type="smallBold" style={{ color: theme.accent, marginTop: 2 }} numberOfLines={1}>
+            <ThemedText type="label" style={{ color: theme.accent, marginTop: 2 }} numberOfLines={1}>
               {specLine(car.specs)}
             </ThemedText>
           ) : null}
@@ -38,14 +38,19 @@ export function CarCard({ car, primary, onMenu }: { car: Car; primary?: boolean;
         ) : null}
       </View>
       <View style={styles.stage}>
-        {/* A soft spotlight on the floor under the car. */}
+        {/* The floor: painted bay lines and number, and the car parked over them. */}
         <View style={[styles.floor, { backgroundColor: theme.backgroundSelected }]} />
+        {bay != null ? (
+          <Text style={[styles.bayNumber, { color: theme.textSecondary }]} accessibilityElementsHidden importantForAccessibility="no">
+            {String(bay).padStart(2, '0')}
+          </Text>
+        ) : null}
         <Image source={sideImage(car.body, car.paint)} style={styles.car} resizeMode="contain" accessibilityLabel={title} />
         {primary ? (
           <View style={[styles.badge, { backgroundColor: theme.accent }]}>
-            <MaterialCommunityIcons name="map-marker" size={12} color="#fff" />
-            <ThemedText type="small" style={styles.badgeText}>
-              On the map
+            <MaterialCommunityIcons name="key-variant" size={13} color="#fff" />
+            <ThemedText type="label" style={styles.badgeText}>
+              Daily · on the map
             </ThemedText>
           </View>
         ) : null}
@@ -57,9 +62,10 @@ export function CarCard({ car, primary, onMenu }: { car: Car; primary?: boolean;
 const styles = StyleSheet.create({
   card: { borderRadius: Radius.lg, borderWidth: 1, paddingTop: Spacing.three, overflow: 'hidden' },
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two, paddingHorizontal: Spacing.three },
-  title: { fontSize: 18, fontWeight: 800 },
+  title: { fontFamily: Display.italic, fontSize: 30, lineHeight: 34 },
   stage: { alignItems: 'center', justifyContent: 'flex-end', marginTop: -Spacing.two },
-  floor: { position: 'absolute', bottom: Spacing.three + 4, width: '58%', height: 14, borderRadius: 999, opacity: 0.35 },
+  floor: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '38%', opacity: 0.55 },
+  bayNumber: { position: 'absolute', right: Spacing.three, bottom: Spacing.one, fontFamily: Display.italic, fontSize: 64, lineHeight: 68, opacity: 0.22 },
   car: { width: '100%', aspectRatio: 2 },
   badge: {
     position: 'absolute',
@@ -72,5 +78,5 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 999,
   },
-  badgeText: { color: '#fff', fontWeight: 700 },
+  badgeText: { color: '#fff', fontSize: 13, lineHeight: 16 },
 });

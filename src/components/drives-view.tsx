@@ -10,7 +10,7 @@ import { RouteThumbnail } from '@/components/route-thumbnail';
 import { ThemedText } from '@/components/themed-text';
 import { UnreadBadge } from '@/components/unread-badge';
 import { Avatar } from '@/components/ui';
-import { BottomTabInset, Radius, Spacing } from '@/constants/theme';
+import { BottomTabInset, Display, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDistance, formatDuration, speedIn, speedUnitLabel, type LngLat } from '@/lib/geo';
 import { formatClock, formatDayOrdinal } from '@/lib/time';
@@ -175,7 +175,7 @@ export function DrivesView({ toggle }: { toggle: ReactNode }) {
         {history.length === 0 ? (
           <View style={styles.empty}>
             <ThemedText themeColor="textSecondary" style={styles.emptyText}>
-              You haven&apos;t done any trips yet, start driving
+              Nothing in the logbook yet. Go for a drive.
             </ThemedText>
           </View>
         ) : (
@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.four,
   },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.four, gap: Spacing.three },
-  title: { fontSize: 34, lineHeight: 40, fontWeight: 800, letterSpacing: -0.5 },
+  title: { fontFamily: Display.italic, fontSize: 40, lineHeight: 44 },
   avatarFallback: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
   chipScroll: { flexGrow: 0, flexShrink: 0, height: 40 + Spacing.three * 2 },
   chips: { gap: Spacing.two, paddingHorizontal: Spacing.three, alignItems: 'center' },

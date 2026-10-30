@@ -4,6 +4,7 @@ import { type ComponentProps } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Display } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
@@ -43,7 +44,8 @@ function TabButton({ label, icon, iconFocused, isFocused, style, ref, ...rest }:
   const color = isFocused ? theme.accent : theme.textSecondary;
   return (
     <Pressable ref={ref as never} {...rest} accessibilityRole="tab" accessibilityLabel={label} style={styles.button}>
-      <View style={[styles.pill, isFocused && { backgroundColor: theme.backgroundSelected }]}>
+      <View style={[styles.tick, isFocused && { backgroundColor: theme.accent }]} />
+      <View style={styles.pill}>
         <MaterialCommunityIcons name={isFocused ? iconFocused : icon} size={24} color={color} />
       </View>
       <Text style={[styles.label, { color }]}>{label}</Text>
@@ -60,6 +62,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   button: { flex: 1, maxWidth: 120, alignItems: 'center', gap: 2, cursor: 'pointer' } as never,
-  pill: { width: 56, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  label: { fontSize: 11, fontWeight: '600' },
+  tick: { width: 28, height: 3, borderRadius: 2, marginTop: -6, marginBottom: 2 },
+  pill: { width: 56, height: 30, alignItems: 'center', justifyContent: 'center' },
+  label: { fontFamily: Display.semi, fontSize: 13, letterSpacing: 0.8, textTransform: 'uppercase' },
 });

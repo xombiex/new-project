@@ -4,7 +4,7 @@ import { ActivityIndicator, type DimensionValue, Pressable, type PressableProps,
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { BottomTabInset, Radius, Spacing } from '@/constants/theme';
+import { BottomTabInset, Display, Radius, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -147,7 +147,7 @@ export function Stat({ label, value, color }: { label: string; value: string; co
       <ThemedText style={[styles.statValue, color ? { color } : null]} numberOfLines={1} adjustsFontSizeToFit>
         {value}
       </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary">
+      <ThemedText type="label" themeColor="textSecondary" numberOfLines={1}>
         {label}
       </ThemedText>
     </View>
@@ -157,7 +157,7 @@ export function Stat({ label, value, color }: { label: string; value: string; co
 export function SectionTitle({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
     <View style={styles.sectionTitle}>
-      <ThemedText type="smallBold" themeColor="textSecondary" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
+      <ThemedText type="label" themeColor="textSecondary">
         {children}
       </ThemedText>
       {action}
@@ -168,7 +168,7 @@ export function SectionTitle({ children, action }: { children: ReactNode; action
 export function EmptyState({ title, body, children }: { title: string; body: string; children?: ReactNode }) {
   return (
     <Card style={{ alignItems: 'center', gap: Spacing.two, paddingVertical: Spacing.five }}>
-      <ThemedText style={{ fontSize: 18, fontWeight: 700 }}>{title}</ThemedText>
+      <ThemedText style={{ fontFamily: Display.italic, fontSize: 28, lineHeight: 32, textAlign: 'center' }}>{title}</ThemedText>
       <ThemedText themeColor="textSecondary" style={{ textAlign: 'center' }}>
         {body}
       </ThemedText>
@@ -209,7 +209,7 @@ export function Segmented<T extends string>({
             accessibilityState={{ selected }}
             onPress={() => onChange(o.value)}
             style={[styles.segment, selected && { backgroundColor: theme.backgroundElement }]}>
-            <ThemedText type="smallBold" themeColor={selected ? 'text' : 'textSecondary'}>
+            <ThemedText type="label" themeColor={selected ? 'text' : 'textSecondary'}>
               {o.label}
             </ThemedText>
           </Pressable>
@@ -247,8 +247,8 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   buttonLg: { minHeight: 60, borderRadius: Radius.lg },
-  buttonLabel: { fontSize: 16, fontWeight: 700 },
-  buttonLabelLg: { fontSize: 18 },
+  buttonLabel: { fontFamily: Display.bold, fontSize: 19, lineHeight: 22, letterSpacing: 0.6, textTransform: 'uppercase' },
+  buttonLabelLg: { fontSize: 23, lineHeight: 26 },
   input: {
     minHeight: 50,
     borderRadius: Radius.md,
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   },
   avatar: { alignItems: 'center', justifyContent: 'center' },
   stat: { flex: 1, alignItems: 'center', gap: Spacing.half },
-  statValue: { fontSize: 20, fontWeight: 700, fontVariant: ['tabular-nums'] },
+  statValue: { fontFamily: Display.italic, fontSize: 30, lineHeight: 34, fontVariant: ['tabular-nums'] },
   sectionTitle: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Spacing.two },
   segmented: { flexDirection: 'row', borderRadius: Radius.md, padding: 3 },
   segment: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.md - 3 },
