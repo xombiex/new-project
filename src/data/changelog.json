@@ -7,6 +7,16 @@
       "title": "Convoy got some character",
       "items": [
         {
+          "icon": "car-sports",
+          "title": "All-new low-poly cars",
+          "text": "Every car on the map and in the garage was rebuilt: chunky, faceted and full of character."
+        },
+        {
+          "icon": "image-outline",
+          "title": "Real photos in the garage",
+          "text": "Your cars now show a real photo of that make and model, with the car you drive on the map parked in the corner."
+        },
+        {
           "icon": "speedometer",
           "title": "A new look",
           "text": "New gauge-style numbers, license-plate type and warm shop colors all through the app."

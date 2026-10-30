@@ -31,4 +31,4 @@ createServer((req, res) => {
     return;
   }
   res.writeHead(404).end();
-}).listen(8093, () => console.log('vehicle sprite renderer on http://localhost:8093'));
+}).listen(8093, '127.0.0.1', () => console.log('vehicle sprite renderer on http://localhost:8093'));
