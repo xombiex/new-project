@@ -23,6 +23,7 @@ import { Button, Stat } from '@/components/ui';
 import { BottomTabInset, Radius, Spacing } from '@/constants/theme';
 import { useNwsAlert } from '@/hooks/use-nws-alert';
 import { useRouteWeather } from '@/hooks/use-route-weather';
+import { useTravelHeading } from '@/hooks/use-travel-heading';
 import { useSpeedLimit } from '@/hooks/use-speed-limit';
 import { useTheme } from '@/hooks/use-theme';
 import { CAMERA_COLOR, CAMERA_LABEL, type Camera } from '@/lib/cameras';
@@ -323,10 +324,12 @@ export default function DriveScreen() {
   const elapsed = active ? (now - active.startedAt) / 1000 : 0;
   const placeOpen = !navigating && Boolean(nav.destination);
   const panelHeight = navigating ? (choosing || gas ? 330 : 128) : placeOpen ? 400 : active ? 330 : 270;
-  // Map faces the way you're driving; standing still, the compass (web) takes over.
+  // Map faces the way you're travelling and holds that at a stop. Until you've first moved, the
+  // compass (web) points it. Never the compass while driving: a mounted phone isn't facing the road.
   const compass = useCompassHeading();
+  const travelHeading = useTravelHeading(lastSample);
   const speedNow = !stale && lastSample?.speed != null && lastSample.speed >= 0 ? lastSample.speed : 0;
-  const headingNow = speedNow > 2 && lastSample?.heading != null ? lastSample.heading : (compass ?? lastSample?.heading ?? null);
+  const headingNow = travelHeading ?? compass;
   const followCamera = {
     zoom: followZoom(speedNow, navigating ? (navProgress?.toNextM ?? null) : null),
     pitch: followPitch(navigating, map3d),

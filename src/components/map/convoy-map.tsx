@@ -83,7 +83,8 @@ export function ConvoyMap({
   const camera = useRef<CameraRef>(null);
   // 'course' turns the map to the way you're driving; 'default' keeps north up (compass button).
   const [northUp, setNorthUp] = useState(false);
-  const followMode: TrackUserLocation = northUp || followCamera?.heading === null ? 'default' : 'course';
+  // Only the compass button changes this: a moment without a GPS course mustn't flip the map north.
+  const followMode: TrackUserLocation = northUp ? 'default' : 'course';
   const [tracking, setTracking] = useState<TrackUserLocation | undefined>(follow ? 'course' : undefined);
   const myHeading = useSteadyHeading(me?.heading);
   const cameraData = useMemo(() => cameraFeatures(cameras), [cameras]);

@@ -2,6 +2,18 @@
   "_readme": "Convoy's update log, newest first. Shown once in the app after each update (What's new), on Profile > What's new, and at /updates on the website. Add a release at the top whenever a user-facing change ships. id must be unique and new ids must sort after old ones (use the date, plus -2 for a second release that day). icon is a MaterialCommunityIcons name.",
   "releases": [
     {
+      "id": "2026-10-30",
+      "date": "2026-10-30",
+      "title": "A map that faces the way you're going",
+      "items": [
+        {
+          "icon": "navigation-variant",
+          "title": "Follows your direction",
+          "text": "The map now turns with the direction you're driving and holds steady at stops, instead of following the phone's compass or snapping back to north."
+        }
+      ]
+    },
+    {
       "id": "2026-10-24",
       "date": "2026-10-24",
       "title": "A richer map: hills, radar and weather warnings",
