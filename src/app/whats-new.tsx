@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button, Card, SectionTitle } from '@/components/ui';
-import { Radius, Spacing } from '@/constants/theme';
+import { Display, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { LATEST_RELEASE, RELEASES, releaseDate, type Release } from '@/lib/changelog';
 import { useSettings } from '@/store/settings';
@@ -38,7 +38,7 @@ export default function WhatsNewScreen() {
         <ThemedText type="smallBold" style={{ color: theme.accent, textTransform: 'uppercase', letterSpacing: 0.8 }}>
           {releaseDate(LATEST_RELEASE.date)}
         </ThemedText>
-        <ThemedText style={{ fontSize: 28, lineHeight: 34, fontWeight: 800 }}>{LATEST_RELEASE.title}</ThemedText>
+        <ThemedText style={{ fontFamily: Display.italic, fontSize: 42, lineHeight: 44 }}>{LATEST_RELEASE.title}</ThemedText>
       </View>
 
       <Card style={{ gap: Spacing.three }}>
