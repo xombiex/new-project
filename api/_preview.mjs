@@ -5,6 +5,8 @@
 const SUPABASE_URL = 'https://qdcdveoidmnwqnabfuvd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_hDaXcrVZbq3Dz3iPDDHZhA_xK13buHX'; // public key; only the anon preview functions are called
 
+const LIVERIES = ['taxi', 'police', 'ambulance', 'firetruck', 'garbage'];
+
 export const ACCENT = '#1E9BFF';
 export const DEFAULT = {
   title: 'Convoy · Drive together',
@@ -58,7 +60,7 @@ export async function describe(kind, key) {
           foot: 'Tap to add them on Convoy',
           color: color(p.color),
           initial: name[0]?.toUpperCase() ?? '?',
-          vehicle: /^[a-z]+$/.test(p.vehicle ?? '') && /^[a-z]+$/.test(p.vehicle_color ?? '') ? `${p.vehicle}-${p.vehicle_color}` : 'car-blue',
+          vehicle: /^[a-z]+$/.test(p.vehicle ?? '') && /^[a-z]+$/.test(p.vehicle_color ?? '') ? `${p.vehicle}-${LIVERIES.includes(p.vehicle) ? 'stock' : p.vehicle_color}` : 'car-blue',
         },
       };
     }

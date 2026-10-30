@@ -7,13 +7,14 @@ import { useTheme } from '@/hooks/use-theme';
 import type { CarSpecs } from '@/lib/car-specs';
 
 /** Spec grid for a car: performance up top, then drivetrain, engine and economy. */
-export function SpecSheet({ specs }: { specs: CarSpecs }) {
+export function SpecSheet({ specs, hidePerformance }: { specs: CarSpecs; hidePerformance?: boolean }) {
   const theme = useTheme();
   const custom = new Set(specs.custom ?? []);
+  const estimated = new Set<string>(specs.estimated ?? []);
   const tiles = [
     { key: 'hp', icon: 'engine-outline', label: 'Horsepower', value: specs.hp ? `${specs.hp} hp` : null },
     { key: 'torque', icon: 'rotate-right', label: 'Torque', value: specs.torque ? `${specs.torque} lb-ft` : null },
-    { key: 'zeroToSixty', icon: 'timer-outline', label: '0–60 mph', value: specs.zeroToSixty ? `${specs.zeroToSixty.toFixed(1)} s` : null },
+    { key: 'zeroToSixty', icon: 'timer-outline', label: estimated.has('zeroToSixty') ? '0–60 mph (est.)' : '0–60 mph', value: specs.zeroToSixty ? `${specs.zeroToSixty.toFixed(1)} s` : null },
     { key: 'topSpeedMph', icon: 'speedometer', label: 'Top speed', value: specs.topSpeedMph ? `${specs.topSpeedMph} mph` : null },
   ].filter((t) => t.value);
   const rows = [
@@ -31,7 +32,7 @@ export function SpecSheet({ specs }: { specs: CarSpecs }) {
 
   return (
     <View style={{ gap: Spacing.three }}>
-      {tiles.length ? (
+      {tiles.length && !hidePerformance ? (
         <View style={styles.tiles}>
           {tiles.map((t) => (
             <View key={t.key} style={[styles.tile, { backgroundColor: theme.backgroundElement }]}>

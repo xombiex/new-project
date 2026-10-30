@@ -1,7 +1,7 @@
 // Dev tool: renders the 3D map vehicle sprites (assets/vehicles/*.png) in a browser.
 //   node scripts/vehicle-sprites/server.mjs  →  open http://localhost:8093 and wait for "done"
 import { createServer } from 'node:http';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -13,6 +13,13 @@ createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost');
   if (req.method === 'GET' && url.pathname === '/') {
     res.writeHead(200, { 'Content-Type': 'text/html' }).end(readFileSync(join(here, 'index.html')));
+    return;
+  }
+  // Kenney's Car Kit (CC0), the source models for some of the sprites.
+  if (req.method === 'GET' && url.pathname.startsWith('/kenney/') && !url.pathname.includes('..')) {
+    const file = join(here, url.pathname);
+    if (!existsSync(file)) return res.writeHead(404).end();
+    res.writeHead(200, { 'Content-Type': file.endsWith('.png') ? 'image/png' : 'model/gltf-binary' }).end(readFileSync(file));
     return;
   }
   if (req.method === 'POST' && url.pathname === '/save') {

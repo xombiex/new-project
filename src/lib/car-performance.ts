@@ -182,6 +182,31 @@ const TABLE: Entry[] = [
   ['rivian', /r1t|r1s/i, 2022, 2030, P(835, 908, 3.0)],
 ];
 
+/** Published top speeds (mph) for the cars people ask about; the first match wins. Blank for the rest. */
+const TOP_SPEEDS: [make: string, model: RegExp, mph: number][] = [
+  ['porsche', /911 gt3 rs/i, 184], ['porsche', /911 gt3/i, 197], ['porsche', /911 turbo s/i, 205], ['porsche', /911 turbo/i, 199], ['porsche', /911 carrera (4 )?gts/i, 193], ['porsche', /911 carrera (4)?s/i, 191], ['porsche', /911/i, 182],
+  ['porsche', /cayman gt4|gts 4\.0/i, 188], ['porsche', /718 (cayman|boxster) s/i, 177], ['porsche', /718/i, 170], ['porsche', /taycan turbo s/i, 161], ['porsche', /taycan/i, 155],
+  ['chevrolet', /corvette z06/i, 195], ['chevrolet', /corvette/i, 194], ['chevrolet', /camaro zl1/i, 198], ['chevrolet', /camaro/i, 165],
+  ['ford', /gt500/i, 180], ['ford', /dark horse/i, 170], ['ford', /mach-e/i, 111], ['ford', /mustang/i, 155], ['ford', /focus rs/i, 165], ['ford', /raptor/i, 107],
+  ['dodge', /redeye/i, 203], ['dodge', /hellcat/i, 199], ['dodge', /challenger|charger/i, 175], ['ram', /trx/i, 118], ['jeep', /trackhawk/i, 180],
+  ['tesla', /model s.*plaid/i, 200], ['tesla', /model s/i, 155], ['tesla', /model 3.*performance/i, 162], ['tesla', /model 3.*long range/i, 145], ['tesla', /model 3/i, 140], ['tesla', /model y.*performance/i, 155], ['tesla', /model y/i, 135], ['tesla', /model x.*plaid/i, 163],
+  ['toyota', /supra/i, 155], ['toyota', /86/i, 140], ['toyota', /gr corolla/i, 143], ['lexus', /rc f|lc 500|is 500/i, 168],
+  ['honda', /civic type r/i, 169], ['honda', /civic si/i, 137], ['honda', /s2000/i, 150], ['acura', /nsx/i, 191],
+  ['subaru', /wrx sti/i, 159], ['subaru', /wrx/i, 146], ['subaru', /brz/i, 140], ['mazda', /mx-5|miata/i, 137],
+  ['nissan', /gt-r/i, 196], ['nissan', /370z|^z( |$)/i, 155],
+  ['bmw', /m3 competition|m4 competition/i, 180], ['bmw', /m3|m4/i, 155], ['bmw', /m5/i, 190], ['bmw', /m2/i, 155], ['bmw', /m340i|z4/i, 155],
+  ['mercedes-benz', /amg gt/i, 193], ['mercedes-benz', /amg e ?63/i, 186], ['mercedes-benz', /amg c ?63/i, 174], ['mercedes-benz', /amg g ?63/i, 149],
+  ['audi', /r8/i, 205], ['audi', /rs ?6/i, 190], ['audi', /rs ?3/i, 180], ['audi', /rs ?e-tron gt/i, 155], ['audi', /s4/i, 155],
+  ['volkswagen', /golf r/i, 155], ['volkswagen', /gti/i, 155], ['hyundai', /elantra n|veloster n/i, 155], ['kia', /stinger/i, 167], ['kia', /ev6 gt/i, 161], ['genesis', /g70/i, 167],
+  ['lamborghini', /aventador/i, 217], ['lamborghini', /huracan/i, 202], ['lamborghini', /urus/i, 190], ['ferrari', /f8|sf90/i, 211], ['ferrari', /296|488/i, 205], ['ferrari', /roma/i, 199],
+  ['mclaren', /720s/i, 212], ['mclaren', /570s/i, 204], ['cadillac', /ct5.*blackwing/i, 205], ['cadillac', /ct4.*blackwing/i, 189], ['alfa romeo', /giulia.*quadrifoglio/i, 191],
+];
+
+export function lookupTopSpeed(make: string, model: string): number | undefined {
+  const mk = make.trim().toLowerCase();
+  return TOP_SPEEDS.find(([m, re]) => m === mk && re.test(model))?.[2];
+}
+
 /** Performance for a car, or null if it isn't in the table. Engine details pick the right version (V8 vs four-cylinder). */
 export function lookupPerformance(make: string, model: string, year: number | null, engine?: { cyl?: number; displ?: number }): Performance | null {
   const mk = make.trim().toLowerCase();

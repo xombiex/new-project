@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
@@ -11,6 +11,8 @@ import { Button, Card, TextField } from '@/components/ui';
 import { VehiclePicker } from '@/components/vehicle-picker';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { carFacts } from '@/hooks/use-car-facts';
+import { engineFromLabel } from '@/lib/car-power';
 import { bodyFromText, decodeVin, epaMakes, epaModels, epaTrims, epaVehicle, epaYears, specsFromEpa, type CarSpecs, type MenuItem } from '@/lib/car-specs';
 import { VEHICLES, type Paint, type Vehicle } from '@/lib/vehicles';
 import { useGarage } from '@/store/garage';
@@ -27,6 +29,28 @@ const CUSTOM_FIELDS: [CustomKey, string, string][] = [
 ];
 
 /** Add a car to the garage (id = "new") or edit one. */
+/** A number that follows the car's known value until the owner types over it. */
+function SpecField({ label, unit, value, onChange }: { label: string; unit: string; value: number | undefined; onChange: (text: string) => void }) {
+  const [text, setText] = useState(value != null ? String(value) : '');
+  // Typing "3." must stay "3." rather than snap back to 3; only outside changes rewrite the box.
+  useEffect(() => {
+    if (Number(text.replace(/[^\d.]/g, '')) !== (value ?? 0)) setText(value != null ? String(value) : '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+  return (
+    <TextField
+      label={label}
+      value={text}
+      onChangeText={(t) => {
+        setText(t);
+        onChange(t);
+      }}
+      placeholder={unit}
+      keyboardType="decimal-pad"
+    />
+  );
+}
+
 export default function CarEditor() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();
@@ -58,6 +82,41 @@ export default function CarEditor() {
   const [finderError, setFinderError] = useState<string | null>(null);
 
   const yearNum = year ? Number(year) : null;
+
+  // Fill in the numbers for whichever car this is. Anything the owner typed stays theirs; numbers
+  // we filled for a previous pick get replaced, and saved numbers are never overwritten.
+  const filled = useRef(new Set<CustomKey>());
+  const engineLabel = specs.engine;
+  useEffect(() => {
+    if (make.trim().length < 2 || !model.trim() || (year && year.length < 4)) return;
+    let live = true;
+    const timer = setTimeout(() => {
+      void carFacts(make, model, yearNum, engineFromLabel(engineLabel)).then((facts) => {
+        if (!live) return;
+        setSpecs((s) => {
+          const next: CarSpecs = { ...s };
+          const isFilled = new Set<CustomKey>();
+          for (const [key] of CUSTOM_FIELDS) {
+            if (s.custom?.includes(key)) continue;
+            if (s[key] != null && !filled.current.has(key)) continue;
+            if (facts[key] != null) {
+              next[key] = facts[key];
+              isFilled.add(key);
+            } else delete next[key];
+          }
+          filled.current = isFilled;
+          if (isFilled.has('zeroToSixty') && facts.estimated) next.estimated = facts.estimated;
+          else if (filled.current.has('zeroToSixty') || !s.estimated) delete next.estimated;
+          return next;
+        });
+      });
+    }, 500);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [make, model, year, engineLabel]);
   const yearOk = yearNum === null || (yearNum >= 1886 && yearNum <= new Date().getFullYear() + 2);
   const valid = make.trim().length > 0 && model.trim().length > 0 && yearOk;
 
@@ -109,6 +168,8 @@ export default function CarEditor() {
       setModel(pick.model ?? '');
       setTrim(item.text);
       setSpecs((s) => ({ ...specsFromEpa(v), ...keepCustom(s) }));
+      // A new pick: its numbers come from the lookup below, for this exact engine.
+      filled.current = new Set(CUSTOM_FIELDS.map(([key]) => key));
       suggestBody(bodyFromText(`${pick.make ?? ''} ${pick.model ?? ''} ${v.VClass ?? ''}`));
     } catch (e) {
       setFinderError(e instanceof Error ? e.message : 'Couldn’t load that car');
@@ -142,6 +203,8 @@ export default function CarEditor() {
     setSpecs((s) => {
       const custom = new Set(s.custom ?? []);
       const next: CarSpecs = { ...s };
+      filled.current.delete(key);
+      if (key === 'zeroToSixty') delete next.estimated;
       if (text.trim() && Number.isFinite(n) && n > 0) {
         next[key] = key === 'zeroToSixty' ? Math.round(n * 10) / 10 : Math.round(n);
         custom.add(key);
@@ -160,7 +223,8 @@ export default function CarEditor() {
     const err = await save({ make, model, year: yearNum, nickname, body, paint, trim: trim || null, specs }, existing?.id);
     setBusy(false);
     if (err) setError(err);
-    else router.back();
+    else if (router.canGoBack()) router.back();
+    else router.replace('/garage'); // opened directly: nothing to go back to
   }
 
   const hasSpecs = Object.keys(specs).some((k) => k !== 'custom' && k !== 'epaId');
@@ -212,10 +276,7 @@ export default function CarEditor() {
               {[year, make, model].filter(Boolean).join(' ')}
               {trim ? ` · ${trim}` : ''}
             </ThemedText>
-            <SpecSheet specs={specs} />
-            <ThemedText type="small" themeColor="textSecondary">
-              From the EPA and NHTSA. Horsepower and 0–60 are manufacturer figures for the model and can vary by trim.
-            </ThemedText>
+            <SpecSheet specs={specs} hidePerformance />
           </Animated.View>
         ) : null}
 
@@ -243,23 +304,25 @@ export default function CarEditor() {
           </View>
         </View>
 
-        {/* Modded? Their numbers win over the factory ones. */}
-        <ThemedText type="smallBold" themeColor="textSecondary">
-          Your numbers (modded? enter your build)
+        {/* Filled in from what's known; modded or different? Just type over them. */}
+        <ThemedText type="label" themeColor="textSecondary">
+          Performance
         </ThemedText>
         <View style={styles.grid}>
           {CUSTOM_FIELDS.map(([key, label, unit]) => (
             <View key={key} style={styles.gridItem}>
-              <TextField
-                label={label}
-                value={specs.custom?.includes(key) ? String(specs[key] ?? '') : ''}
-                onChangeText={(t) => setCustom(key, t)}
-                placeholder={specs[key] != null && !specs.custom?.includes(key) ? `${specs[key]} ${unit}` : unit}
-                keyboardType="decimal-pad"
+              <SpecField
+                label={key === 'zeroToSixty' && specs.estimated?.includes('zeroToSixty') ? `${label} (est.)` : label}
+                unit={unit}
+                value={specs[key]}
+                onChange={(t) => setCustom(key, t)}
               />
             </View>
           ))}
         </View>
+        <ThemedText type="small" themeColor="textSecondary">
+          Filled in from official EPA ratings and published figures where we have them. They can vary by trim, and anything can be edited. 0–60 marked est. is worked out from power and weight.
+        </ThemedText>
 
         <ThemedText type="smallBold" themeColor="textSecondary">
           Body and paint

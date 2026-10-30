@@ -8,13 +8,18 @@
       "items": [
         {
           "icon": "car-multiple",
-          "title": "Twice the lineup",
-          "text": "Nine new rides: tuner, muscle, supercar, rally, hot rod, woody wagon, dune buggy, box truck and bus."
+          "title": "Three times the lineup",
+          "text": "29 rides now, from a tuner, hot rod and woody wagon to a police car, fire truck, kart and tractor."
         },
         {
           "icon": "car-sports",
           "title": "All-new low-poly cars",
-          "text": "Every car on the map and in the garage was rebuilt: chunky, faceted and full of character."
+          "text": "Every car on the map and in the garage was rebuilt, many with Kenney’s wonderful Car Kit: chunky, cheerful and full of character."
+        },
+        {
+          "icon": "speedometer",
+          "title": "Specs fill themselves in",
+          "text": "Horsepower, torque, 0–60 and top speed fill in for your car from EPA ratings and published figures. Different numbers? Just type over them."
         },
         {
           "icon": "image-outline",

@@ -31,6 +31,7 @@ function friendly(message: string): string {
   if (message.includes('garage full')) return 'Free garages hold 3 cars. Convoy Pro makes it unlimited.';
   if (message.includes('style pack')) return 'That body style is part of the Style Pack.';
   if (message.includes('violates check constraint')) return 'Make and model need 1–40 characters, and the year must be real.';
+  if (message.includes('row-level security')) return 'You’re signed out. Sign in again to save your car.';
   return message;
 }
 
@@ -77,6 +78,16 @@ export const useGarage = create<GarageState>()((set, get) => ({
   },
 
   save: async (input, id) => {
+    // Demo mode only pretends to be signed in: keep the car on this screen.
+    if (isDemo()) {
+      const uid = useAuth.getState().session?.user.id ?? 'demo';
+      const car: Car = { ...input, id: id ?? `demo-${Date.now()}`, user_id: uid, created_at: new Date().toISOString() };
+      set({ cars: id ? get().cars.map((c) => (c.id === id ? car : c)) : [...get().cars, car] });
+      return null;
+    }
+    // Ask the client, not the app's copy: a session can lapse while the app still looks signed in.
+    const { data: auth } = await supabase.auth.getSession();
+    if (!auth.session) return 'Sign in to save cars to your garage.';
     const row = {
       make: input.make.trim(),
       model: input.model.trim(),

@@ -6,7 +6,7 @@ import { sideImage } from '@/components/map/vehicle-sprites';
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { PAINTS, VEHICLES, type Paint, type Vehicle } from '@/lib/vehicles';
+import { hasLivery, PAINTS, VEHICLES, type Paint, type Vehicle } from '@/lib/vehicles';
 import { useEntitled } from '@/store/pro';
 
 /** 3D garage: pick a model (shown in the chosen paint, exactly as friends see it on the map) and a color. */
@@ -32,6 +32,11 @@ export function VehiclePicker({
         <ThemedText type="smallBold">{VEHICLES.find((v) => v.value === vehicle)?.label}</ThemedText>
       </View>
 
+      {hasLivery(vehicle) ? (
+        <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
+          Comes in its official colors.
+        </ThemedText>
+      ) : (
       <View style={styles.swatches}>
         {PAINTS.map((p) => (
           <Pressable
@@ -44,6 +49,7 @@ export function VehiclePicker({
           />
         ))}
       </View>
+      )}
 
       <View style={styles.grid}>
         {VEHICLES.map((v) => {

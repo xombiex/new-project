@@ -1,11 +1,11 @@
-export type Vehicle = 'car' | 'hatch' | 'sport' | 'tuner' | 'muscle' | 'super' | 'rally' | 'classic' | 'hotrod' | 'wagon' | 'suv' | 'van' | 'pickup' | 'jeep' | 'buggy' | 'truck' | 'bus' | 'moto';
+export type Vehicle = 'car' | 'hatch' | 'sport' | 'tuner' | 'muscle' | 'super' | 'rally' | 'classic' | 'hotrod' | 'wagon' | 'suv' | 'van' | 'pickup' | 'jeep' | 'buggy' | 'truck' | 'flatbed' | 'bus' | 'moto' | 'luxury' | 'taxi' | 'police' | 'ambulance' | 'firetruck' | 'garbage' | 'formula' | 'future' | 'kart' | 'tractor';
 export type Paint = 'blue' | 'red' | 'orange' | 'yellow' | 'green' | 'purple' | 'white' | 'silver' | 'black';
 
 /**
  * The 3D garage. Car and hatchback are free; the rest are part of the Style Pack.
  * `icon` (MaterialCommunityIcons) is a fallback where a sprite can't be shown.
  */
-export const VEHICLES: { value: Vehicle; label: string; icon: string; premium: boolean }[] = [
+export const VEHICLES: { value: Vehicle; label: string; icon: string; premium: boolean; livery?: boolean }[] = [
   { value: 'car', label: 'Sedan', icon: 'car', premium: false },
   { value: 'hatch', label: 'Hatchback', icon: 'car-hatchback', premium: false },
   { value: 'sport', label: 'Sports', icon: 'car-sports', premium: true },
@@ -22,7 +22,19 @@ export const VEHICLES: { value: Vehicle; label: string; icon: string; premium: b
   { value: 'jeep', label: 'Off-road', icon: 'jeepney', premium: true },
   { value: 'buggy', label: 'Dune buggy', icon: 'jeepney', premium: true },
   { value: 'truck', label: 'Box truck', icon: 'truck', premium: true },
+  { value: 'flatbed', label: 'Flatbed', icon: 'tow-truck', premium: true },
   { value: 'bus', label: 'Bus', icon: 'bus', premium: true },
+  { value: 'luxury', label: 'Luxury SUV', icon: 'car-estate', premium: true },
+  { value: 'formula', label: 'Formula', icon: 'go-kart-track', premium: true },
+  { value: 'future', label: 'Future racer', icon: 'go-kart-track', premium: true },
+  { value: 'kart', label: 'Kart', icon: 'go-kart', premium: true },
+  { value: 'tractor', label: 'Tractor', icon: 'tractor', premium: true },
+  // These come in their official colors, so paint doesn't apply.
+  { value: 'taxi', label: 'Taxi', icon: 'taxi', premium: true, livery: true },
+  { value: 'police', label: 'Police', icon: 'car-emergency', premium: true, livery: true },
+  { value: 'ambulance', label: 'Ambulance', icon: 'ambulance', premium: true, livery: true },
+  { value: 'firetruck', label: 'Fire truck', icon: 'fire-truck', premium: true, livery: true },
+  { value: 'garbage', label: 'Garbage truck', icon: 'dump-truck', premium: true, livery: true },
   { value: 'moto', label: 'Motorcycle', icon: 'motorbike', premium: true },
 ];
 
@@ -38,6 +50,11 @@ export const PAINTS: { value: Paint; label: string; hex: string }[] = [
   { value: 'silver', label: 'Silver', hex: '#9AA3AE' },
   { value: 'black', label: 'Black', hex: '#1C1D22' },
 ];
+
+/** Does this vehicle only come in its official colors? */
+export function hasLivery(v: string | null | undefined): boolean {
+  return VEHICLES.some((x) => x.value === v && x.livery);
+}
 
 export function vehicleIcon(v: string | null | undefined): string {
   return VEHICLES.find((x) => x.value === v)?.icon ?? 'car';

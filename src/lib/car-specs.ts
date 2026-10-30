@@ -6,7 +6,7 @@ import type { Vehicle } from '@/lib/vehicles';
  *   - fueleconomy.gov (EPA): every car sold in the US since 1984 — year, make, model, trim,
  *     drivetrain, transmission, engine, fuel, MPG / EV range and size class.
  *   - NHTSA vPIC: decodes a VIN, often including the exact horsepower.
- *   - car-performance.ts: horsepower / torque / 0–60 for popular models where neither has it.
+ *   - car-performance.ts and car-power.ts: horsepower, torque, 0–60 and top speed.
  * The owner can override any number (modded cars).
  */
 const EPA = 'https://www.fueleconomy.gov/ws/rest';
@@ -29,6 +29,8 @@ export type CarSpecs = {
   epaId?: string;
   /** which numbers the owner typed in themselves (shown as "your build") */
   custom?: ('hp' | 'torque' | 'zeroToSixty' | 'topSpeedMph')[];
+  /** which numbers are calculated, not published */
+  estimated?: 'zeroToSixty'[];
 };
 
 export type MenuItem = { text: string; value: string };

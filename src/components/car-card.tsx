@@ -4,8 +4,10 @@ import { Image, Linking, Platform, Pressable, StyleSheet, Text, View } from 'rea
 import { sideImage } from '@/components/map/vehicle-sprites';
 import { ThemedText } from '@/components/themed-text';
 import { Display, Radius, Spacing } from '@/constants/theme';
+import { useCarFacts } from '@/hooks/use-car-facts';
 import { useCarPhoto } from '@/hooks/use-car-photo';
 import { useTheme } from '@/hooks/use-theme';
+import { engineFromLabel } from '@/lib/car-power';
 import { specLine } from '@/lib/car-specs';
 import { SITE_URL } from '@/lib/site';
 import type { Car } from '@/store/garage';
@@ -22,6 +24,8 @@ export function CarCard({ car, bay, primary, onMenu }: { car: Car; bay?: number;
   const title = `${car.make} ${car.model}`;
   const subtitle = [car.year, car.nickname ? `“${car.nickname}”` : null].filter(Boolean).join(' · ');
   const photo = useCarPhoto(car.make, car.model, car.year ?? null);
+  const facts = useCarFacts(car.make, car.model, car.year ?? null, engineFromLabel(car.specs?.engine), !car.specs?.hp);
+  const line = specLine({ ...facts, ...car.specs });
   return (
     <View style={[styles.card, { backgroundColor: theme.backgroundElement, borderColor: primary ? theme.accent : theme.border }]}>
       <View style={styles.head}>
@@ -34,9 +38,9 @@ export function CarCard({ car, bay, primary, onMenu }: { car: Car; bay?: number;
               {subtitle}
             </ThemedText>
           ) : null}
-          {specLine(car.specs) ? (
+          {line ? (
             <ThemedText type="label" style={{ color: theme.accent, marginTop: 2 }} numberOfLines={1}>
-              {specLine(car.specs)}
+              {line}
             </ThemedText>
           ) : null}
         </View>
