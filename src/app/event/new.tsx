@@ -48,8 +48,8 @@ export default function NewEventScreen() {
       setError('Enter a valid price');
       return;
     }
-    if (priceCents > 0 && priceCents < 100) {
-      setError('Paid tickets must be at least $1');
+    if (priceCents > 0 && priceCents < 500) {
+      setError('Paid tickets must be at least $5');
       return;
     }
     setBusy(true);

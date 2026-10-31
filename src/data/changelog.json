@@ -9,7 +9,12 @@
         {
           "icon": "cube-outline",
           "title": "Live 3D cars",
-          "text": "With the Style Pack on the web, real 3D vehicles drive across the map with their own personality: flames, flashing light bars, rumble and lean."
+          "text": "With Pro or the Style Pack on the web, real 3D vehicles drive across the map with their own personality: flames, flashing light bars, rumble and lean."
+        },
+        {
+          "icon": "tag-outline",
+          "title": "New prices",
+          "text": "Paid plans and event tickets now start at $5: Style Pack $5 once, Pro $5 a month or $40 a year, Clubs $15 a month. Joining a drive is still free."
         },
         {
           "icon": "car-multiple",

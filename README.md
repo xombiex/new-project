@@ -22,12 +22,12 @@ Not included: live traffic (no legitimate free source; community reports cover i
 
 ## Money
 
-| Product | Suggested price | RevenueCat entitlement |
+| Product | Price ($5 minimum) | RevenueCat entitlement |
 |---|---|---|
-| Convoy Pro | $3.99 / month or $29.99 / year | `pro` (includes `cosmetics`) |
-| Convoy Clubs | $14.99 / month | `club` (includes `pro`) |
-| Style Pack | $2.99 one-time | `cosmetics` |
-| Event tickets | Set by organizer | Stripe Connect, Convoy keeps `PLATFORM_FEE_PERCENT` (default 5%) |
+| Convoy Pro | $5 / month or $40 / year | `pro` (includes `cosmetics`) |
+| Convoy Clubs | $15 / month | `club` (includes `pro`) |
+| Style Pack | $5 one-time | `cosmetics` |
+| Event tickets | Set by organizer (free or $5+) | Stripe Connect, Convoy keeps `PLATFORM_FEE_PERCENT` (default 5%) |
 | Gear | — | Amazon Associates commission |
 
 Joining drives is always free, since every drive pulls in new users.
@@ -81,6 +81,8 @@ Everything works without these; each section lights up when its keys exist.
 In development builds, Profile → "Developer: simulate purchases" unlocks features locally without buying. Server-enforced limits still need a real purchase.
 
 ### 3. Stripe: web subscriptions + event tickets
+**Going live or changing a price:** `STRIPE_SECRET_KEY=sk_... node scripts/stripe-setup.mjs` creates or updates the products, prices, Customer Portal and webhooks in whichever account the key belongs to, then prints the SQL that points Supabase Vault at it. Prices live in that script.
+
 Already created in the **Convoy sandbox** account: products/prices (lookup keys `convoy_pro_monthly`, `convoy_pro_yearly`, `convoy_clubs_monthly`, `convoy_style_pack`), the Customer Portal configuration, and two webhook endpoints pointing at the `stripe` function.
 
 Already switched on: the Stripe key and both webhook signing secrets are stored in Supabase Vault (see "Secrets" below). The full subscribe → unlock → cancel → revoke loop was tested against the sandbox. To use function env vars instead:

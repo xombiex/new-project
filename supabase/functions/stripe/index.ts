@@ -211,7 +211,10 @@ async function subscribe(userId: string, email: string | undefined, planId: Plan
 }
 
 async function portal(customerId: string, ret: string) {
-  const session = await stripe('POST', 'billing_portal/sessions', { customer: customerId, return_url: `${ret}portal` });
+  // Named outright: a configuration made through the API doesn't become the account's default.
+  const { data } = await stripe('GET', 'billing_portal/configurations', { active: true, limit: 100 });
+  const configuration = (data?.find((c: { is_default: boolean }) => c.is_default) ?? data?.[0])?.id;
+  const session = await stripe('POST', 'billing_portal/sessions', { customer: customerId, configuration, return_url: `${ret}portal` });
   return session.url as string;
 }
 

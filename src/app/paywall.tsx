@@ -40,6 +40,7 @@ const COPY: Record<Offering, { entitlement: Entitlement; title: string; tagline:
       ['play-circle-outline', 'Trip replay: watch any drive play back on the map'],
       ['file-export-outline', 'Export trips as GPX for other apps'],
       ['palette-outline', 'Every 3D car in the garage, all glow colors and map themes'],
+      ...(Platform.OS === 'web' ? ([['cube-outline', 'Live 3D cars with their own animations']] as [string, string][]) : []),
       ['card-account-details-star-outline', 'Premium share card styles'],
     ],
   },
