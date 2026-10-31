@@ -40,6 +40,8 @@ export default function RootLayout() {
   const { ready, session, profile, profileLoading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  // Pages the phone app shows inside a WebView: never send them off to the welcome screens.
+  const embedded = segments[0] === 'map-embed' || segments[0] === 'clip-embed';
 
   useEffect(() => useAuth.getState().init(), []);
   // Desktop visitors' first stop is the landing page (/about); phones go straight into the app.
@@ -70,8 +72,8 @@ export default function RootLayout() {
   const [settingsReady, setSettingsReady] = useState(useSettings.persist.hasHydrated());
   useEffect(() => useSettings.persist.onFinishHydration(() => setSettingsReady(true)), []);
   useEffect(() => {
-    if (ready && settingsReady && !onboarded && segments[0] !== 'welcome') router.push('/welcome');
-  }, [ready, settingsReady, onboarded, segments, router]);
+    if (ready && settingsReady && !onboarded && segments[0] !== 'welcome' && !embedded) router.push('/welcome');
+  }, [ready, settingsReady, onboarded, segments, router, embedded]);
 
   // Signed-in users must pick a username before using social features.
   useEffect(() => {
@@ -82,9 +84,9 @@ export default function RootLayout() {
   const seenRelease = useSettings((s) => s.seenRelease);
   const needsProfile = Boolean(session && !profile);
   useEffect(() => {
-    if (!ready || !settingsReady || !onboarded || needsProfile || isDemo() || !hasUnseenRelease(seenRelease)) return;
+    if (!ready || !settingsReady || !onboarded || needsProfile || isDemo() || embedded || !hasUnseenRelease(seenRelease)) return;
     if (segments[0] !== 'whats-new') router.push('/whats-new');
-  }, [ready, settingsReady, onboarded, needsProfile, seenRelease, segments, router]);
+  }, [ready, settingsReady, onboarded, needsProfile, seenRelease, segments, router, embedded]);
 
   // Online status for friends: a heartbeat while the app is open (if the user shares it).
   const shareOnline = useSettings((s) => s.shareOnline);
@@ -167,6 +169,9 @@ export default function RootLayout() {
         <Stack.Screen name="inbox" options={{ title: 'Inbox' }} />
         <Stack.Screen name="whats-new" options={{ title: 'What’s new', presentation: 'modal' }} />
         <Stack.Screen name="stripe-return" options={{ headerShown: false }} />
+        <Stack.Screen name="map-embed" options={{ headerShown: false }} />
+        <Stack.Screen name="clip-embed" options={{ headerShown: false }} />
+        <Stack.Screen name="clip/[id]" options={{ title: 'Drive clip', presentation: 'modal' }} />
         <Stack.Screen name="invite" options={{ title: 'Invite to drive', presentation: 'modal' }} />
         <Stack.Screen name="report" options={{ title: 'Report', presentation: 'formSheet', sheetAllowedDetents: [0.85, 1] }} />
       </Stack>

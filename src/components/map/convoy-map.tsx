@@ -22,9 +22,11 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Avatar } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useEntitled } from '@/store/pro';
 import { useSettings } from '@/store/settings';
 
 import { lineFeature, lineLayers } from './line-style';
+import { MapWebView } from './map-webview';
 import { poiLayers, styleHasPlaces } from './poi-layers';
 import { useMapLook } from './use-map-look';
 import { useSteadyHeading } from './use-steady-heading';
@@ -50,7 +52,16 @@ import type { ConvoyMapProps } from './types';
 
 export type { ConvoyMapProps, MapLine, MapMarker, MapPerson } from './types';
 
-export function ConvoyMap({
+/** Live 3D cars (Style Pack) use the web map in a WebView; everything else, and any failure, stays native. */
+export function ConvoyMap(props: ConvoyMapProps) {
+  const cars3d = useSettings((s) => s.cars3d);
+  const cosmetics = useEntitled('cosmetics');
+  const [webFailed, setWebFailed] = useState(false);
+  if (cars3d && cosmetics && !webFailed) return <MapWebView {...props} onFail={() => setWebFailed(true)} />;
+  return <NativeMap {...props} />;
+}
+
+function NativeMap({
   style,
   follow = false,
   showUser = true,

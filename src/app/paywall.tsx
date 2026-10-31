@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Platform, ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { LegalLinks } from '@/components/legal-links';
 import { ThemedText } from '@/components/themed-text';
@@ -10,16 +10,24 @@ import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { fetchWebPlans, formatPrice, type WebPlan, type WebPlanId } from '@/lib/payments';
 import { fetchPackages, purchasesAvailable, type PaywallPackage } from '@/lib/purchases';
+import { dropById, type DropId } from '@/lib/style-drops';
 import { useAuth } from '@/store/auth';
 import { useEntitled, usePro, type Entitlement } from '@/store/pro';
 
-type Offering = 'default' | 'clubs' | 'cosmetics';
+type Offering = 'default' | 'clubs' | 'cosmetics' | DropId;
 
 /** Stripe web plans offered for each paywall. */
 const WEB_PLANS: Record<Offering, WebPlanId[]> = {
   default: ['pro_yearly', 'pro_monthly'],
   clubs: ['clubs_monthly'],
   cosmetics: ['style_pack'],
+  afterburner: ['drop_afterburner'],
+  neon_trails: ['drop_neon_trails'],
+};
+
+const dropCopy = (id: DropId) => {
+  const d = dropById(id)!;
+  return { entitlement: d.entitlement, title: d.title, tagline: d.tagline, features: d.features };
 };
 
 /**
@@ -40,7 +48,7 @@ const COPY: Record<Offering, { entitlement: Entitlement; title: string; tagline:
       ['play-circle-outline', 'Trip replay: watch any drive play back on the map'],
       ['file-export-outline', 'Export trips as GPX for other apps'],
       ['palette-outline', 'Every 3D car in the garage, all glow colors and map themes'],
-      ...(Platform.OS === 'web' ? ([['cube-outline', 'Live 3D cars with their own animations']] as [string, string][]) : []),
+      ['cube-outline', 'Live 3D cars with their own animations'],
       ['card-account-details-star-outline', 'Premium share card styles'],
     ],
   },
@@ -64,9 +72,11 @@ const COPY: Record<Offering, { entitlement: Entitlement; title: string; tagline:
       ['fire', 'Glow colors: Ice, Toxic, Violet, Gold'],
       ['map-outline', 'Map themes: Midnight, Streets, Bright'],
       ['motorbike', 'Vehicle icons on the convoy map'],
-      ...(Platform.OS === 'web' ? ([['cube-outline', 'Live 3D cars with their own animations']] as [string, string][]) : []),
+      ['cube-outline', 'Live 3D cars with their own animations'],
     ],
   },
+  afterburner: dropCopy('afterburner'),
+  neon_trails: dropCopy('neon_trails'),
 };
 
 function periodLabel(period: string | null) {

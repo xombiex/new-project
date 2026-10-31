@@ -4,6 +4,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { subscribeOnWeb, type WebPlanId } from '@/lib/payments';
 import * as purchases from '@/lib/purchases';
+import type { DropEntitlement } from '@/lib/style-drops';
 import { supabase } from '@/lib/supabase';
 
 /**
@@ -11,9 +12,10 @@ import { supabase } from '@/lib/supabase';
  *   pro       – Convoy Pro subscription (includes cosmetics)
  *   cosmetics – one-time glow/map/vehicle pack
  *   club      – club organizer plan (includes Pro)
+ *   drop_*    – one-time style drops (lib/style-drops), not included in anything else
  */
-export type Entitlement = 'pro' | 'cosmetics' | 'club';
-const ALL: Entitlement[] = ['pro', 'cosmetics', 'club'];
+export type Entitlement = 'pro' | 'cosmetics' | 'club' | DropEntitlement;
+const ALL: Entitlement[] = ['pro', 'cosmetics', 'club', 'drop_afterburner', 'drop_neon_trails'];
 
 type ProState = {
   /** active per the store SDK on this device (instant after purchase) */
@@ -45,7 +47,9 @@ const known = (ids: string[]) => ids.filter((id): id is Entitlement => (ALL as s
 
 /** Mirrors private.has_entitlement on the server: club ⊃ pro ⊃ cosmetics. */
 function grants(owned: Set<Entitlement>, e: Entitlement) {
-  if (owned.has(e) || owned.has('club')) return true;
+  if (owned.has(e)) return true;
+  if (e.startsWith('drop_')) return false; // style drops are sold on their own
+  if (owned.has('club')) return true;
   return e === 'cosmetics' && owned.has('pro');
 }
 

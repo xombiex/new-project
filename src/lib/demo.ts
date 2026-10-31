@@ -49,9 +49,10 @@ export async function seedDemo() {
   const me = DEMO_ROUTE[40];
 
   useSettings.setState({ onboarded: true, units: 'imperial', mapTheme: theme, map3d: true, lastCoord: me, speedCameraAlerts: true, showAlprCameras: true });
-  usePro.setState({ simulated: ['pro', 'cosmetics'] });
+  const drops = params.has('drops');
+  usePro.setState({ simulated: drops ? ['pro', 'cosmetics', 'drop_afterburner', 'drop_neon_trails'] : ['pro', 'cosmetics'] });
 
-  const profile = { id: 'demo-me', username: 'alex', display_name: 'Alex', avatar_color: '#1E9BFF', vehicle: 'sport', vehicle_color: 'red', primary_car_id: 'car-1', leaderboard: true } as const;
+  const profile = { id: 'demo-me', username: 'alex', display_name: 'Alex', avatar_color: '#1E9BFF', vehicle: 'sport', vehicle_color: 'red', primary_car_id: 'car-1', leaderboard: true, flame_style: drops ? 'rainbow' : null, trail_style: drops ? 'cyan' : null } as const;
   useAuth.setState({ ready: true, session: { user: { id: 'demo-me' } } as never, profile: profile as never, profileLoading: false });
 
   const now = new Date().toISOString();

@@ -12,7 +12,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const RC_SECRET = Deno.env.get('REVENUECAT_SECRET_KEY');
 const WEBHOOK_AUTH = Deno.env.get('REVENUECAT_WEBHOOK_AUTH');
-const KNOWN = ['pro', 'cosmetics', 'club'];
+const KNOWN = ['pro', 'cosmetics', 'club', 'drop_afterburner', 'drop_neon_trails'];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {

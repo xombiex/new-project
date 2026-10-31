@@ -17,6 +17,9 @@ export type Profile = {
   primary_car_id?: string | null;
   /** appears on friends' leaderboards */
   leaderboard?: boolean;
+  /** style drops: what the 3D car shows (see lib/style-drops) */
+  flame_style?: string | null;
+  trail_style?: string | null;
 };
 
 type AuthState = {
@@ -29,6 +32,8 @@ type AuthState = {
   loadProfile: () => Promise<void>;
   saveProfile: (p: Pick<Profile, 'username' | 'display_name' | 'avatar_color' | 'vehicle' | 'vehicle_color'>) => Promise<string | null>;
   setLeaderboard: (on: boolean) => Promise<void>;
+  /** Returns an error message, or null on success. */
+  setDropStyle: (column: 'flame_style' | 'trail_style', value: string | null) => Promise<string | null>;
   signOut: () => Promise<void>;
 };
 
@@ -63,11 +68,24 @@ export const useAuth = create<AuthState>()((set, get) => ({
     set({ profileLoading: true });
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, username, display_name, avatar_color, vehicle, vehicle_color, primary_car_id, leaderboard')
+      .select('id, username, display_name, avatar_color, vehicle, vehicle_color, primary_car_id, leaderboard, flame_style, trail_style')
       .eq('id', uid)
       .maybeSingle();
     if (error) console.warn('Profile load failed', error.message);
     set({ profile: data ?? null, profileLoading: false });
+  },
+
+  setDropStyle: async (column, value) => {
+    const profile = get().profile;
+    if (!profile) return 'Sign in first';
+    if (isDemo()) {
+      set({ profile: { ...profile, [column]: value } });
+      return null;
+    }
+    const { error } = await supabase.from('profiles').update({ [column]: value }).eq('id', profile.id);
+    if (error) return error.message.includes('style drop') ? 'That one is part of a style drop you don’t own yet' : error.message;
+    set({ profile: { ...profile, [column]: value } });
+    return null;
   },
 
   /** Returns an error message, or null on success. */
@@ -78,7 +96,7 @@ export const useAuth = create<AuthState>()((set, get) => ({
     const { data, error } = await supabase
       .from('profiles')
       .upsert(row)
-      .select('id, username, display_name, avatar_color, vehicle, vehicle_color, primary_car_id, leaderboard')
+      .select('id, username, display_name, avatar_color, vehicle, vehicle_color, primary_car_id, leaderboard, flame_style, trail_style')
       .single();
     if (error) {
       if (error.code === '23505') return 'That username is taken';

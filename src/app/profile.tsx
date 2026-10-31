@@ -10,6 +10,7 @@ import { LicensePlate } from '@/components/shop';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar, Button, Card, SectionTitle, Segmented } from '@/components/ui';
 import { Display, Radius, Spacing } from '@/constants/theme';
+import { STYLE_DROPS } from '@/lib/style-drops';
 import { useTheme } from '@/hooks/use-theme';
 import { LATEST_RELEASE, releaseDate } from '@/lib/changelog';
 import { GLOW_PRESETS, type GlowPreset } from '@/lib/glow';
@@ -29,6 +30,72 @@ const MANAGE_SUBSCRIPTIONS = Platform.select({
   ios: 'https://apps.apple.com/account/subscriptions',
   default: 'https://play.google.com/store/account/subscriptions',
 });
+
+/** The $5 add-ons for the 3D cars: pick a look if you own the drop, otherwise see what it is. */
+function StyleDrops() {
+  const theme = useTheme();
+  const router = useRouter();
+  const profile = useAuth((s) => s.profile);
+  const setDropStyle = useAuth((s) => s.setDropStyle);
+  const afterburner = useEntitled('drop_afterburner');
+  const neonTrails = useEntitled('drop_neon_trails');
+  return (
+    <>
+      {STYLE_DROPS.map((drop) => {
+        const owned = drop.entitlement === 'drop_afterburner' ? afterburner : neonTrails;
+        const current = profile?.[drop.column] ?? null;
+        return (
+          <Card key={drop.id} style={{ gap: Spacing.two }}>
+            <Pressable
+              disabled={owned}
+              onPress={() => router.push({ pathname: '/paywall', params: { offering: drop.id } })}
+              accessibilityRole={owned ? undefined : 'button'}
+              style={styles.row}>
+              <MaterialCommunityIcons name={drop.icon as 'fire'} size={22} color={theme.accent} />
+              <View style={{ flex: 1 }}>
+                <ThemedText style={{ fontWeight: 700 }}>
+                  {drop.title}
+                  {owned ? '' : ' · Style drop'}
+                </ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {drop.tagline}
+                </ThemedText>
+              </View>
+              {owned ? null : <MaterialCommunityIcons name="lock-outline" size={22} color={theme.textSecondary} />}
+            </Pressable>
+            {owned ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two }}>
+                {[{ value: null as string | null, label: 'Off', color: theme.textSecondary }, ...drop.options].map((o) => {
+                  const selected = current === o.value;
+                  return (
+                    <Pressable
+                      key={o.label}
+                      onPress={() => void setDropStyle(drop.column, o.value).then((e) => e && Alert.alert(drop.title, e))}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: Spacing.one,
+                        paddingHorizontal: Spacing.three,
+                        height: 38,
+                        borderRadius: Radius.pill,
+                        borderWidth: 2,
+                        borderColor: selected ? o.color : theme.border,
+                      }}>
+                      <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: o.color }} />
+                      <ThemedText type="smallBold">{o.label}</ThemedText>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : null}
+          </Card>
+        );
+      })}
+    </>
+  );
+}
 
 export default function ProfileScreen() {
   const theme = useTheme();
@@ -281,21 +348,21 @@ export default function ProfileScreen() {
         </View>
       </Card>
 
-      {Platform.OS === 'web' ? (
-        <Pressable onPress={() => !cosmetics && router.push({ pathname: '/paywall', params: { offering: 'cosmetics' } })} disabled={cosmetics} accessibilityRole={cosmetics ? undefined : 'button'}>
-          <Card>
-            <View style={styles.row}>
-              <View style={{ flex: 1 }}>
-                <ThemedText style={{ fontWeight: 700 }}>Live 3D cars{cosmetics ? '' : ' · Style Pack'}</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
-                  Real 3D vehicles on the map with their own animations: flames, light bars, lean and rumble.
-                </ThemedText>
-              </View>
-              {cosmetics ? <Switch value={settings.cars3d} onValueChange={settings.setCars3d} /> : <MaterialCommunityIcons name="lock-outline" size={22} color={theme.textSecondary} />}
+      <Pressable onPress={() => !cosmetics && router.push({ pathname: '/paywall', params: { offering: 'cosmetics' } })} disabled={cosmetics} accessibilityRole={cosmetics ? undefined : 'button'}>
+        <Card>
+          <View style={styles.row}>
+            <View style={{ flex: 1 }}>
+              <ThemedText style={{ fontWeight: 700 }}>Live 3D cars{cosmetics ? '' : ' · Style Pack'}</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                Real 3D vehicles on the map with their own animations: flames, light bars, lean and rumble.
+              </ThemedText>
             </View>
-          </Card>
-        </Pressable>
-      ) : null}
+            {cosmetics ? <Switch value={settings.cars3d} onValueChange={settings.setCars3d} /> : <MaterialCommunityIcons name="lock-outline" size={22} color={theme.textSecondary} />}
+          </View>
+        </Card>
+      </Pressable>
+
+      <StyleDrops />
 
       <Card>
         <View style={styles.row}>
@@ -453,7 +520,7 @@ export default function ProfileScreen() {
         <>
           <SectionTitle>Developer: simulate purchases</SectionTitle>
           <Card style={{ gap: Spacing.three }}>
-            {(['pro', 'cosmetics', 'club'] as Entitlement[]).map((e) => (
+            {(['pro', 'cosmetics', 'club', 'drop_afterburner', 'drop_neon_trails'] as Entitlement[]).map((e) => (
               <View key={e} style={styles.row}>
                 <ThemedText style={{ flex: 1 }}>{e}</ThemedText>
                 <Switch value={simulated.includes(e)} onValueChange={(on) => setSimulated(e, on)} />

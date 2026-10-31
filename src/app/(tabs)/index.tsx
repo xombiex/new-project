@@ -117,6 +117,8 @@ export default function DriveScreen() {
   const myId = useAuth((s) => s.session?.user.id);
   const myVehicle = useAuth((s) => s.profile?.vehicle);
   const myPaint = useAuth((s) => s.profile?.vehicle_color);
+  const myFlame = useAuth((s) => s.profile?.flame_style);
+  const myTrail = useAuth((s) => s.profile?.trail_style);
   const [now, setNow] = useState(Date.now());
 
   // GPS on while this tab is visible; trips/drives/navigation keep it on in the background separately.
@@ -170,6 +172,8 @@ export default function DriveScreen() {
           icon: vehicleIcon(m.profile.vehicle),
           vehicle: m.profile.vehicle,
           paint: m.profile.vehicle_color,
+          flame: m.profile.flame_style,
+          trail: m.profile.trail_style,
           label: speedLabel(units, m.position!.speed, !m.online || now - m.position!.t > MEMBER_STALE_MS),
           stale: !m.online || now - m.position!.t > MEMBER_STALE_MS,
         })),
@@ -441,7 +445,7 @@ export default function DriveScreen() {
         onPressCamera={onPressCamera}
         tilt3d={map3d}
         camera={followCamera}
-        me={lastSample ? { coord: [lastSample.lng, lastSample.lat], heading: headingNow, vehicle: myVehicle, paint: myPaint } : null}
+        me={lastSample ? { coord: [lastSample.lng, lastSample.lat], heading: headingNow, vehicle: myVehicle, paint: myPaint, flame: myFlame, trail: myTrail } : null}
         lines={lines}
         people={people}
         markers={markers}

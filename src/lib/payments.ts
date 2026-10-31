@@ -45,7 +45,7 @@ export function buyTicket(eventId: string) {
 
 // ─── Web billing ──────────────────────────────────────────────────────────
 
-export type WebPlanId = 'pro_monthly' | 'pro_yearly' | 'clubs_monthly' | 'style_pack';
+export type WebPlanId = 'pro_monthly' | 'pro_yearly' | 'clubs_monthly' | 'style_pack' | 'drop_afterburner' | 'drop_neon_trails';
 export type WebPlan = { amount: number; currency: string; interval: string | null; name: string };
 
 /** Live prices from Stripe (so the app never shows a stale price). */

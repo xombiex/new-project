@@ -105,7 +105,7 @@ const point = (coord: [number, number], sprite: string, heading: number, opacity
  * Browser build of the map (maplibre-gl JS). Same tiles, line styles and 3D vehicle sprites as
  * the native map; follows the driver until they pan away.
  */
-export function ConvoyMap({ style, follow = false, me, cameras = [], onPressCamera, tilt3d = false, camera, lines = [], people = [], markers: pins = [], destination, fit, padding }: ConvoyMapProps) {
+export function ConvoyMap({ style, follow = false, me, cameras = [], onPressCamera, tilt3d = false, camera, lines = [], people = [], markers: pins = [], destination, fit, padding, force3d = false }: ConvoyMapProps) {
   const { styleUrl, style: mapStyle, variant, glow, scheme } = useMapLook();
   const theme = useTheme();
   // A plain div: maplibre's CSS sets `position: relative` on its container, which would
@@ -141,11 +141,11 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], onPressCame
   // Live 3D vehicles (Style Pack). The 2D sprites stay until the first model has loaded.
   const cars3dSetting = useSettings((s) => s.cars3d);
   const cosmetics = useEntitled('cosmetics');
-  const cars3d = cars3dSetting && cosmetics;
+  const cars3d = force3d || (cars3dSetting && cosmetics);
   const cars3dRef = useRef<Car3D[]>([]);
   cars3dRef.current = [
-    ...(me ? [{ id: 'me', coord: me.coord, heading: myHeading, vehicle: me.vehicle, paint: me.paint }] : []),
-    ...people.map((p) => ({ id: p.id, coord: p.coord, heading: p.heading ?? 0, vehicle: p.vehicle, paint: p.paint, stale: p.stale })),
+    ...(me ? [{ id: 'me', coord: me.coord, heading: myHeading, vehicle: me.vehicle, paint: me.paint, flame: me.flame, trail: me.trail }] : []),
+    ...people.map((p) => ({ id: p.id, coord: p.coord, heading: p.heading ?? 0, vehicle: p.vehicle, paint: p.paint, stale: p.stale, flame: p.flame, trail: p.trail })),
   ];
   const radar = useSettings((s) => s.radar);
 

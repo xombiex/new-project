@@ -9,7 +9,17 @@
         {
           "icon": "cube-outline",
           "title": "Live 3D cars",
-          "text": "With Pro or the Style Pack on the web, real 3D vehicles drive across the map with their own personality: flames, flashing light bars, rumble and lean."
+          "text": "With Pro or the Style Pack, real 3D vehicles drive across the map with their own personality: flames, flashing light bars, rumble and lean."
+        },
+        {
+          "icon": "movie-open-outline",
+          "title": "Drive clips",
+          "text": "Turn any saved drive into a 14-second vertical video, ready for Reels, TikTok and Stories. Your home stays off it."
+        },
+        {
+          "icon": "fire",
+          "title": "Style drops",
+          "text": "New $5 add-ons for your 3D car: Afterburner flame colors and Neon Trails light streaks. Find them in Profile. Everyone in your convoy sees them."
         },
         {
           "icon": "tag-outline",

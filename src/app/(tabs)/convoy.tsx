@@ -210,6 +210,8 @@ function ActiveDrive() {
   const last = useTrips((s) => s.lastSample);
   const myVehicle = useAuth((s) => s.profile?.vehicle);
   const myPaint = useAuth((s) => s.profile?.vehicle_color);
+  const myFlame = useAuth((s) => s.profile?.flame_style);
+  const myTrail = useAuth((s) => s.profile?.trail_style);
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const map3d = useSettings((st) => st.map3d);
@@ -252,6 +254,8 @@ function ActiveDrive() {
             icon: vehicleIcon(m.profile.vehicle),
             vehicle: m.profile.vehicle,
           paint: m.profile.vehicle_color,
+          flame: m.profile.flame_style,
+          trail: m.profile.trail_style,
           label: speedLabel(units, m.position!.speed, v.status !== 'live'),
             stale: v.status !== 'live',
           };
@@ -307,7 +311,7 @@ function ActiveDrive() {
         style={StyleSheet.absoluteFill}
         tilt3d={map3d}
         padding={{ top: insets.top + 96, bottom: sheetHeight }}
-        me={me ? { coord: me, heading: last?.heading ?? null, vehicle: myVehicle, paint: myPaint } : null}
+        me={me ? { coord: me, heading: last?.heading ?? null, vehicle: myVehicle, paint: myPaint, flame: myFlame, trail: myTrail } : null}
         people={people}
         destination={regroupAt ?? destination}
         fit={{

@@ -5,9 +5,24 @@ import { MercatorCoordinate, type CustomLayerInterface, type CustomRenderMethodI
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
+import { dropColor } from '@/lib/style-drops';
 import { PAINTS } from '@/lib/vehicles';
 
-export type Car3D = { id: string; coord: [number, number]; heading: number; vehicle?: string | null; paint?: string | null; stale?: boolean };
+export type Car3D = { id: string; coord: [number, number]; heading: number; vehicle?: string | null; paint?: string | null; stale?: boolean; flame?: string | null; trail?: string | null;
+  /** Use this speed for the animations rather than measuring it from the movement. */
+  speedMps?: number;
+  /** Put the car exactly here, with no gliding to catch up. */
+  exact?: boolean;
+};
+
+export type CarsLayerOptions = {
+  /** Replaces the wall clock: the drive clips step through time frame by frame. */
+  now?: () => number;
+  /** Stops the layer asking for frames of its own. */
+  manualFrames?: boolean;
+  /** Screen length of a vehicle, instead of following the zoom. */
+  carPixels?: () => number;
+};
 
 type Rect = { x0: number; x1: number; y0: number; y1: number; mean: number };
 type ManifestEntry = { kenney: boolean; stock?: boolean; rect?: Rect };
@@ -101,6 +116,9 @@ type Instance = {
   character: Character;
   paintwork: THREE.Material[];
   stale: boolean;
+  flameMaterial: THREE.MeshBasicMaterial | null;
+  flameStyle: string | null;
+  trail: Trail | null;
   coord: [number, number] | null;
   heading: number;
   speed: number;
@@ -110,10 +128,36 @@ type Instance = {
   spin: number;
 };
 
-export function createCarsLayer(getCars: () => Car3D[], onReady: () => void): CustomLayerInterface {
+/** Neon Trails: a flat ribbon on the road through the car's recent positions, fading to nothing. */
+const TRAIL_POINTS = 48;
+const TRAIL_WIDTH = 0.55; // half width, in car-sized units
+type Trail = { mesh: THREE.Mesh; points: { x: number; y: number }[]; style: string };
+
+function makeTrail(style: string, color: string, scene: THREE.Scene): Trail {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(TRAIL_POINTS * 2 * 3), 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(TRAIL_POINTS * 2 * 3), 3));
+  const index: number[] = [];
+  for (let i = 0; i < TRAIL_POINTS - 1; i++) {
+    const a = i * 2;
+    index.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+  }
+  geometry.setIndex(index);
+  const mesh = new THREE.Mesh(
+    geometry,
+    new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })
+  );
+  mesh.frustumCulled = false;
+  mesh.userData.color = new THREE.Color(color);
+  scene.add(mesh);
+  return { mesh, points: [], style };
+}
+
+export function createCarsLayer(getCars: () => Car3D[], onReady: () => void, config: CarsLayerOptions = {}): CustomLayerInterface {
+  const clock = config.now ?? (() => performance.now());
   let map: MLMap;
   let renderer: THREE.WebGLRenderer;
-  let last = performance.now();
+  let last = clock();
   let announced = false;
   let nextFrame: ReturnType<typeof setTimeout> | null = null;
   const scene = new THREE.Scene();
@@ -123,7 +167,8 @@ export function createCarsLayer(getCars: () => Car3D[], onReady: () => void): Cu
   const models = new Map<string, Promise<THREE.Group>>();
   const paintMaps = new Map<string, THREE.Texture>();
   let palette: ImageData | null = null;
-  const reduceMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // A video being rendered isn't motion on the screen, so it always gets the full show.
+  const reduceMotion = !config.now && typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const manifest: Promise<Record<string, ManifestEntry>> = fetch('/models/manifest.json').then((r) => r.json());
 
   // The scene's axes are east, north, up (see flipNorth).
@@ -232,9 +277,12 @@ export function createCarsLayer(getCars: () => Car3D[], onReady: () => void): Cu
     root.matrixAutoUpdate = false;
 
     const flames: THREE.Mesh[] = [];
-    const flameColor = character.flame === undefined ? '#3fd0ff' : character.flame;
+    let flameMaterial: THREE.MeshBasicMaterial | null = null;
+    // Afterburner gives every vehicle flames, including the ones that have none of their own.
+    const flameColor = dropColor('flame_style', car.flame) ?? (character.flame === undefined ? '#3fd0ff' : character.flame);
     if (flameColor) {
       const material = lightAttachments(flameColor);
+      flameMaterial = material;
       const hot = lightAttachments('#ffffff');
       const w = box.max.x - box.min.x;
       for (const s of name === 'formula' || name === 'kart' ? [0] : [-1, 1]) {
@@ -282,7 +330,7 @@ export function createCarsLayer(getCars: () => Car3D[], onReady: () => void): Cu
 
     scene.add(root);
     return {
-      id: car.id, key, root, body, wheels, flames, flashers, roofGlow, underglow, character, paintwork, stale: false,
+      id: car.id, key, root, body, wheels, flames, flashers, roofGlow, underglow, character, paintwork, stale: false, flameMaterial, flameStyle: car.flame ?? null, trail: null,
       coord: null, heading: car.heading, speed: 0, lean: 0, pitch: 0, phase: Math.random() * 10, spin: 0,
     };
   }
@@ -290,7 +338,8 @@ export function createCarsLayer(getCars: () => Car3D[], onReady: () => void): Cu
   const pending = new Set<string>();
   function sync(cars: Car3D[]) {
     for (const car of cars) {
-      const key = `${car.vehicle ?? 'car'}:${car.paint ?? ''}`;
+      // A flame on a vehicle with none of its own means new meshes, so it's part of the key.
+      const key = `${car.vehicle ?? 'car'}:${car.paint ?? ''}:${car.flame ? 'flame' : ''}`;
       const have = instances.get(car.id);
       if (have?.key === key || pending.has(car.id)) continue;
       pending.add(car.id);
@@ -298,7 +347,10 @@ export function createCarsLayer(getCars: () => Car3D[], onReady: () => void): Cu
         .then((inst) => {
           if (!inst) return;
           const old = instances.get(car.id);
-          if (old) scene.remove(old.root);
+          if (old) {
+            scene.remove(old.root);
+            inst.trail = old.trail;
+          }
           instances.set(car.id, inst);
           if (!announced) {
             announced = true;
@@ -312,6 +364,7 @@ export function createCarsLayer(getCars: () => Car3D[], onReady: () => void): Cu
     for (const [id, inst] of instances) {
       if (!cars.some((c) => c.id === id)) {
         scene.remove(inst.root);
+        if (inst.trail) scene.remove(inst.trail.mesh);
         instances.delete(id);
       }
     }
@@ -322,6 +375,34 @@ export function createCarsLayer(getCars: () => Car3D[], onReady: () => void): Cu
   // which shreds the models if they're placed in map coordinates directly. Mercator's y also points
   // south, mirror-image to three.js; flipping it in the camera stops the wrong faces being culled.
   const toScene = new THREE.Matrix4();
+  function updateTrail(trail: Trail, head: { x: number; y: number }, origin: { x: number; y: number }, scale: number) {
+    const position = trail.mesh.geometry.getAttribute('position') as THREE.BufferAttribute;
+    const colors = trail.mesh.geometry.getAttribute('color') as THREE.BufferAttribute;
+    const base = trail.mesh.userData.color as THREE.Color;
+    const pts = trail.points;
+    for (let i = 0; i < TRAIL_POINTS; i++) {
+      const p = pts[Math.min(i, pts.length - 1)] ?? head;
+      const n = pts[Math.min(i + 1, pts.length - 1)] ?? p;
+      const prev = pts[Math.max(i - 1, 0)] ?? p;
+      // Across the direction of travel (y flips: the scene's y is north).
+      let dx = (n.x - prev.x) / scale;
+      let dy = (prev.y - n.y) / scale;
+      const len = Math.hypot(dx, dy) || 1;
+      dx /= len;
+      dy /= len;
+      const x = (p.x - origin.x) / scale;
+      const y = (origin.y - p.y) / scale;
+      const fade = i < pts.length ? 1 - i / Math.max(1, TRAIL_POINTS - 1) : 0;
+      const w = TRAIL_WIDTH * (0.35 + 0.65 * fade);
+      position.setXYZ(i * 2, x - dy * w, y + dx * w, 0.06);
+      position.setXYZ(i * 2 + 1, x + dy * w, y - dx * w, 0.06);
+      const k = fade * fade * 0.75;
+      colors.setXYZ(i * 2, base.r * k, base.g * k, base.b * k);
+      colors.setXYZ(i * 2 + 1, base.r * k, base.g * k, base.b * k);
+    }
+    position.needsUpdate = true;
+    colors.needsUpdate = true;
+  }
   const place = new THREE.Matrix4();
   const turn = new THREE.Matrix4();
   const upright = new THREE.Matrix4().makeRotationX(Math.PI / 2);
@@ -338,12 +419,15 @@ export function createCarsLayer(getCars: () => Car3D[], onReady: () => void): Cu
     },
     onRemove() {
       if (nextFrame !== null) clearTimeout(nextFrame);
-      for (const inst of instances.values()) scene.remove(inst.root);
+      for (const inst of instances.values()) {
+        scene.remove(inst.root);
+        if (inst.trail) scene.remove(inst.trail.mesh);
+      }
       instances.clear();
       renderer?.dispose();
     },
     render(_gl, options: CustomRenderMethodInput) {
-      const now = performance.now();
+      const now = clock();
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
       const t = now / 1000;
@@ -351,7 +435,7 @@ export function createCarsLayer(getCars: () => Car3D[], onReady: () => void): Cu
       sync(cars);
       const zoom = map.getZoom();
       const worldSize = 512 * 2 ** zoom;
-      const scale = targetPixels(zoom) / MODEL_LENGTH / worldSize;
+      const scale = (config.carPixels?.() ?? targetPixels(zoom)) / MODEL_LENGTH / worldSize;
       const origin = MercatorCoordinate.fromLngLat(map.getCenter());
       const follow = 1 - Math.exp(-dt * 5);
       let busy = !reduceMotion;
@@ -362,12 +446,12 @@ export function createCarsLayer(getCars: () => Car3D[], onReady: () => void): Cu
         // Glide to the latest fix; a big jump (a new drive, a fresh GPS lock) just moves.
         const prev = c.coord;
         let next: [number, number];
-        if (!prev || Math.abs(prev[0] - car.coord[0]) + Math.abs(prev[1] - car.coord[1]) > 0.01) next = car.coord;
+        if (car.exact || !prev || Math.abs(prev[0] - car.coord[0]) + Math.abs(prev[1] - car.coord[1]) > 0.01) next = car.coord;
         else next = [prev[0] + (car.coord[0] - prev[0]) * follow, prev[1] + (car.coord[1] - prev[1]) * follow];
         const metres = prev ? Math.hypot((next[0] - prev[0]) * Math.cos((next[1] * Math.PI) / 180), next[1] - prev[1]) * 111320 : 0;
         const measured = dt > 0 && metres < 30 ? metres / dt : 0;
         const before = c.speed;
-        c.speed += (measured - c.speed) * Math.min(1, dt * 3);
+        c.speed += ((car.speedMps ?? measured) - c.speed) * Math.min(1, dt * 3);
         c.coord = next;
         if (c.stale !== Boolean(car.stale)) {
           // Same as the sprites: a driver whose position has gone old fades out.
@@ -379,7 +463,7 @@ export function createCarsLayer(getCars: () => Car3D[], onReady: () => void): Cu
           }
         }
         const delta = ((((car.heading - c.heading) % 360) + 540) % 360) - 180;
-        const headingStep = delta * follow;
+        const headingStep = car.exact ? delta : delta * follow;
         c.heading += headingStep;
         const turnRate = dt > 0 ? headingStep / dt : 0; // degrees a second
         const accel = dt > 0 ? (c.speed - before) / dt : 0;
@@ -412,6 +496,14 @@ export function createCarsLayer(getCars: () => Car3D[], onReady: () => void): Cu
             f.scale.set(0.9 + 0.2 * flicker, 0.9 + 0.2 * flicker, power * flicker);
           }
         }
+        if (c.flameMaterial) {
+          if (car.flame === 'rainbow') c.flameMaterial.color.setHSL((t * 0.35 + c.phase) % 1, 1, 0.58);
+          else if (c.flameStyle !== (car.flame ?? null)) {
+            c.flameStyle = car.flame ?? null;
+            const color = dropColor('flame_style', car.flame);
+            if (color) c.flameMaterial.color.set(color);
+          }
+        }
         if (c.flashers) {
           // Two quick blinks a side, like a real light bar. Steady for people who ask for less motion.
           const phase = (t * 2.2 + c.phase) % 1;
@@ -425,6 +517,21 @@ export function createCarsLayer(getCars: () => Car3D[], onReady: () => void): Cu
 
         const elevation = map.getTerrain() ? (map.queryTerrainElevation(next) ?? 0) : 0;
         const at = MercatorCoordinate.fromLngLat(next, elevation);
+
+        const trailColor = dropColor('trail_style', car.trail);
+        if (c.trail && c.trail.style !== car.trail) {
+          scene.remove(c.trail.mesh);
+          c.trail = null;
+        }
+        if (trailColor && car.trail) {
+          c.trail ??= makeTrail(car.trail, trailColor, scene);
+          const pts = c.trail.points;
+          if (!pts.length || Math.hypot(at.x - pts[0].x, at.y - pts[0].y) / scale > 0.7) {
+            pts.unshift({ x: at.x, y: at.y });
+            pts.length = Math.min(pts.length, TRAIL_POINTS);
+          }
+          updateTrail(c.trail, at, origin, scale);
+        }
         place.makeTranslation((at.x - origin.x) / scale, (origin.y - at.y) / scale, at.z / scale);
         place.multiply(upright);
         place.multiply(turn.makeRotationY((-c.heading * Math.PI) / 180));
@@ -444,7 +551,7 @@ export function createCarsLayer(getCars: () => Car3D[], onReady: () => void): Cu
       }
       // Keep the animations running, at a rate that spares the battery on a long drive, and not at
       // all behind another tab.
-      if (busy && instances.size && map.getCanvas().clientWidth > 0 && nextFrame === null) {
+      if (!config.manualFrames && busy && instances.size && map.getCanvas().clientWidth > 0 && nextFrame === null) {
         nextFrame = setTimeout(() => {
           nextFrame = null;
           map.triggerRepaint();

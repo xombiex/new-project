@@ -26,6 +26,8 @@ const PRODUCTS = [
   },
   { name: 'Convoy Clubs', prices: [{ lookup: 'convoy_clubs_monthly', amount: 1500, interval: 'month' }] },
   { name: 'Convoy Style Pack', prices: [{ lookup: 'convoy_style_pack', amount: 500 }] },
+  { name: 'Convoy Afterburner', prices: [{ lookup: 'convoy_drop_afterburner', amount: 500 }] },
+  { name: 'Convoy Neon Trails', prices: [{ lookup: 'convoy_drop_neon_trails', amount: 500 }] },
 ];
 
 const WEBHOOKS = [

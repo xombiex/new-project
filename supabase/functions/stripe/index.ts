@@ -2,7 +2,7 @@
 //
 // Web billing (Convoy is the merchant)
 //   POST { action: 'plans' }                         → prices for the web paywall (public)
-//   POST { action: 'subscribe', plan }               → Checkout URL (pro_monthly | pro_yearly | clubs_monthly | style_pack)
+//   POST { action: 'subscribe', plan }               → Checkout URL (any id in PLANS)
 //   POST { action: 'portal' }                        → Customer Portal URL (cancel, switch plan, update card)
 //
 // Event-ticket marketplace (Stripe Connect, destination charges, platform-owned pricing & losses)
@@ -34,9 +34,15 @@ const PLANS = {
   pro_yearly: { lookup: 'convoy_pro_yearly', entitlement: 'pro', mode: 'subscription', trial: true },
   clubs_monthly: { lookup: 'convoy_clubs_monthly', entitlement: 'club', mode: 'subscription', trial: false },
   style_pack: { lookup: 'convoy_style_pack', entitlement: 'cosmetics', mode: 'payment', trial: false },
+  drop_afterburner: { lookup: 'convoy_drop_afterburner', entitlement: 'drop_afterburner', mode: 'payment', trial: false },
+  drop_neon_trails: { lookup: 'convoy_drop_neon_trails', entitlement: 'drop_neon_trails', mode: 'payment', trial: false },
 } as const;
 type PlanId = keyof typeof PLANS;
 const SUBSCRIPTION_ENTITLEMENTS = ['pro', 'club'];
+/** One-time purchases: kept until refunded. */
+const ONE_TIME_ENTITLEMENTS: string[] = Object.values(PLANS).filter((p) => p.mode === 'payment').map((p) => p.entitlement);
+/** Refunding a drop also takes it off the car everyone else sees. */
+const DROP_COLUMNS: Record<string, string> = { drop_afterburner: 'flame_style', drop_neon_trails: 'trail_style' };
 
 const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
   auth: { persistSession: false },
@@ -161,7 +167,9 @@ async function plans() {
   if (plansCache && Date.now() - plansCache.at < 10 * 60_000) return plansCache.plans;
   const out: Record<string, PlanInfo> = {};
   for (const [id, p] of Object.entries(PLANS)) {
-    const price = await priceFor(p.lookup);
+    // A plan with no price yet just isn't offered; the others still load.
+    const price = await priceFor(p.lookup).catch(() => null);
+    if (!price) continue;
     out[id] = { amount: price.unit_amount, currency: price.currency, interval: price.recurring?.interval ?? null, name: price.product?.name ?? id };
   }
   plansCache = { at: Date.now(), plans: out };
@@ -184,7 +192,7 @@ async function subscribe(userId: string, email: string | undefined, planId: Plan
     customer: customer.customer_id,
     client_reference_id: userId,
     line_items: [{ price: price.id, quantity: 1 }],
-    metadata: { kind: planId === 'style_pack' ? 'style_pack' : 'subscription', user_id: userId, plan: planId },
+    metadata: { kind: plan.mode === 'payment' ? 'one_time' : 'subscription', user_id: userId, plan: planId, entitlement: plan.entitlement },
     success_url: `${ret}subscribed`,
     cancel_url: `${ret}cancel`,
   };
@@ -205,7 +213,7 @@ async function subscribe(userId: string, email: string | undefined, planId: Plan
       : await stripe('POST', 'checkout/sessions', {
           ...common,
           mode: 'payment',
-          payment_intent_data: { metadata: { kind: 'style_pack', user_id: userId } },
+          payment_intent_data: { metadata: { kind: 'one_time', user_id: userId, entitlement: plan.entitlement } },
         });
   return session.url as string;
 }
@@ -363,8 +371,11 @@ async function webhook(raw: string) {
         });
         // Oversold in a race: the purchase is in Stripe; the organizer can refund it.
         if (error) console.error('Ticket record failed', obj.metadata.event_id, userId, error.message);
-      } else if (kind === 'style_pack' && obj.payment_status === 'paid') {
-        await admin.from('entitlements').upsert({ user_id: userId, entitlement: 'cosmetics', source: 'stripe', expires_at: null, updated_at: new Date().toISOString() });
+      } else if ((kind === 'one_time' || kind === 'style_pack') && obj.payment_status === 'paid') {
+        const entitlement = obj.metadata?.entitlement ?? 'cosmetics'; // sessions from before drops existed were all the Style Pack
+        if (ONE_TIME_ENTITLEMENTS.includes(entitlement)) {
+          await admin.from('entitlements').upsert({ user_id: userId, entitlement, source: 'stripe', expires_at: null, updated_at: new Date().toISOString() });
+        }
       } else if (kind === 'subscription' && obj.customer) {
         await syncSubscriptions(obj.customer);
       }
@@ -381,8 +392,10 @@ async function webhook(raw: string) {
       const userId = pi.metadata?.user_id;
       if (pi.metadata?.kind === 'ticket') {
         await admin.from('event_rsvps').update({ paid: false, status: 'not_going', updated_at: new Date().toISOString() }).eq('stripe_payment_intent', obj.payment_intent);
-      } else if (pi.metadata?.kind === 'style_pack' && UUID.test(userId ?? '')) {
-        await admin.from('entitlements').delete().eq('user_id', userId).eq('entitlement', 'cosmetics').eq('source', 'stripe');
+      } else if ((pi.metadata?.kind === 'one_time' || pi.metadata?.kind === 'style_pack') && UUID.test(userId ?? '')) {
+        const entitlement = pi.metadata?.entitlement ?? 'cosmetics';
+        await admin.from('entitlements').delete().eq('user_id', userId).eq('entitlement', entitlement).eq('source', 'stripe');
+        if (DROP_COLUMNS[entitlement]) await admin.from('profiles').update({ [DROP_COLUMNS[entitlement]]: null }).eq('id', userId);
       }
       return;
     }

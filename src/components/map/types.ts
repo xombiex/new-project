@@ -26,6 +26,9 @@ export type MapPerson = {
   vehicle?: string;
   /** Paint color of that vehicle */
   paint?: string;
+  /** Style drops: flame and trail choices (lib/style-drops), shown on the 3D car */
+  flame?: string | null;
+  trail?: string | null;
   /** Short live label shown in a bubble above the avatar, e.g. "36 MPH" */
   label?: string;
   /** dimmed when the position is old or the person is offline */
@@ -58,7 +61,7 @@ export type ConvoyMapProps = {
    */
   camera?: { zoom: number; pitch: number; heading: number | null };
   /** The signed-in driver, drawn as their 3D vehicle instead of a blue dot. */
-  me?: { coord: LngLat; heading: number | null; vehicle?: string | null; paint?: string | null } | null;
+  me?: { coord: LngLat; heading: number | null; vehicle?: string | null; paint?: string | null; flame?: string | null; trail?: string | null } | null;
   lines?: MapLine[];
   people?: MapPerson[];
   markers?: MapMarker[];
@@ -67,4 +70,6 @@ export type ConvoyMapProps = {
   fit?: { key: string; points: LngLat[] } | null;
   /** Extra space reserved by overlays, so followed/fitted content isn't hidden behind them. */
   padding?: { top?: number; bottom?: number };
+  /** Web map only: draw the 3D cars whatever this device's account says. The phone app's 3D map uses it after checking. */
+  force3d?: boolean;
 };

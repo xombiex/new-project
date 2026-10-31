@@ -141,6 +141,7 @@ export default function ShareScreen() {
       ) : null}
       {error ? <ThemedText style={{ color: theme.danger }}>{error}</ThemedText> : null}
       <Button label="Share image" size="lg" loading={busy} onPress={share} />
+      <Button label="Make a video clip" variant="secondary" onPress={() => router.push({ pathname: '/clip/[id]', params: { id: trip.id } })} />
     </ScrollView>
   );
 }
