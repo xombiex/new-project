@@ -13,7 +13,8 @@ async function callStripe(body: Record<string, unknown>): Promise<{ data?: any; 
   const { data, error } = await supabase.functions.invoke('stripe', { body });
   if (error) {
     const ctx = (error as { context?: Response }).context;
-    const detail = ctx ? await ctx.json().catch(() => null) : null;
+    // Only a reply from the server has a body; when the request itself fails, context isn't a Response.
+    const detail = typeof ctx?.json === 'function' ? await ctx.json().catch(() => null) : null;
     return { error: detail?.error === 'payments not configured' ? 'Payments aren’t set up yet' : (detail?.error ?? error.message) };
   }
   return { data };

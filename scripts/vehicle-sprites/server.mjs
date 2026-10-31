@@ -1,7 +1,7 @@
 // Dev tool: renders the 3D map vehicle sprites (assets/vehicles/*.png) in a browser.
 //   node scripts/vehicle-sprites/server.mjs  →  open http://localhost:8093 and wait for "done"
 import { createServer } from 'node:http';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -20,6 +20,20 @@ createServer((req, res) => {
     const file = join(here, url.pathname);
     if (!existsSync(file)) return res.writeHead(404).end();
     res.writeHead(200, { 'Content-Type': file.endsWith('.png') ? 'image/png' : 'model/gltf-binary' }).end(readFileSync(file));
+    return;
+  }
+  if (req.method === 'POST' && url.pathname === '/save-model') {
+    const name = url.searchParams.get('name') ?? '';
+    if (!/^[a-z]+\.(glb|json|png)$/.test(name)) return res.writeHead(400).end('bad name');
+    const chunks = [];
+    req.on('data', (c) => chunks.push(c));
+    req.on('end', () => {
+      // Kenney's models look for their shared palette in Textures/.
+      const dir = join(here, '../../public/models', name === 'colormap.png' ? 'Textures' : '');
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, name), Buffer.concat(chunks));
+      res.writeHead(204).end();
+    });
     return;
   }
   if (req.method === 'POST' && url.pathname === '/save') {

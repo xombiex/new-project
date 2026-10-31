@@ -10,5 +10,5 @@
 
 /* The map credit, in the app's colors (set on the map's container). */
 .maplibregl-ctrl.maplibregl-ctrl-attrib { background: var(--map-credit-bg) !important; color: var(--map-credit-fg); max-width: calc(100% - 20px); }
-.maplibregl-ctrl-attrib a { color: var(--map-credit-fg) !important; }
+.maplibregl-ctrl-attrib, .maplibregl-ctrl-attrib-inner, .maplibregl-ctrl-attrib a { color: var(--map-credit-fg) !important; }
 .maplibregl-ctrl-attrib-button { filter: var(--map-credit-icon); }

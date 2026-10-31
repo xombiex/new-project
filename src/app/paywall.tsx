@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { LegalLinks } from '@/components/legal-links';
 import { ThemedText } from '@/components/themed-text';
@@ -63,6 +63,7 @@ const COPY: Record<Offering, { entitlement: Entitlement; title: string; tagline:
       ['fire', 'Glow colors: Ice, Toxic, Violet, Gold'],
       ['map-outline', 'Map themes: Midnight, Streets, Bright'],
       ['motorbike', 'Vehicle icons on the convoy map'],
+      ...(Platform.OS === 'web' ? ([['cube-outline', 'Live 3D cars with their own animations']] as [string, string][]) : []),
     ],
   },
 };

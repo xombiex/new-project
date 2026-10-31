@@ -7,6 +7,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useEntitled } from '@/store/pro';
 import { useSettings } from '@/store/settings';
 
 import { lineFeature, lineLayers } from './line-style';
@@ -34,6 +35,7 @@ import {
 } from './overlays';
 import { CAMERA_LAYOUT, VEHICLE_IMAGES, VEHICLE_LAYOUT, vehicleSprite } from './vehicle-sprites';
 import type { ConvoyMapProps } from './types';
+import type { Car3D } from './cars-3d.web';
 
 export type { ConvoyMapProps, MapLine, MapMarker, MapPerson } from './types';
 
@@ -45,6 +47,7 @@ const EMPTY = { type: 'FeatureCollection' as const, features: [] };
 const REALIGN_MS = 8000;
 /** Above the speed dial and the side buttons that sit on top of the bottom sheet. */
 const RECENTER_OFFSET = 140;
+const CARS_3D_PITCH = 58;
 /** How long the map credit stays open before folding down to its "i". */
 const CREDIT_MS = 5000;
 /** Left of the floating buttons down the right edge. */
@@ -135,6 +138,15 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], onPressCame
   const centeredOnce = useRef(false);
   const myHeading = useSteadyHeading(me?.heading);
   const terrain = useSettings((s) => s.terrain);
+  // Live 3D vehicles (Style Pack). The 2D sprites stay until the first model has loaded.
+  const cars3dSetting = useSettings((s) => s.cars3d);
+  const cosmetics = useEntitled('cosmetics');
+  const cars3d = cars3dSetting && cosmetics;
+  const cars3dRef = useRef<Car3D[]>([]);
+  cars3dRef.current = [
+    ...(me ? [{ id: 'me', coord: me.coord, heading: myHeading, vehicle: me.vehicle, paint: me.paint }] : []),
+    ...people.map((p) => ({ id: p.id, coord: p.coord, heading: p.heading ?? 0, vehicle: p.vehicle, paint: p.paint, stale: p.stale })),
+  ];
   const radar = useSettings((s) => s.radar);
 
   useEffect(() => {
@@ -145,10 +157,15 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], onPressCame
       center: useSettings.getState().lastCoord ?? [-98, 39],
       zoom: useSettings.getState().lastCoord ? 14 : 3,
       attributionControl: { compact: true },
+      canvasContextAttributes: { antialias: true }, // the 3D cars' edges
     });
     // The credit starts open, then folds down to an "i" you can tap: a full-width bar on a phone
     // would sit over the map (or stick out from behind a panel) for the whole session.
-    const credit = setTimeout(() => m.getContainer().querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show'), CREDIT_MS);
+    const foldCredit = () => m.getContainer().querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show');
+    const credit = setTimeout(() => {
+      foldCredit();
+      m.on('resize', foldCredit); // maplibre opens it again on every resize
+    }, CREDIT_MS);
     m.on('load', () => {
       setLoaded(true);
       // Hills and radar sit on the base map, under everything of ours.
@@ -303,8 +320,8 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], onPressCame
         justifyContent: 'center',
       });
       wrap.appendChild(el);
-      // Floats above the vehicle sprite drawn by the people-vehicles layer.
-      return new Marker({ element: wrap, anchor: 'bottom', offset: [0, -16] }).setLngLat(p.coord).addTo(m);
+      // Floats above the vehicle, and 3D vehicles stand taller than the sprites.
+      return new Marker({ element: wrap, anchor: 'bottom', offset: [0, cars3d ? -40 : -16] }).setLngLat(p.coord).addTo(m);
     });
     for (const pin of pins) {
       const el = document.createElement('div');
@@ -313,7 +330,7 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], onPressCame
       markers.current.push(new Marker({ element: el }).setLngLat(pin.coord).addTo(m));
     }
     if (destination) markers.current.push(new Marker({ color: theme.danger }).setLngLat(destination).addTo(m));
-  }, [loaded, people, pins, destination, theme.danger]);
+  }, [loaded, people, pins, destination, theme.danger, cars3d]);
 
   useEffect(() => {
     const m = map.current;
@@ -379,6 +396,29 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], onPressCame
     m.setLayoutProperty('convoy-buildings-3d', 'visibility', tilt3d ? 'visible' : 'none');
   }, [loaded, tilt3d]);
 
+  // Live 3D vehicles: added on top once three.js has loaded, and they take over from the sprites.
+  useEffect(() => {
+    const m = map.current;
+    if (!vehiclesReady || !m || !cars3d) return;
+    let cancelled = false;
+    const sprites = (visible: boolean) => {
+      for (const id of ['me-vehicles', 'people-vehicles']) if (m.getLayer(id)) m.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
+    };
+    void import('./cars-3d.web').then(({ createCarsLayer }) => {
+      if (cancelled || m.getLayer('convoy-cars-3d')) return;
+      m.addLayer(createCarsLayer(() => cars3dRef.current, () => !cancelled && sprites(false)));
+    }).catch((e) => console.warn('[map] 3D cars unavailable', e));
+    return () => {
+      cancelled = true;
+      try {
+        if (m.getLayer('convoy-cars-3d')) m.removeLayer('convoy-cars-3d');
+        sprites(true);
+      } catch {
+        // the map itself is being rebuilt
+      }
+    };
+  }, [vehiclesReady, cars3d]);
+
   // Terrain: hill shading, plus real 3D mountains when the 3D map is on.
   useEffect(() => {
     const m = map.current;
@@ -403,7 +443,8 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], onPressCame
   const followView = (cur: NonNullable<typeof me>) => ({
     center: cur.coord,
     zoom: camera?.zoom ?? 16,
-    pitch: camera?.pitch ?? (tilt3d ? TILT_3D : 0),
+    // 3D cars want to be seen from the side, even with the flat map chosen.
+    pitch: Math.max(camera?.pitch ?? (tilt3d ? TILT_3D : 0), cars3d ? CARS_3D_PITCH : 0),
     bearing: !northUp && camera?.heading != null ? camera.heading : 0,
     padding: { top: padding?.top ?? 0, bottom: padding?.bottom ?? 0, left: 0, right: 0 },
   });

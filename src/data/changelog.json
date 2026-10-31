@@ -7,6 +7,11 @@
       "title": "Convoy got some character",
       "items": [
         {
+          "icon": "cube-outline",
+          "title": "Live 3D cars",
+          "text": "With the Style Pack on the web, real 3D vehicles drive across the map with their own personality: flames, flashing light bars, rumble and lean."
+        },
+        {
           "icon": "car-multiple",
           "title": "Three times the lineup",
           "text": "29 rides now, from a tuner, hot rod and woody wagon to a police car, fire truck, kart and tractor."

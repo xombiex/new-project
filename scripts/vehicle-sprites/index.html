@@ -22,6 +22,7 @@
 <script type="module">
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 
 // Top-down sprites: the map rotates them to the driver's heading, so the camera looks straight
 // down (front of the vehicle = top of the image). Perspective + soft shadow sell the 3D.
@@ -99,10 +100,12 @@ function wheel(g, x, z, r = 0.44, w = 0.36) {
   t.rotation.z = Math.PI / 2;
   t.position.set(x, r, z);
   t.castShadow = true;
+  t.name = 'wheel';
   g.add(t);
   const hub = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.55, r * 0.55, w + 0.03, 6), M.rim);
   hub.rotation.z = Math.PI / 2;
   hub.position.set(x, r, z);
+  hub.name = 'wheel-hub';
   g.add(hub);
 }
 function wheels(g, x, zs, r, w) {
@@ -365,10 +368,9 @@ function bodyBand(model, hint) {
   return [...counts.values()].sort((x, y) => y.weight - x.weight)[0];
 }
 
-/** A copy of the palette with one color band swapped for the paint, keeping its light-to-dark shading. */
-function repaintPalette(band, hex) {
+/** Where a color band sits in the palette, and its average brightness. */
+function bandRect(band) {
   const w = palette.width, h = palette.height;
-  const out = new ImageData(new Uint8ClampedArray(palette.data), w, h);
   const rowH = h / 4;
   const y0 = Math.floor(band.py / rowH) * rowH;
   const inBand = (x, y) => {
@@ -386,12 +388,19 @@ function repaintPalette(band, hex) {
   let sum = 0, n = 0;
   for (let y = y0; y < y0 + rowH; y++) for (let x = x0; x <= x1; x++) {
     const i = (y * w + x) * 4;
-    sum += 0.3 * out.data[i] + 0.59 * out.data[i + 1] + 0.11 * out.data[i + 2];
+    sum += 0.3 * palette.data[i] + 0.59 * palette.data[i + 1] + 0.11 * palette.data[i + 2];
     n++;
   }
-  const mean = sum / n;
+  return { x0, x1, y0, y1: y0 + rowH, mean: sum / n };
+}
+
+/** A copy of the palette with one color band swapped for the paint, keeping its light-to-dark shading. */
+function repaintPalette(band, hex) {
+  const { x0, x1, y0, y1, mean } = bandRect(band);
+  const w = palette.width, h = palette.height;
+  const out = new ImageData(new Uint8ClampedArray(palette.data), w, h);
   const [tr, tg, tb] = [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255];
-  for (let y = y0; y < y0 + rowH; y++) for (let x = x0; x <= x1; x++) {
+  for (let y = y0; y < y1; y++) for (let x = x0; x <= x1; x++) {
     const i = (y * w + x) * 4;
     const k = (0.3 * out.data[i] + 0.59 * out.data[i + 1] + 0.11 * out.data[i + 2]) / mean;
     out.data[i] = tr * k; out.data[i + 1] = tg * k; out.data[i + 2] = tb * k;
@@ -502,6 +511,38 @@ const PAINTS = {
   black: { hex: 0x1c1d22 },
 };
 const params = new URLSearchParams(location.search);
+
+// ?export writes the models for the live 3D map (public/models): Kenney's as they are, ours built
+// with named "paint" and "accent" materials so the app can color them.
+if (params.has('export')) {
+  const saveModel = async (name, body) => {
+    const res = await fetch(`/save-model?name=${name}`, { method: 'POST', body });
+    if (!res.ok) throw new Error(`save ${name} failed`);
+  };
+  const manifest = {};
+  for (const [name, def] of Object.entries(KENNEY)) {
+    await saveModel(`${name}.glb`, await (await fetch(`/kenney/${def.file}.glb`)).arrayBuffer());
+    manifest[name] = { kenney: true, stock: Boolean(def.stock) };
+    if (!def.stock) manifest[name].rect = bandRect(bodyBand(kenneyModels[name], def.bodyHue));
+  }
+  await saveModel('colormap.png', await (await fetch('/kenney/Textures/colormap.png')).arrayBuffer());
+  const exporter = new GLTFExporter();
+  for (const name of Object.keys(BUILD)) {
+    const g = new THREE.Group();
+    const paint = flat(0xffffff);
+    paint.name = 'paint';
+    const accent = flat(0xf4f4f0);
+    accent.name = 'accent';
+    BUILD[name](g, paint, accent);
+    const scene = new THREE.Scene();
+    scene.add(g);
+    await saveModel(`${name}.glb`, await exporter.parseAsync(scene, { binary: true }));
+    manifest[name] = { kenney: false };
+  }
+  await saveModel('manifest.json', JSON.stringify(manifest));
+  document.getElementById('status').textContent = 'exported';
+  throw new Error('export finished'); // stop here: no sprites to render
+}
 const only = params.get('only'); // e.g. ?only=van for quick previews
 const onlyPaint = params.get('paint');
 const NOSAVE = params.has('nosave');

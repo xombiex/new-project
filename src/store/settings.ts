@@ -25,6 +25,9 @@ type SettingsState = {
   reportAlerts: boolean;
   /** Seen the welcome screens */
   onboarded: boolean;
+  /** Live 3D vehicles on the map (Style Pack, web for now) */
+  cars3d: boolean;
+  setCars3d: (on: boolean) => void;
   /** Hill shading (and 3D mountains with the 3D map) */
   terrain: boolean;
   setTerrain: (on: boolean) => void;
@@ -114,6 +117,8 @@ export const useSettings = create<SettingsState>()(
       setAvoidAlprCameras: (avoidAlprCameras) => set({ avoidAlprCameras }),
       map3d: true,
       setMap3d: (map3d) => set({ map3d }),
+      cars3d: true,
+      setCars3d: (cars3d) => set({ cars3d }),
       terrain: true,
       setTerrain: (terrain) => set({ terrain }),
       radar: false,

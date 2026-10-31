@@ -281,6 +281,22 @@ export default function ProfileScreen() {
         </View>
       </Card>
 
+      {Platform.OS === 'web' ? (
+        <Pressable onPress={() => !cosmetics && router.push({ pathname: '/paywall', params: { offering: 'cosmetics' } })} disabled={cosmetics} accessibilityRole={cosmetics ? undefined : 'button'}>
+          <Card>
+            <View style={styles.row}>
+              <View style={{ flex: 1 }}>
+                <ThemedText style={{ fontWeight: 700 }}>Live 3D cars{cosmetics ? '' : ' · Style Pack'}</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  Real 3D vehicles on the map with their own animations: flames, light bars, lean and rumble.
+                </ThemedText>
+              </View>
+              {cosmetics ? <Switch value={settings.cars3d} onValueChange={settings.setCars3d} /> : <MaterialCommunityIcons name="lock-outline" size={22} color={theme.textSecondary} />}
+            </View>
+          </Card>
+        </Pressable>
+      ) : null}
+
       <Card>
         <View style={styles.row}>
           <View style={{ flex: 1 }}>
