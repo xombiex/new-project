@@ -45,6 +45,10 @@ const EMPTY = { type: 'FeatureCollection' as const, features: [] };
 const REALIGN_MS = 8000;
 /** Above the speed dial and the side buttons that sit on top of the bottom sheet. */
 const RECENTER_OFFSET = 140;
+/** How long the map credit stays open before folding down to its "i". */
+const CREDIT_MS = 5000;
+/** Left of the floating buttons down the right edge. */
+const CREDIT_RIGHT = 76;
 
 /** Symbol layers that draw vehicle sprites. Re-run after every style (re)load. */
 function addCameraLayer(m: MLMap) {
@@ -142,6 +146,9 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], onPressCame
       zoom: useSettings.getState().lastCoord ? 14 : 3,
       attributionControl: { compact: true },
     });
+    // The credit starts open, then folds down to an "i" you can tap: a full-width bar on a phone
+    // would sit over the map (or stick out from behind a panel) for the whole session.
+    const credit = setTimeout(() => m.getContainer().querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show'), CREDIT_MS);
     m.on('load', () => {
       setLoaded(true);
       // Hills and radar sit on the base map, under everything of ours.
@@ -195,6 +202,7 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], onPressCame
     });
     observer.observe(container.current!);
     return () => {
+      clearTimeout(credit);
       observer.disconnect();
       m.remove();
       // A theme change rebuilds the map; layers and markers get re-added once it loads.
@@ -468,9 +476,25 @@ export function ConvoyMap({ style, follow = false, me, cameras = [], onPressCame
     if (loaded) doFit.current();
   }, [loaded, fitKey]);
 
+  // Keep the credit above whatever panel covers the bottom of the map.
+  const creditBottom = padding?.bottom ?? 0;
+  useEffect(() => {
+    const corner = map.current?.getContainer().querySelector<HTMLElement>('.maplibregl-ctrl-bottom-right');
+    if (!corner) return;
+    corner.style.bottom = `${creditBottom}px`;
+    corner.style.right = creditBottom ? `${CREDIT_RIGHT}px` : '0';
+    corner.style.left = creditBottom ? '0' : '';
+  }, [creditBottom, loaded]);
+
+  const creditColors = {
+    '--map-credit-bg': theme.backgroundElement,
+    '--map-credit-fg': theme.textSecondary,
+    '--map-credit-icon': scheme === 'dark' ? 'invert(1)' : 'none',
+  } as React.CSSProperties;
+
   return (
     <View style={[styles.container, style]}>
-      <div ref={container} style={{ position: 'absolute', inset: 0 }} />
+      <div ref={container} style={{ position: 'absolute', inset: 0, ...creditColors }} />
       {follow && me && camera?.heading != null ? (
         <Pressable
           accessibilityRole="button"

@@ -50,6 +50,11 @@
           "icon": "navigation-variant",
           "title": "Follows your direction",
           "text": "The map now turns with the direction you're driving and holds steady at stops, instead of following the phone's compass or snapping back to north."
+        },
+        {
+          "icon": "map-outline",
+          "title": "A clearer drives map",
+          "text": "Your drive history map stays clean until you tap a drive, then shows just that one."
         }
       ]
     },

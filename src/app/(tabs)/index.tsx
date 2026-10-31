@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useRouter, usePathname } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View, useWindowDimensions, Platform, Share } from 'react-native';
 import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
@@ -82,6 +82,7 @@ export default function DriveScreen() {
   const { active, lastSample, start, finish, discard } = useTrips();
   const nav = useNav();
   const navigating = useNavigation((s) => s.active);
+  const searching = usePathname() === '/search';
   const navRoute = useNavigation((s) => s.route);
   const navProgress = useNavigation((s) => s.progress);
   const navDestination = useNavigation((s) => s.destination);
@@ -324,7 +325,10 @@ export default function DriveScreen() {
 
   const elapsed = active ? (now - active.startedAt) / 1000 : 0;
   const placeOpen = !navigating && Boolean(nav.destination);
-  const panelHeight = navigating ? (choosing || gas ? 330 : 128) : placeOpen ? 400 : active ? 376 : 316;
+  // Everything that floats above the panel goes by its real height, once it's been laid out: text
+  // size and phone width change it. (The tab inset is inside the panel's padding, and added back below.)
+  const [panelMeasured, setPanelMeasured] = useState<number | null>(null);
+  const panelHeight = panelMeasured != null ? Math.max(0, panelMeasured - BottomTabInset) : navigating ? (choosing || gas ? 330 : 128) : placeOpen ? 400 : active ? 376 : 316;
   // Map faces the way you're travelling and holds that at a stop. Until you've first moved, the
   // compass (web) points it. Never the compass while driving: a mounted phone isn't facing the road.
   const compass = useCompassHeading();
@@ -452,7 +456,10 @@ export default function DriveScreen() {
         </NavBanner>
       ) : (
         <View style={[styles.top, { paddingTop: insets.top + Spacing.two }]} pointerEvents="box-none">
-          {(
+          {searching ? (
+            // The sheet has its own search box; hold the space so nothing below jumps.
+            <View style={[styles.searchWrap, styles.search, { opacity: 0 }]} pointerEvents="none" />
+          ) : (
             <Pressable
               onPress={() => router.push({ pathname: '/search', params: { purpose: 'route' } })}
               accessibilityRole="search"
@@ -562,7 +569,9 @@ export default function DriveScreen() {
       </Pressable>
 
       {/* Bottom: speed + trip or navigation controls */}
-      <Glass style={[styles.panel, { paddingBottom: BottomTabInset + Spacing.three }, placeOpen && { alignItems: 'stretch' }]}>
+      <Glass
+        onLayout={(e) => setPanelMeasured(e.nativeEvent.layout.height)}
+        style={[styles.panel, { paddingBottom: BottomTabInset + Spacing.three }, placeOpen && { alignItems: 'stretch' }]}>
         {placeOpen && nav.destination ? (
           <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
             <PlaceCard
@@ -699,7 +708,7 @@ const styles = StyleSheet.create({
   limit: { position: 'absolute', left: Spacing.three },
   alerts: { alignSelf: 'stretch', alignItems: 'center', gap: Spacing.two },
   roster: { position: 'absolute', left: Spacing.two },
-  sideBtn: { position: 'absolute', right: Spacing.three },
+  sideBtn: { position: 'absolute', right: Spacing.three, zIndex: 5 },
   scoutCard: {
     position: 'absolute',
     left: Spacing.three,
@@ -723,6 +732,7 @@ const styles = StyleSheet.create({
   cameraText: { color: '#fff', fontWeight: 800 },
   reportBtn: {
     position: 'absolute',
+    zIndex: 5, // never under the panel
     right: Spacing.three,
     width: 56,
     height: 56,

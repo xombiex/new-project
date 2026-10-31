@@ -110,18 +110,11 @@ export function DrivesView({ toggle }: { toggle: ReactNode }) {
 
   const selectedTrip = trips.find((t) => t.id === selected) ?? null;
 
-  // Every drive in one glowing layer; overlapping roads stack up into a heat trail.
-  const lines = useMemo<MapLine[]>(() => {
-    const paths = trips.filter((t) => t.path.length > 1).map((t) => t.path);
-    const out: MapLine[] = [];
-    if (paths.length) {
-      out.push({ id: 'all-drives', coords: paths, color: theme.speed, width: 4, variant: 'glow', opacity: selectedTrip ? 0.35 : 1 });
-    }
-    if (selectedTrip && selectedTrip.path.length > 1) {
-      out.push({ id: 'selected-drive', coords: selectedTrip.path, color: theme.speed, width: 6, variant: 'glow' });
-    }
-    return out;
-  }, [trips, selectedTrip, theme.speed]);
+  // The map stays clear until you tap a drive; then just that one is drawn.
+  const lines = useMemo<MapLine[]>(
+    () => (selectedTrip && selectedTrip.path.length > 1 ? [{ id: 'selected-drive', coords: selectedTrip.path, color: theme.speed, width: 6, variant: 'glow' }] : []),
+    [selectedTrip, theme.speed]
+  );
 
   const sheetHeight = Math.round(height * 0.5);
   const fitPoints: LngLat[] = selectedTrip ? selectedTrip.path : trips.flatMap((t) => t.path);
@@ -157,6 +150,11 @@ export function DrivesView({ toggle }: { toggle: ReactNode }) {
               <ThemedText type="small" themeColor="textSecondary">
                 {trips.length} {trips.length === 1 ? 'drive' : 'drives'} · {formatDistance(units, totals.distanceM)} ·{' '}
                 {formatDuration(totals.durationS)}
+              </ThemedText>
+            ) : null}
+            {history.length && !selectedTrip ? (
+              <ThemedText type="small" themeColor="textSecondary">
+                Tap a drive to see it on the map
               </ThemedText>
             ) : null}
           </View>

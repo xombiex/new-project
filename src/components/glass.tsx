@@ -1,6 +1,6 @@
 import { BlurView } from 'expo-blur';
 import type { ReactNode } from 'react';
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewProps, type ViewStyle } from 'react-native';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
@@ -13,15 +13,18 @@ export function Glass({
   children,
   style,
   intensity = 40,
+  onLayout,
 }: {
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
   intensity?: number;
+  onLayout?: ViewProps['onLayout'];
 }) {
   const scheme = useColorScheme();
   const theme = useTheme();
   return (
     <View
+      onLayout={onLayout}
       style={[
         styles.base,
         { borderColor: scheme === 'light' ? 'rgba(255,255,255,0.9)' : theme.border },
