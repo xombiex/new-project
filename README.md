@@ -27,6 +27,7 @@ Not included: live traffic (no legitimate free source; community reports cover i
 | Convoy Pro | $5 / month or $40 / year | `pro` (includes `cosmetics`) |
 | Convoy Clubs | $15 / month | `club` (includes `pro`) |
 | Style Pack | $5 one-time | `cosmetics` |
+| Style drops (Afterburner, Neon Trails) | $5 one-time each, not included in Pro | `drop_afterburner`, `drop_neon_trails` |
 | Event tickets | Set by organizer (free or $5+) | Stripe Connect, Convoy keeps `PLATFORM_FEE_PERCENT` (default 5%) |
 | Gear | — | Amazon Associates commission |
 
@@ -73,10 +74,21 @@ Everything works without these; each section lights up when its keys exist.
 
 ### 2. In-app purchases (RevenueCat)
 1. Create the products in App Store Connect and Google Play (table above).
-2. In RevenueCat: add both apps, create entitlements `pro`, `club`, `cosmetics`, and offerings `default` (Pro monthly + yearly), `clubs`, `cosmetics`.
+2. In RevenueCat: add both apps, create entitlements `pro`, `club`, `cosmetics`, `drop_afterburner`, `drop_neon_trails`, and offerings `default` (Pro monthly + yearly), `clubs`, `cosmetics`, `afterburner`, `neon_trails`.
 3. Put the public SDK keys in `.env`: `EXPO_PUBLIC_REVENUECAT_IOS_KEY`, `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`.
 4. In Supabase → Edge Functions → Secrets add `REVENUECAT_SECRET_KEY` (RevenueCat secret API key) and `REVENUECAT_WEBHOOK_AUTH` (any long random string).
 5. In RevenueCat → Integrations → Webhooks: URL `https://qdcdveoidmnwqnabfuvd.supabase.co/functions/v1/revenuecat-webhook`, Authorization header = the same random string.
+
+Once the store keys are set, the phone apps sell through the App Store and Google Play instead of Stripe. Leave them out of test builds and purchases use Stripe, which the stores don't allow for digital goods in a released app.
+
+**Live 3D cars and drive clips on phones** run the web map in a WebView (`/map-embed`, `/clip-embed`), so they need the website deployed and `EXPO_PUBLIC_WEB_URL` pointing at it if it moves. Native MapLibre can't draw custom models. If the page fails to load, the map falls back to the native one with sprites.
+
+**Release builds**
+```
+npx eas-cli build --platform android --profile preview      # installable test APK
+npx eas-cli build --platform all --profile production       # store builds; iOS asks you to sign in to Apple
+npx eas-cli submit --platform all --latest                  # send them to the stores
+```
 
 In development builds, Profile → "Developer: simulate purchases" unlocks features locally without buying. Server-enforced limits still need a real purchase.
 
