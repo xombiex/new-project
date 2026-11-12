@@ -202,6 +202,19 @@ export function announce(
 /** Consecutive off-route fixes needed before rerouting (filters single bad fixes). */
 export const OFF_ROUTE_FIXES = 3;
 
+/**
+ * How long to wait before asking for another route. 10 seconds normally; each failed attempt
+ * doubles it, up to a minute, so a dead connection isn't hammered all the way down the road.
+ */
+export function rerouteWaitMs(failures: number): number {
+  return Math.min(10_000 * 2 ** Math.max(0, failures), 60_000);
+}
+
+/** Off the route for enough fixes in a row, and not asked too recently. */
+export function shouldReroute(offRouteFixes: number, sinceLastMs: number, failures: number): boolean {
+  return offRouteFixes >= OFF_ROUTE_FIXES && sinceLastMs > rerouteWaitMs(failures);
+}
+
 export function isOffRoute(offsetM: number, accuracyM: number | null): boolean {
   return offsetM > Math.max(45, (accuracyM ?? 10) * 1.5);
 }

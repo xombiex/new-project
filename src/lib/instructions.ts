@@ -1,17 +1,9 @@
 import type { LngLat, Units } from '@/lib/geo';
 
-/** Subset of an OSRM v5 RouteStep that we use. */
-export type OsrmStep = {
-  distance: number;
-  duration: number;
-  name: string;
-  ref?: string;
-  destinations?: string;
-  exits?: string;
-  maneuver: { type: string; modifier?: string; location: LngLat; exit?: number };
-  /** intersections along the step; the first is the maneuver itself, with its turn lanes when mapped */
-  intersections?: { lanes?: { valid: boolean; indications: string[] }[] }[];
-};
+import type { RouteStep } from '@/services/routing/types';
+
+/** The old name for a route step, from when OSRM was the only router. Use RouteStep in new code. */
+export type OsrmStep = RouteStep;
 
 const ORDINAL = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth'];
 

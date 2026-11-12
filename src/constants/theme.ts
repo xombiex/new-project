@@ -89,6 +89,31 @@ export const Display = {
   semi: 'BarlowCondensed_600SemiBold',
 } as const;
 
+/**
+ * The type scale. Two voices: the system font for reading, Barlow Condensed for readouts and
+ * headings. Screens pick a role through <ThemedText type="…">; a font size written by hand in a
+ * screen is a sign the scale is missing a role.
+ */
+export const TypeScale = {
+  /** legal lines, timestamps under a row */
+  caption: { fontSize: 12, lineHeight: 16 },
+  small: { fontSize: 14, lineHeight: 20 },
+  body: { fontSize: 16, lineHeight: 24 },
+  /** names in lists, card headings */
+  lead: { fontSize: 18, lineHeight: 24 },
+  /** stamped labels (Barlow, uppercase) */
+  label: { fontSize: 15, lineHeight: 18 },
+  /** section and sheet headings (Barlow) */
+  heading: { fontSize: 26, lineHeight: 28 },
+  /** numbers on a card: distance, time, speed (Barlow italic) */
+  metric: { fontSize: 30, lineHeight: 34 },
+  /** screen titles (Barlow italic) */
+  display: { fontSize: 46, lineHeight: 50 },
+} as const;
+
+/** Smallest thing a finger should be asked to hit; controls used while driving get the larger one. */
+export const HitTarget = { min: 48, driving: 60 } as const;
+
 export const Spacing = {
   half: 2,
   one: 4,

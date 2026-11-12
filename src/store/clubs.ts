@@ -55,6 +55,7 @@ function rpcError(message: string) {
   if (message.includes('club not found')) return 'No club with that code';
   if (message.includes('club is full')) return 'That club is full';
   if (message.includes('event is full')) return 'This event is full';
+  if (message.includes('too many wrong codes')) return 'Too many wrong codes. Try again in a few minutes.';
   return message;
 }
 
@@ -107,6 +108,7 @@ export const useClubs = create<ClubsState>()((set, get) => ({
   join: async (code) => {
     const { data, error } = await supabase.rpc('join_club', { p_code: code });
     if (error) return { error: rpcError(error.message) };
+    if (!(data as Club | null)?.id) return { error: rpcError('club not found') };
     await get().loadMine();
     return { club: data as Club };
   },

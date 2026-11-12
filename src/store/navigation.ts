@@ -7,14 +7,15 @@ import {
   announce,
   buildNavRoute,
   isOffRoute,
-  OFF_ROUTE_FIXES,
   progress,
+  shouldReroute,
   type NavProgress,
   type NavRoute,
 } from '@/lib/navigation';
 import { haversine } from '@/lib/geo';
 import { routeFor, routeVia, type Place, type Route, type RouteMode } from '@/lib/places';
 import { SITE_URL } from '@/lib/site';
+import { routingErrorKind } from '@/services/routing';
 import { supabase } from '@/lib/supabase';
 import type { LocationSample } from '@/lib/trip-recorder';
 import { useNav } from '@/store/nav';
@@ -28,6 +29,8 @@ type NavState = {
   progress: NavProgress | null;
   muted: boolean;
   rerouting: boolean;
+  /** Why a new route couldn't be fetched after leaving the old one; null when all is well. */
+  routeProblem: 'offline' | 'unavailable' | null;
   start: (route: Route, destination: Place) => Promise<void>;
   stop: () => Promise<void>;
   /** Change to another route mid-drive (keeps the trip and destination). */
@@ -44,7 +47,6 @@ type NavState = {
   toggleMute: () => void;
 };
 
-const REROUTE_COOLDOWN_MS = 10_000;
 /** How often a shared ETA gets your new position. */
 const SHARE_EVERY_MS = 10_000;
 let shareToken: string | null = null;
@@ -76,6 +78,8 @@ let buzzed = new Set<number>();
 const BUZZ_M = 200;
 let offRouteFixes = 0;
 let lastReroute = 0;
+/** Reroutes that failed in a row; each one makes the next attempt wait longer. */
+let rerouteFailures = 0;
 let stopListening: (() => void) | null = null;
 let endTimer: ReturnType<typeof setTimeout> | null = null;
 /** The kind of route picked (fastest / shortest / no highways), kept when rerouting. */
@@ -102,10 +106,16 @@ export const useNavigation = create<NavState>()((set, get) => {
         spoken = new Set();
         buzzed = new Set();
         offRouteFixes = 0;
-        set({ route: buildNavRoute(best.geometry, best.steps, best.durationS), progress: null });
+        rerouteFailures = 0;
+        set({ route: buildNavRoute(best.geometry, best.steps, best.durationS), progress: null, routeProblem: null });
       }
     } catch (e) {
-      console.warn('Reroute failed', e);
+      const kind = routingErrorKind(e);
+      if (kind === 'aborted' || !get().active) return;
+      // Say it once, then keep trying quietly with longer gaps.
+      if (rerouteFailures === 0) say(kind === 'offline' ? "No connection. I'll find a new route when it's back." : "Can't get a new route right now. I'll keep trying.");
+      rerouteFailures++;
+      set({ routeProblem: kind === 'offline' ? 'offline' : 'unavailable' });
     } finally {
       set({ rerouting: false });
     }
@@ -123,10 +133,15 @@ export const useNavigation = create<NavState>()((set, get) => {
 
     if (!prog.arrived && isOffRoute(prog.snap.offsetM, sample.accuracy)) {
       offRouteFixes++;
-      if (offRouteFixes >= OFF_ROUTE_FIXES && Date.now() - lastReroute > REROUTE_COOLDOWN_MS) void reroute(sample);
+      if (shouldReroute(offRouteFixes, Date.now() - lastReroute, rerouteFailures)) void reroute(sample);
       return; // keep showing the last good progress while off route
     }
     offRouteFixes = 0;
+    // Back on the old route by themselves: nothing left to fix.
+    if (get().routeProblem) {
+      rerouteFailures = 0;
+      set({ routeProblem: null });
+    }
     set({ progress: prog });
     pushShare(sample, prog.remainingS);
 
@@ -152,6 +167,7 @@ export const useNavigation = create<NavState>()((set, get) => {
     progress: null,
     muted: false,
     rerouting: false,
+    routeProblem: null,
     via: null,
     shareUrl: null,
 
@@ -208,9 +224,10 @@ export const useNavigation = create<NavState>()((set, get) => {
       spoken = new Set();
       buzzed = new Set();
       offRouteFixes = 0;
+      rerouteFailures = 0;
       mode = route.mode ?? 'fastest';
       const nav = buildNavRoute(route.geometry, route.steps, route.durationS);
-      set({ active: true, route: nav, destination, progress: null, via: null });
+      set({ active: true, route: nav, destination, progress: null, via: null, routeProblem: null });
       stopListening = onLocation((samples) => onSample(samples[samples.length - 1]));
       await addReason('nav');
       const first = nav.steps[1];
@@ -229,7 +246,7 @@ export const useNavigation = create<NavState>()((set, get) => {
         void supabase.rpc('end_eta_share', { p_token: shareToken, p_arrived: Boolean(get().progress?.arrived) });
         shareToken = null;
       }
-      set({ active: false, route: null, destination: null, progress: null, rerouting: false, via: null, shareUrl: null });
+      set({ active: false, route: null, destination: null, progress: null, rerouting: false, routeProblem: null, via: null, shareUrl: null });
       // Done (ended, arrived, or the trip finished): drop the planned route too, or its line and
       // place card would pop straight back onto the map.
       useNav.getState().clear();
@@ -242,7 +259,8 @@ export const useNavigation = create<NavState>()((set, get) => {
       buzzed = new Set();
       offRouteFixes = 0;
       lastReroute = Date.now();
-      set({ route: buildNavRoute(route.geometry, route.steps, route.durationS), progress: null, rerouting: false, via: null });
+      rerouteFailures = 0;
+      set({ route: buildNavRoute(route.geometry, route.steps, route.durationS), progress: null, rerouting: false, routeProblem: null, via: null });
       say('Route changed.');
     },
 

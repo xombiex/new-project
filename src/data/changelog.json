@@ -2,6 +2,28 @@
   "_readme": "Convoy's update log, newest first. Shown once in the app after each update (What's new), on Profile > What's new, and at /updates on the website. Add a release at the top whenever a user-facing change ships. id must be unique and new ids must sort after old ones (use the date, plus -2 for a second release that day). icon is a MaterialCommunityIcons name.",
   "releases": [
     {
+      "id": "2026-11-12",
+      "date": "2026-11-12",
+      "title": "Safer and steadier",
+      "items": [
+        {
+          "icon": "account-cancel-outline",
+          "title": "Blocking that sticks",
+          "text": "Block someone from a friend request or your friends list and they can no longer send you requests or see your location, drives or garage. They aren't told."
+        },
+        {
+          "icon": "routes",
+          "title": "Routes that keep working",
+          "text": "If one route service is down, Convoy now asks another. If you lose signal after a wrong turn, it says so and finds a new route as soon as you're back."
+        },
+        {
+          "icon": "lock-outline",
+          "title": "Join codes can't be guessed",
+          "text": "Too many wrong drive or club codes in a row now means a short wait before trying again."
+        }
+      ]
+    },
+    {
       "id": "2026-10-30",
       "date": "2026-10-30",
       "title": "Convoy got some character",

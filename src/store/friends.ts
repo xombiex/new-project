@@ -5,13 +5,14 @@ import { notify } from '@/lib/notifications';
 import { isDemo } from '@/lib/demo';
 import { inZone } from '@/lib/privacy';
 import { supabase } from '@/lib/supabase';
+import { safety } from '@/services/safety';
 import type { LocationSample } from '@/lib/trip-recorder';
 import type { Profile } from '@/store/auth';
 import { useSettings } from '@/store/settings';
 
 export type Friendship = {
   other: Profile;
-  status: 'pending' | 'accepted' | 'blocked';
+  status: 'pending' | 'accepted';
   /** true when the current user sent the request */
   outgoing: boolean;
 };
@@ -35,7 +36,9 @@ type FriendsState = {
   loading: boolean;
   refresh: () => Promise<void>;
   request: (username: string) => Promise<string | null>;
-  respond: (otherId: string, status: 'accepted' | 'blocked') => Promise<void>;
+  accept: (otherId: string) => Promise<void>;
+  /** Blocks someone: they can't send requests or see anything of yours, and they aren't told. */
+  block: (otherId: string) => Promise<string | null>;
   remove: (otherId: string) => Promise<void>;
   startSharing: (hours: number) => Promise<string | null>;
   stopSharing: () => Promise<void>;
@@ -149,18 +152,36 @@ export const useFriends = create<FriendsState>()((set, get) => {
       if (!target) return 'No user with that username';
       if (target.id === uid) return "That's you";
       const { error } = await supabase.from('friendships').insert({ requester_id: uid, addressee_id: target.id });
-      if (error) return error.code === '23505' ? 'Request already sent' : error.message;
+      if (error) {
+        if (error.code === '23505') return 'There is already a request between you two';
+        if (error.message.includes('too many')) return "That's a lot of requests for one day. Try again tomorrow.";
+        // A block looks the same as any other failure, so nobody learns they were blocked.
+        return "Couldn't send that request";
+      }
       void notify({ type: 'friend_request', to: target.id });
       await get().refresh();
       return null;
     },
 
-    respond: async (otherId, status) => {
+    accept: async (otherId) => {
       const uid = await myId();
       if (!uid) return;
-      await supabase.from('friendships').update({ status }).eq('requester_id', otherId).eq('addressee_id', uid);
-      if (status === 'accepted') void notify({ type: 'friend_accepted', to: otherId });
+      await supabase.from('friendships').update({ status: 'accepted' }).eq('requester_id', otherId).eq('addressee_id', uid);
+      void notify({ type: 'friend_accepted', to: otherId });
       await get().refresh();
+    },
+
+    block: async (otherId) => {
+      const before = get().friendships;
+      // Gone from the list straight away; put back if the server says no.
+      set({ friendships: before.filter((f) => f.other.id !== otherId) });
+      const res = await safety.block(otherId);
+      if (!res.ok) {
+        set({ friendships: before });
+        return res.error.message;
+      }
+      await get().refresh();
+      return null;
     },
 
     remove: async (otherId) => {

@@ -1,10 +1,11 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ReactNode, useEffect } from 'react';
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { ActivityIndicator, type DimensionValue, Pressable, type PressableProps, ScrollView, type StyleProp, StyleSheet, TextInput, type TextInputProps, View, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { BottomTabInset, Display, Radius, Spacing } from '@/constants/theme';
+import { BottomTabInset, Display, HitTarget, Radius, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -165,15 +166,110 @@ export function SectionTitle({ children, action }: { children: ReactNode; action
   );
 }
 
-export function EmptyState({ title, body, children }: { title: string; body: string; children?: ReactNode }) {
+type IconName = keyof typeof MaterialCommunityIcons.glyphMap;
+
+/** Nothing here yet: says what would be here and how to get the first one. */
+export function EmptyState({ title, body, icon, children }: { title: string; body: string; icon?: IconName; children?: ReactNode }) {
+  const theme = useTheme();
   return (
-    <Card style={{ alignItems: 'center', gap: Spacing.two, paddingVertical: Spacing.five }}>
-      <ThemedText style={{ fontFamily: Display.italic, fontSize: 28, lineHeight: 32, textAlign: 'center' }}>{title}</ThemedText>
-      <ThemedText themeColor="textSecondary" style={{ textAlign: 'center' }}>
+    <Card style={styles.state}>
+      {icon ? <MaterialCommunityIcons name={icon} size={36} color={theme.textSecondary} /> : null}
+      <ThemedText style={styles.stateTitle}>{title}</ThemedText>
+      <ThemedText themeColor="textSecondary" style={styles.stateBody}>
         {body}
       </ThemedText>
       {children}
     </Card>
+  );
+}
+
+/** Something failed to load: what happened, and a way to try again. */
+export function ErrorState({ title = "Couldn't load this", message, onRetry, retrying }: { title?: string; message: string; onRetry?: () => void; retrying?: boolean }) {
+  const theme = useTheme();
+  return (
+    <Card style={styles.state}>
+      <MaterialCommunityIcons name="alert-circle-outline" size={36} color={theme.warning} />
+      <ThemedText style={styles.stateTitle}>{title}</ThemedText>
+      <ThemedText themeColor="textSecondary" style={styles.stateBody} accessibilityRole="alert">
+        {message}
+      </ThemedText>
+      {onRetry ? <Button label="Try again" variant="secondary" onPress={onRetry} loading={retrying} /> : null}
+    </Card>
+  );
+}
+
+/** Placeholder rows shaped like a list of people or drives while the real ones load. */
+export function LoadingRows({ count = 3, avatar = true }: { count?: number; avatar?: boolean }) {
+  return (
+    <View accessibilityLabel="Loading" accessibilityRole="progressbar">
+      <Card style={{ gap: Spacing.three }}>
+      {Array.from({ length: count }, (_, i) => (
+        <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.three }}>
+          {avatar ? <Skeleton height={40} width={40} radius={20} /> : null}
+          <View style={{ flex: 1, gap: Spacing.two }}>
+            <Skeleton height={14} width={i % 2 ? '45%' : '60%'} />
+            <Skeleton height={12} width={i % 2 ? '70%' : '35%'} />
+          </View>
+        </View>
+      ))}
+    </Card>
+    </View>
+  );
+}
+
+/** A one-line message inside a screen: a warning, a privacy note, a "you're offline". */
+export function Notice({ tone = 'info', icon, children, action }: { tone?: 'info' | 'warning' | 'danger' | 'success'; icon?: IconName; children: ReactNode; action?: ReactNode }) {
+  const theme = useTheme();
+  const color = { info: theme.textSecondary, warning: theme.warning, danger: theme.danger, success: theme.success }[tone];
+  const fallback: IconName = { info: 'information-outline', warning: 'alert-outline', danger: 'alert-circle-outline', success: 'check-circle-outline' }[tone] as IconName;
+  return (
+    <View style={[styles.notice, { backgroundColor: theme.backgroundSelected, borderLeftColor: color }]} accessibilityRole={tone === 'info' ? undefined : 'alert'}>
+      <MaterialCommunityIcons name={icon ?? fallback} size={20} color={color} />
+      <ThemedText type="small" style={{ flex: 1 }}>
+        {children}
+      </ThemedText>
+      {action}
+    </View>
+  );
+}
+
+/** A button that is only an icon. The label is required: it's what a screen reader says. */
+export function IconButton({
+  icon,
+  label,
+  onPress,
+  size = HitTarget.min,
+  tone = 'plain',
+  disabled,
+  color,
+  style,
+}: {
+  icon: IconName;
+  label: string;
+  onPress: () => void;
+  /** HitTarget.driving for anything used on the move */
+  size?: number;
+  tone?: 'plain' | 'filled' | 'accent' | 'danger';
+  disabled?: boolean;
+  color?: string;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const theme = useTheme();
+  const bg = { plain: 'transparent', filled: theme.backgroundSelected, accent: theme.accent, danger: theme.danger }[tone];
+  const fg = color ?? (tone === 'accent' || tone === 'danger' ? theme.accentText : theme.text);
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: Boolean(disabled) }}
+      style={({ pressed }) => [
+        { width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: bg, opacity: disabled ? 0.4 : pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.94 : 1 }] },
+        style,
+      ]}>
+      <MaterialCommunityIcons name={icon} size={Math.round(size * 0.5)} color={fg} />
+    </Pressable>
   );
 }
 
@@ -257,6 +353,10 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   avatar: { alignItems: 'center', justifyContent: 'center' },
+  state: { alignItems: 'center', gap: Spacing.two, paddingVertical: Spacing.five },
+  stateTitle: { fontFamily: Display.italic, fontSize: 28, lineHeight: 32, textAlign: 'center' },
+  stateBody: { textAlign: 'center', maxWidth: 420 },
+  notice: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, padding: Spacing.three, borderRadius: Radius.md, borderLeftWidth: 3 },
   stat: { flex: 1, alignItems: 'center', gap: Spacing.half },
   statValue: { fontFamily: Display.italic, fontSize: 30, lineHeight: 34, fontVariant: ['tabular-nums'] },
   sectionTitle: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Spacing.two },

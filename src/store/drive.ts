@@ -101,6 +101,7 @@ function rpcError(message: string) {
   if (message.includes('drive is full')) return 'That drive is full';
   if (message.includes('not a club member')) return 'Only club members can join this drive';
   if (message.includes('too many active drives')) return 'You already have 3 active drives — end one first';
+  if (message.includes('too many wrong codes')) return 'Too many wrong codes. Try again in a few minutes.';
   return message;
 }
 
@@ -321,6 +322,8 @@ export const useDrive = create<DriveState>()(
         join: async (code) => {
           const { data, error } = await supabase.rpc('join_drive', { p_code: code });
           if (error) return rpcError(error.message);
+          // A wrong code comes back empty rather than as an error, so the server can count it.
+          if (!(data as GroupDrive | null)?.id) return rpcError('drive not found');
           set({ arrived: {} });
           await connect(data as GroupDrive);
           void notify({ type: 'member_joined', drive_id: (data as GroupDrive).id });

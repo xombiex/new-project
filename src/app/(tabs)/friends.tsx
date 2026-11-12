@@ -31,7 +31,7 @@ export default function FriendsScreen() {
   const theme = useTheme();
   const router = useRouter();
   const profile = useAuth((s) => s.profile);
-  const { friendships, locations, presence, shareUntil, loading, refresh, request, respond, remove, startSharing, stopSharing } =
+  const { friendships, locations, presence, shareUntil, loading, refresh, request, accept, block, remove, startSharing, stopSharing } =
     useFriends();
   const units = useSettings((s) => s.units);
   const last = useTrips((s) => s.lastSample);
@@ -67,10 +67,33 @@ export default function FriendsScreen() {
     if (!err) setUsername('');
   }
 
+  function confirmBlock(f: Friendship) {
+    Alert.alert(`Block ${f.other.display_name}?`, "They won't be able to send you requests or see your location, drives or garage. They aren't told.", [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Block',
+        style: 'destructive',
+        onPress: async () => {
+          const err = await block(f.other.id);
+          if (err) Alert.alert("Couldn't block", err);
+        },
+      },
+    ]);
+  }
+
   function confirmRemove(f: Friendship) {
     Alert.alert(f.other.display_name, undefined, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Remove friend', style: 'destructive', onPress: () => void remove(f.other.id) },
+      { text: 'Block', style: 'destructive', onPress: () => confirmBlock(f) },
+    ]);
+  }
+
+  function declineOrBlock(f: Friendship) {
+    Alert.alert(`Request from ${f.other.display_name}`, undefined, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Decline', onPress: () => void remove(f.other.id) },
+      { text: 'Block', style: 'destructive', onPress: () => confirmBlock(f) },
     ]);
   }
 
@@ -160,14 +183,9 @@ export default function FriendsScreen() {
                       @{f.other.username}
                     </ThemedText>
                   </View>
-                  <Button label="Accept" onPress={() => void respond(f.other.id, 'accepted')} />
+                  <Button label="Accept" onPress={() => void accept(f.other.id)} />
                   <Pressable
-                    onPress={() =>
-                      Alert.alert('Block?', `${f.other.display_name} won't be able to send you requests.`, [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'Block', style: 'destructive', onPress: () => void respond(f.other.id, 'blocked') },
-                      ])
-                    }
+                    onPress={() => declineOrBlock(f)}
                     accessibilityRole="button"
                     accessibilityLabel={`Decline or block ${f.other.display_name}`}
                     hitSlop={10}>

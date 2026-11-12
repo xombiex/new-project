@@ -1,60 +1,16 @@
 import type { LngLat } from '@/lib/geo';
-import type { OsrmStep } from '@/lib/instructions';
+import { geocoder, type Place } from '@/services/geocoding';
+import { router, type RoutePlan, type RoutePreference, type RouteStep } from '@/services/routing';
 
 /**
- * Free, keyless OpenStreetMap services. Both public endpoints are fair-use only;
- * point the env vars at a self-hosted instance (or a paid host) once usage grows.
+ * Route choices for the app: which kinds to offer, how they're labelled and compared. The servers
+ * themselves are behind `services/routing` and `services/geocoding`; nothing here knows which
+ * router or search engine answered.
  */
-const PHOTON_URL = process.env.EXPO_PUBLIC_PHOTON_URL ?? 'https://photon.komoot.io';
-const OSRM_URL = process.env.EXPO_PUBLIC_OSRM_URL ?? 'https://router.project-osrm.org';
-/** Valhalla (OpenStreetMap's own router) does the routes OSRM can't: shortest, and no highways. */
-const VALHALLA_URL = process.env.EXPO_PUBLIC_VALHALLA_URL ?? 'https://valhalla1.openstreetmap.de';
+export type { Place };
 
-export type Place = {
-  id: string;
-  name: string;
-  detail: string;
-  coord: LngLat;
-  /** e.g. "Restaurant", "Gas station" (from the OSM tag) */
-  category?: string;
-};
-
-type PhotonFeature = {
-  geometry: { coordinates: LngLat };
-  properties: {
-    osm_id: number;
-    osm_type: string;
-    osm_key?: string;
-    osm_value?: string;
-    name?: string;
-    housenumber?: string;
-    street?: string;
-    city?: string;
-    state?: string;
-    country?: string;
-  };
-};
-
-export async function searchPlaces(query: string, near?: LngLat, signal?: AbortSignal): Promise<Place[]> {
-  const q = query.trim();
-  if (q.length < 3) return [];
-  const params = new URLSearchParams({ q, limit: '8', lang: 'en' });
-  if (near) {
-    params.set('lon', String(near[0]));
-    params.set('lat', String(near[1]));
-  }
-  const res = await fetch(`${PHOTON_URL}/api/?${params}`, { signal });
-  if (!res.ok) throw new Error(`Search failed (${res.status})`);
-  const json: { features: PhotonFeature[] } = await res.json();
-  return json.features.map((f) => {
-    const p = f.properties;
-    const street = [p.housenumber, p.street].filter(Boolean).join(' ');
-    const name = p.name ?? (street || p.city || 'Unnamed place');
-    const detail = [p.name ? street : null, p.city, p.state, p.country].filter(Boolean).join(', ');
-    const kind = p.osm_value && p.osm_value !== 'yes' && !['house', 'residential', 'street', 'road'].includes(p.osm_value) ? p.osm_value : null;
-    const category = kind ? (p.osm_key === 'shop' && kind !== 'supermarket' ? `${kind} store` : kind).replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase()) : undefined;
-    return { id: `${p.osm_type}${p.osm_id}`, name, detail, coord: f.geometry.coordinates, category };
-  });
+export function searchPlaces(query: string, near?: LngLat, signal?: AbortSignal): Promise<Place[]> {
+  return geocoder.search(query, near, signal);
 }
 
 /** How a route was asked for, so rerouting keeps the same choice. */
@@ -75,7 +31,7 @@ export type Route = {
   durationS: number;
   geometry: LngLat[];
   /** turn-by-turn maneuvers (single leg) */
-  steps: OsrmStep[];
+  steps: RouteStep[];
   /** cameras along this route, when known */
   cameras?: { speed: number; redlight: number; alpr: number };
   mode?: RouteMode;
@@ -86,25 +42,16 @@ export type Route = {
   curviness?: number;
 };
 
-type OsrmJson = {
-  code: string;
-  routes: { distance: number; duration: number; geometry: { coordinates: LngLat[] }; legs: { steps: OsrmStep[] }[] }[];
-};
-
 const TURN_TYPES = new Set(['turn', 'end of road', 'fork', 'on ramp', 'off ramp', 'roundabout', 'rotary', 'roundabout turn']);
 
 /** Count the maneuvers a driver actually has to make. */
-export function countTurns(steps: OsrmStep[]): number {
+export function countTurns(steps: RouteStep[]): number {
   return steps.filter((s) => TURN_TYPES.has(s.maneuver.type) && s.maneuver.modifier !== 'straight').length;
 }
 
-function parse(json: OsrmJson, mode: RouteMode): Route[] {
-  if (json.code !== 'Ok') throw new Error(json.code === 'NoRoute' ? 'No driving route found' : 'Routing failed');
-  return json.routes.map((r) => {
-    const steps = r.legs.flatMap((l) => l.steps);
-    const geometry = r.geometry.coordinates;
-    return { distanceM: r.distance, durationS: r.duration, geometry, steps, mode, turns: countTurns(steps), curviness: curviness(geometry) };
-  });
+/** A provider's route with the extras the app compares routes by. */
+function toRoute(plan: RoutePlan, mode: RouteMode): Route {
+  return { distanceM: plan.distanceM, durationS: plan.durationS, geometry: plan.geometry, steps: plan.steps, mode, turns: countTurns(plan.steps), curviness: curviness(plan.geometry) };
 }
 
 function bearingDeg(a: LngLat, b: LngLat) {
@@ -142,31 +89,17 @@ export function curviness(geometry: LngLat[]): number {
   return Math.round(bend / (lengthM / 1000));
 }
 
-/** Valhalla answering in OSRM's format, so the rest of the app doesn't care which router it was. */
-async function valhalla(from: LngLat, to: LngLat, mode: Exclude<RouteMode, 'fastest'>, signal?: AbortSignal): Promise<Route[]> {
-  // Twisty uses the no-highways router with alternatives, then picks the bendiest.
-  const body = {
-    locations: [
-      { lon: from[0], lat: from[1] },
-      { lon: to[0], lat: to[1] },
-    ],
-    costing: 'auto',
-    costing_options: { auto: mode === 'shortest' ? { shortest: true } : { use_highways: 0 } },
-    // Back-road candidates for the Twisty roads option.
-    ...(mode === 'twisty' ? { alternates: 3 } : {}),
-    format: 'osrm',
-    shape_format: 'geojson',
-  };
-  const res = await fetch(`${VALHALLA_URL}/route?json=${encodeURIComponent(JSON.stringify(body))}`, { signal });
-  if (!res.ok) throw new Error(`Routing failed (${res.status})`);
-  return parse(await res.json(), mode);
+/** Routes for one preference. Twisty asks for back-road alternatives; picking the bendiest happens later. */
+async function plan(mode: RouteMode, from: LngLat, to: LngLat, signal?: AbortSignal): Promise<Route[]> {
+  const preference: RoutePreference = mode === 'twisty' ? 'no-highways' : mode;
+  const alternatives = mode === 'fastest' || mode === 'twisty' ? 3 : 0;
+  return (await router.route({ from, to, preference, alternatives, signal })).map((r) => toRoute(r, mode));
 }
 
 /** Best route for one way of driving (used when rerouting mid-drive). */
 export async function routeFor(mode: RouteMode, from: LngLat, to: LngLat, signal?: AbortSignal): Promise<Route | undefined> {
-  if (mode === 'fastest') return (await getRoutes(from, to, signal))[0];
-  if (mode === 'twisty') return pickTwisty(await valhalla(from, to, 'twisty', signal));
-  return (await valhalla(from, to, mode, signal))[0];
+  const routes = await plan(mode, from, to, signal);
+  return mode === 'twisty' ? pickTwisty(routes) : routes[0];
 }
 
 /** Same road, give or take: within 2% on both distance and time. */
@@ -231,12 +164,12 @@ export async function getRouteOptions(from: LngLat, to: LngLat, signal?: AbortSi
   if (onFastest) fastest.then((r) => !signal?.aborted && r.length && onFastest(labelRoutes(r)), () => {});
   const [fast, short, noHwy, twisty] = await Promise.allSettled([
     fastest,
-    valhalla(from, to, 'shortest', signal),
-    valhalla(from, to, 'no-highways', signal),
-    valhalla(from, to, 'twisty', signal),
+    plan('shortest', from, to, signal),
+    plan('no-highways', from, to, signal),
+    plan('twisty', from, to, signal),
   ]);
   const ok = (r: PromiseSettledResult<Route[]>) => (r.status === 'fulfilled' ? r.value : []);
-  const routes = labelRoutes(ok(fast), ok(short)[0], ok(noHwy)[0], ok(twisty).map((r) => ({ ...r, mode: 'twisty' as const })));
+  const routes = labelRoutes(ok(fast), ok(short)[0], ok(noHwy)[0], ok(twisty));
   if (routes.length === 0) {
     const failed = [fast, short, noHwy].find((r) => r.status === 'rejected') as PromiseRejectedResult | undefined;
     throw failed?.reason instanceof Error ? failed.reason : new Error('Routing failed');
@@ -246,20 +179,11 @@ export async function getRouteOptions(from: LngLat, to: LngLat, signal?: AbortSi
 
 /** Fastest route that stops at `via` on the way to `to` (e.g. a gas station). */
 export async function routeVia(from: LngLat, via: LngLat, to: LngLat, signal?: AbortSignal): Promise<Route | undefined> {
-  const coords = [from, via, to].map((c) => `${c[0]},${c[1]}`).join(';');
-  const res = await fetch(`${OSRM_URL}/route/v1/driving/${coords}?overview=full&geometries=geojson&steps=true`, { signal });
-  if (!res.ok) throw new Error(`Routing failed (${res.status})`);
-  return parse(await res.json(), 'fastest')[0];
+  const plans = await router.route({ from, to, via: [via], preference: 'fastest', signal });
+  return plans[0] ? toRoute(plans[0], 'fastest') : undefined;
 }
 
 /** Driving routes, best first (includes alternatives when the router finds them). */
-export async function getRoutes(from: LngLat, to: LngLat, signal?: AbortSignal): Promise<Route[]> {
-  const coords = `${from[0]},${from[1]};${to[0]},${to[1]}`;
-  const res = await fetch(
-    // Up to 3 alternatives: more choices for camera-avoiding routes.
-    `${OSRM_URL}/route/v1/driving/${coords}?overview=full&geometries=geojson&alternatives=3&steps=true`,
-    { signal }
-  );
-  if (!res.ok) throw new Error(`Routing failed (${res.status})`);
-  return parse(await res.json(), 'fastest');
+export function getRoutes(from: LngLat, to: LngLat, signal?: AbortSignal): Promise<Route[]> {
+  return plan('fastest', from, to, signal);
 }

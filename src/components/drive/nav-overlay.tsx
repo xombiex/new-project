@@ -15,7 +15,7 @@ import { useNavigation } from '@/store/navigation';
 
 /** Apple Maps–style maneuver card: big arrow, distance, the street to turn onto, then the next step. */
 export function NavBanner({ units, top, children }: { units: Units; top: number; /** stacked under the card (lineup, alerts) */ children?: ReactNode }) {
-  const { route, progress, rerouting } = useNavigation();
+  const { route, progress, rerouting, routeProblem } = useNavigation();
   if (!route) return null;
   const index = progress?.next ?? 1;
   const step = route.steps[index] ?? route.steps.at(-1)!;
@@ -29,13 +29,19 @@ export function NavBanner({ units, top, children }: { units: Units; top: number;
         <View style={styles.bannerMain}>
           <TurnArrow icon={step.icon} close={Boolean(progress && progress.toNextM <= 200 && !rerouting)} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.dist}>{rerouting ? 'Rerouting…' : progress ? formatDistance(units, progress.toNextM) : '…'}</Text>
+            <Text style={styles.dist}>{rerouting ? 'Rerouting…' : routeProblem ? 'Off route' : progress ? formatDistance(units, progress.toNextM) : '…'}</Text>
             <Text style={styles.street} numberOfLines={2}>
               {street}
             </Text>
           </View>
         </View>
-        {step.lanes && progress && progress.toNextM < 1000 ? <Lanes lanes={step.lanes} modifier={step.modifier} /> : null}
+        {routeProblem && !rerouting ? (
+          <View style={styles.problem} accessibilityRole="alert">
+            <MaterialCommunityIcons name={routeProblem === 'offline' ? 'wifi-off' : 'cloud-alert-outline'} size={20} color="#FFD27A" />
+            <Text style={styles.problemText}>{routeProblem === 'offline' ? 'No connection. A new route will load when it comes back.' : "Can't get a new route right now. Still trying."}</Text>
+          </View>
+        ) : null}
+        {step.lanes && !routeProblem && progress && progress.toNextM < 1000 ? <Lanes lanes={step.lanes} modifier={step.modifier} /> : null}
         {after && progress && progress.toNextM < 800 ? (
           <Animated.View entering={FadeIn.duration(200)} style={styles.then}>
             <Text style={styles.thenLabel}>Then</Text>
@@ -289,6 +295,8 @@ const styles = StyleSheet.create({
   lane: { width: 44, height: 40, alignItems: 'center', justifyContent: 'center' },
   laneDivider: { borderLeftWidth: 2, borderLeftColor: 'rgba(255,255,255,0.35)', borderStyle: 'dashed' },
   then: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, backgroundColor: 'rgba(255,255,255,0.08)' },
+  problem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two + 2, backgroundColor: 'rgba(255,210,122,0.14)' },
+  problemText: { color: '#FFD27A', fontSize: 15, lineHeight: 20, fontWeight: '700', flex: 1 },
   thenLabel: { color: '#B0B5BD', fontSize: 14, fontWeight: '700' },
   thenText: { color: '#fff', fontSize: 15, fontWeight: '600', flex: 1 },
   footer: { flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch', gap: Spacing.two + 2 },
