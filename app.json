@@ -88,7 +88,7 @@
     "extra": {
       "router": {
         "asyncRoutes": {
-          "web": true
+          "web": false
         }
       },
       "eas": {

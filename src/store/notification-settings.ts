@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import type { Units } from '@/lib/geo';
 import { supabase } from '@/lib/supabase';
 
 export type NotificationPrefs = {
@@ -19,6 +20,8 @@ type State = {
   prefs: NotificationPrefs;
   load: () => Promise<void>;
   set: (key: keyof NotificationPrefs, on: boolean) => Promise<void>;
+  /** The weekly recap is written on the server, so it needs to know which units you use. */
+  syncUnits: (units: Units) => Promise<void>;
 };
 
 /** Stored server-side so the notify function can respect them for every device. */
@@ -31,6 +34,15 @@ export const useNotificationSettings = create<State>()((set, get) => ({
       .select('friend_requests, drive_invites, drive_activity, club_events, announcements, likes, comments, weekly_recap')
       .maybeSingle();
     set({ prefs: data ?? DEFAULTS });
+  },
+
+  syncUnits: async (units) => {
+    const { data: auth } = await supabase.auth.getSession();
+    const uid = auth.session?.user.id;
+    if (!uid) return;
+    // Only this column: a new row gets the defaults for everything else.
+    const { error } = await supabase.from('notification_settings').upsert({ user_id: uid, units, updated_at: new Date().toISOString() });
+    if (error) console.warn('Units save failed', error.message);
   },
 
   set: async (key, on) => {

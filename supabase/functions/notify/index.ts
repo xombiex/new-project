@@ -148,15 +148,31 @@ async function eventReminders() {
 async function weeklyRecap() {
   const { data: rows } = await admin.rpc('weekly_recaps');
   let sent = 0;
-  for (const r of (rows ?? []) as { user_id: string; distance_m: number; drives: number; place: number; crew: number }[]) {
-    // The server doesn't know anyone's units, so the distance is given both ways.
-    const km = Math.round(r.distance_m / 1000);
-    const mi = Math.round(r.distance_m / 1609.344);
+  for (const r of (rows ?? []) as { user_id: string; distance_m: number; drives: number; place: number; crew: number; units: string | null }[]) {
+    // Their own units setting, else a guess from where they drive; both only if neither is known.
+    const km = `${Math.round(r.distance_m / 1000)} km`;
+    const mi = `${Math.round(r.distance_m / 1609.344)} mi`;
+    const distance = r.units === 'metric' ? km : r.units === 'imperial' ? mi : `${mi} (${km})`;
     const drives = `${r.drives} ${r.drives === 1 ? 'drive' : 'drives'}`;
     const place = r.crew > 1 ? (r.place === 1 ? ' You drove the furthest in your crew.' : ` That puts you ${r.place} of ${r.crew} in your crew.`) : '';
-    sent += await send(null, [r.user_id], 'weekly_recap', 'weekly_recap', 'Your week on the road', `${drives}, ${mi} mi (${km} km).${place}`, {});
+    sent += await send(null, [r.user_id], 'weekly_recap', 'weekly_recap', 'Your week on the road', `${drives}, ${distance}.${place}`, {});
   }
   return sent;
+}
+
+const PHOTO_BUCKET = 'activity-photos';
+
+/** Delete drive photos that no shared drive uses any more (removed, unshared or replaced). */
+async function photoCleanup() {
+  const { data, error } = await admin.rpc('photo_trash_list');
+  if (error) throw error;
+  const paths = (data ?? []) as string[];
+  if (paths.length === 0) return 0;
+  // Missing files count as removed, so a path never gets stuck on the list.
+  const { error: rmError } = await admin.storage.from(PHOTO_BUCKET).remove(paths);
+  if (rmError) throw rmError;
+  await admin.rpc('photo_trash_done', { p_paths: paths });
+  return paths.length;
 }
 
 Deno.serve(async (req) => {
@@ -168,6 +184,7 @@ Deno.serve(async (req) => {
       const { data: ok } = await admin.rpc('cron_secret_ok', { p: cronSecret });
       if (!ok) return json({ error: 'unauthorized' }, 401);
       const job = (await req.json().catch(() => ({})))?.job;
+      if (job === 'photo_cleanup') return json({ removed: await photoCleanup() });
       return json({ sent: job === 'weekly_recap' ? await weeklyRecap() : await eventReminders() });
     }
 

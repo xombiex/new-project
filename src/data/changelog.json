@@ -19,12 +19,17 @@
         {
           "icon": "image-plus",
           "title": "Photos on shared drives",
-          "text": "With Pro, add one photo to a drive you share. Where it was taken is removed before it uploads."
+          "text": "With Pro, add one photo to a drive you share. Where it was taken is removed before it uploads, and the photo is deleted for good when you stop sharing the drive or it's taken down."
         },
         {
           "icon": "calendar-week",
           "title": "Your week on the road",
-          "text": "A Sunday notification with how far you drove and where that puts you among your friends. Turn it off in Profile."
+          "text": "A Sunday notification with how far you drove, in your own miles or kilometres, and where that puts you among your friends. Turn it off in Profile."
+        },
+        {
+          "icon": "lightning-bolt-outline",
+          "title": "No more grey pause on the website",
+          "text": "On a phone's browser, screens used to go blank for a moment the first time you tapped them. Now they open straight away."
         },
         {
           "icon": "road-variant",

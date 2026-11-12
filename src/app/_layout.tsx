@@ -166,6 +166,13 @@ export default function RootLayout() {
     void useDrive.getState().resume();
   }, [profile]);
 
+  // Units start from the phone's region; the server needs them for the weekly recap.
+  // Waits for saved settings to load so the region default never overwrites a choice.
+  const units = useSettings((s) => s.units);
+  useEffect(() => {
+    if (profile && settingsReady && !isDemo()) void useNotificationSettings.getState().syncUnits(units);
+  }, [profile, settingsReady, units]);
+
   return (
     <ThemeProvider
       value={{ ...base, colors: { ...base.colors, background: colors.background, card: colors.backgroundElement, primary: colors.accent } }}>
