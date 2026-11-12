@@ -10,9 +10,10 @@ export type NotificationPrefs = {
   announcements: boolean;
   likes: boolean;
   comments: boolean;
+  weekly_recap: boolean;
 };
 
-const DEFAULTS: NotificationPrefs = { friend_requests: true, drive_invites: true, drive_activity: true, club_events: true, announcements: true, likes: true, comments: true };
+const DEFAULTS: NotificationPrefs = { friend_requests: true, drive_invites: true, drive_activity: true, club_events: true, announcements: true, likes: true, comments: true, weekly_recap: true };
 
 type State = {
   prefs: NotificationPrefs;
@@ -27,7 +28,7 @@ export const useNotificationSettings = create<State>()((set, get) => ({
   load: async () => {
     const { data } = await supabase
       .from('notification_settings')
-      .select('friend_requests, drive_invites, drive_activity, club_events, announcements, likes, comments')
+      .select('friend_requests, drive_invites, drive_activity, club_events, announcements, likes, comments, weekly_recap')
       .maybeSingle();
     set({ prefs: data ?? DEFAULTS });
   },

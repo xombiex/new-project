@@ -11,6 +11,10 @@ type Overlay = { likedByMe: boolean; likeCount: number; commentCount: number };
 
 type SocialState = {
   overlays: Record<string, Overlay>;
+  /** drives saved or unsaved on this device since they were loaded */
+  saved: Record<string, boolean>;
+  /** Save or unsave someone's drive. Shows at once; put back if the server refuses. */
+  toggleSave: (activity: Activity) => Promise<string | null>;
   /** activities unshared, removed or hidden by a block since they were loaded */
   gone: Record<string, true>;
   /** "I'm a passenger" for the drive in progress: unlocks the feed while moving */
@@ -29,7 +33,17 @@ const base = (a: Activity, o?: Overlay): Overlay => o ?? { likedByMe: a.likedByM
 
 export const useSocial = create<SocialState>()((set, get) => ({
   overlays: {},
+  saved: {},
   gone: {},
+
+  toggleSave: async (activity) => {
+    const before = get().saved[activity.id] ?? activity.savedByMe;
+    set((s) => ({ saved: { ...s.saved, [activity.id]: !before } }));
+    const res = await feed.setSaved(activity.id, !before);
+    if (res.ok) return null;
+    set((s) => ({ saved: { ...s.saved, [activity.id]: before } }));
+    return res.error.message;
+  },
   passenger: false,
 
   toggleLike: async (activity) => {
@@ -75,7 +89,9 @@ export const useSocial = create<SocialState>()((set, get) => ({
 /** An activity with this device's newer likes and comment counts applied. */
 export function useLiveActivity(activity: Activity): Activity {
   const o = useSocial((s) => s.overlays[activity.id]);
-  return o ? { ...activity, ...o } : activity;
+  const saved = useSocial((s) => s.saved[activity.id]);
+  if (!o && saved === undefined) return activity;
+  return { ...activity, ...o, savedByMe: saved ?? activity.savedByMe };
 }
 
 /**

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { LngLat } from './geo';
-import { decodeCursor, driveTime, encodeCursor, isDrivingNow, mergePage, nextCursor, postedAgo, previewForShare, previewLength, PREVIEW_MAX_POINTS, withLike } from './feed';
+import { decodeCursor, driveTime, encodeCursor, isDrivingNow, mergePage, nextCursor, postedAgo, previewForShare, previewLength, PREVIEW_MAX_POINTS, waypointsFor, withLike } from './feed';
 
 const line = (n: number, lng0 = -122): LngLat[] => Array.from({ length: n }, (_, i) => [lng0 + i * 0.0001234567, 37 + i * 0.0000987654]);
 
@@ -71,6 +71,21 @@ describe('the route preview that gets shared', () => {
   it('shares nothing when there is nothing left to show', () => {
     expect(previewForShare([])).toEqual([]);
     expect(previewForShare([[[-122, 37]]])).toEqual([]);
+  });
+});
+
+describe('following a shared route', () => {
+  it('picks a few points spread along it and always ends at the end', () => {
+    const drive = line(100);
+    const stops = waypointsFor([drive.slice(0, 60), drive.slice(60)], 5);
+    expect(stops).toHaveLength(5);
+    expect(stops.at(-1)).toEqual(drive.at(-1));
+    expect(stops[0]).not.toEqual(drive[0]);
+  });
+
+  it('has nothing to offer for an empty sketch', () => {
+    expect(waypointsFor([])).toEqual([]);
+    expect(waypointsFor([[[-122, 37]]])).toEqual([]);
   });
 });
 

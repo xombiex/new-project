@@ -35,7 +35,7 @@ export function createMemoryFeed(seed: { me: ProfileSummary; activities: Activit
   const service: FeedService = {
     list: async (scope, cursor) =>
       guard('list') ??
-      ok(page(activities.filter((a) => (scope.kind === 'club' ? a.audience.clubId === scope.clubId : scope.kind === 'user' ? a.author.id === scope.userId : true)), cursor, FEED_PAGE)),
+      ok(page(activities.filter((a) => (scope.kind === 'club' ? a.audience.clubId === scope.clubId : scope.kind === 'user' ? a.author.id === scope.userId : scope.kind === 'saved' ? a.savedByMe : true)), cursor, FEED_PAGE)),
     get: async (id) => {
       const a = activities.find((x) => x.id === id);
       return guard('get') ?? (a ? ok(a) : fail('not-found', "That drive isn't shared any more."));
@@ -46,7 +46,7 @@ export function createMemoryFeed(seed: { me: ProfileSummary; activities: Activit
       const existing = activities.find((a) => a.tripId === tripId);
       const id = existing?.id ?? `demo-shared-${++n}`;
       const now = new Date().toISOString();
-      const next: Activity = { ...(existing ?? { id, author: seed.me, tripId, clubName: null, startedAt: now, distanceM: 0, movingS: 0, car: null, likeCount: 0, commentCount: 0, likedByMe: false, createdAt: now }), audience, title, preview };
+      const next: Activity = { ...(existing ?? { id, author: seed.me, tripId, clubName: null, startedAt: now, distanceM: 0, movingS: 0, car: null, likeCount: 0, commentCount: 0, likedByMe: false, createdAt: now, photoPath: null, savedByMe: false }), audience, title, preview };
       activities = [next, ...activities.filter((a) => a.id !== id)];
       return ok({ id });
     },
@@ -58,8 +58,22 @@ export function createMemoryFeed(seed: { me: ProfileSummary; activities: Activit
     },
     forTrip: async (tripId) => {
       const a = activities.find((x) => x.tripId === tripId);
-      return guard('forTrip') ?? ok(a ? { id: a.id, audience: a.audience } : null);
+      return guard('forTrip') ?? ok(a ? { id: a.id, audience: a.audience, photoPath: a.photoPath } : null);
     },
+    setSaved: async (id, saved) => {
+      const failed = guard(`setSaved:${saved}`);
+      if (failed) return failed;
+      activities = activities.map((a) => (a.id === id ? { ...a, savedByMe: saved } : a));
+      return ok(undefined);
+    },
+    setPhoto: async (id, photo) => {
+      const failed = guard('setPhoto');
+      if (failed) return failed;
+      const path = photo ? `demo/${id}.jpg` : null;
+      activities = activities.map((a) => (a.id === id ? { ...a, photoPath: path } : a));
+      return ok(path);
+    },
+    photoUrl: async () => null,
     setLiked: async (id, liked) => {
       const failed = guard(`setLiked:${liked}`);
       if (failed) return failed;
@@ -111,6 +125,8 @@ export function demoFeed(): FeedService {
     commentCount,
     likedByMe: false,
     createdAt: hoursAgo(h),
+    photoPath: null,
+    savedByMe: false,
     ...extra,
   });
   return createMemoryFeed({

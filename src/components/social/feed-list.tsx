@@ -34,7 +34,7 @@ function CardSkeleton() {
   );
 }
 
-const scopeKey = (s: FeedScope) => (s.kind === 'home' ? 'home' : s.kind === 'club' ? `club:${s.clubId}` : `user:${s.userId}`);
+const scopeKey = (s: FeedScope) => (s.kind === 'club' ? `club:${s.clubId}` : s.kind === 'user' ? `user:${s.userId}` : s.kind);
 
 /**
  * A list of shared drives for one scope (everything, one club, one person), a page at a time.
@@ -53,6 +53,7 @@ export function FeedList({ list, empty, lockLabel }: { list: ReturnType<typeof u
   const locked = useDrivingLock();
   const gone = useSocial((s) => s.gone);
   const toggleLike = useSocial((s) => s.toggleLike);
+  const toggleSave = useSocial((s) => s.toggleSave);
   const { setItems } = list;
   const menu = useActivityMenu(useCallback((id: string) => setItems((items) => items.filter((a) => a.id !== id)), [setItems]));
 
@@ -82,6 +83,10 @@ export function FeedList({ list, empty, lockLabel }: { list: ReturnType<typeof u
           onLike={async () => {
             const err = await toggleLike(a);
             if (err) Alert.alert("Couldn't save your like", err);
+          }}
+          onSave={async () => {
+            const err = await toggleSave(a);
+            if (err) Alert.alert("Couldn't save that drive", err);
           }}
           onMenu={() => menu.open(a)}
         />

@@ -423,6 +423,7 @@ export default function ProfileScreen() {
                 ['club_events', 'Club event reminders'],
                 ['likes', 'Likes on your shared drives'],
                 ['comments', 'Comments on your shared drives'],
+                ['weekly_recap', 'Your week on the road, every Sunday'],
                 ['announcements', 'News & updates from Convoy'],
               ] as [keyof NotificationPrefs, string][]
             ).map(([key, label]) => (

@@ -8,13 +8,15 @@ import { Button, Card, Notice, Skeleton } from '@/components/ui';
 import { HitTarget, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { feed, type Audience } from '@/services/feed';
+import { pickPhoto } from '@/services/photos';
 import { sharedRoute, shareDrive } from '@/services/share-drive';
 import { useAuth } from '@/store/auth';
 import { useClubs } from '@/store/clubs';
+import { useEntitled } from '@/store/pro';
 import { useSettings } from '@/store/settings';
 import type { SavedTrip } from '@/store/trips';
 
-import { audienceLabel, audiencePhrase } from './activity-card';
+import { audienceLabel, audiencePhrase, DrivePhoto } from './activity-card';
 import { RoutePreview } from './route-preview';
 
 const same = (a: Audience, b: Audience) => a.friends === b.friends && a.clubId === b.clubId;
@@ -33,7 +35,9 @@ export function ShareDriveCard({ trip }: { trip: SavedTrip }) {
   const setAutoShare = useSettings((s) => s.setAutoShare);
 
   /** undefined: still checking. null: not shared. */
-  const [shared, setShared] = useState<{ id: string; audience: Audience } | null | undefined>(undefined);
+  const [shared, setShared] = useState<{ id: string; audience: Audience; photoPath: string | null } | null | undefined>(undefined);
+  const pro = useEntitled('pro');
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [audience, setAudience] = useState<Audience>({ friends: true, clubId: null });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,8 +74,27 @@ export function ShareDriveCard({ trip }: { trip: SavedTrip }) {
     setError(null);
     const res = await shareDrive(trip, audience);
     setBusy(false);
-    if (res.ok) setShared({ id: res.data.id, audience });
+    if (res.ok) setShared({ id: res.data.id, audience, photoPath: shared?.photoPath ?? null });
     else setError(res.error.message);
+  }
+
+  /** Add, change (pick again) or remove (null) the photo on the shared drive. */
+  async function changePhoto(remove: boolean) {
+    if (!shared) return;
+    if (!pro) return router.push('/paywall');
+    setError(null);
+    try {
+      const picked = remove ? null : await pickPhoto();
+      if (!remove && !picked) return;
+      setPhotoBusy(true);
+      const res = await feed.setPhoto(shared.id, picked, shared.photoPath);
+      if (res.ok) setShared({ ...shared, photoPath: res.data });
+      else setError(res.error.message);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't add that photo.");
+    } finally {
+      setPhotoBusy(false);
+    }
   }
 
   async function stop() {
@@ -153,6 +176,26 @@ export function ShareDriveCard({ trip }: { trip: SavedTrip }) {
               </View>
             ) : null}
           </View>
+
+          {shared ? (
+            <View style={{ gap: Spacing.two }}>
+              <ThemedText type="label" themeColor="textSecondary">
+                Photo
+              </ThemedText>
+              <DrivePhoto path={shared.photoPath} height={160} />
+              <Button
+                label={shared.photoPath ? 'Change photo' : pro ? 'Add a photo' : 'Add a photo (Pro)'}
+                variant="secondary"
+                icon={<MaterialCommunityIcons name={pro ? 'image-plus' : 'lock-outline'} size={20} color={theme.text} />}
+                onPress={() => void changePhoto(false)}
+                loading={photoBusy}
+              />
+              {shared.photoPath ? <Button label="Remove photo" variant="ghost" onPress={() => void changePhoto(true)} /> : null}
+              <ThemedText type="small" themeColor="textSecondary">
+                {pro ? 'One photo per drive. Where it was taken is stripped out before it uploads.' : 'A photo on a shared drive is part of Convoy Pro, which pays for storing it.'}
+              </ThemedText>
+            </View>
+          ) : null}
 
           {error ? <Notice tone="danger">{error}</Notice> : null}
 

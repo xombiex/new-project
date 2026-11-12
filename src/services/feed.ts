@@ -28,11 +28,14 @@ export type Activity = {
   commentCount: number;
   likedByMe: boolean;
   createdAt: string;
+  /** stored photo, if the owner added one (a Pro feature); turn it into a link with photoUrl */
+  photoPath: string | null;
+  savedByMe: boolean;
 };
 
 export type Comment = { id: string; activityId: string; author: ProfileSummary; body: string; createdAt: string };
 
-export type FeedScope = { kind: 'home' } | { kind: 'club'; clubId: string } | { kind: 'user'; userId: string };
+export type FeedScope = { kind: 'home' } | { kind: 'saved' } | { kind: 'club'; clubId: string } | { kind: 'user'; userId: string };
 
 export const FEED_PAGE = 15;
 export const COMMENT_PAGE = 30;
@@ -45,8 +48,14 @@ export interface FeedService {
   share(input: { tripId: string; audience: Audience; title: string | null; preview: LngLat[][] }): Promise<Result<{ id: string }>>;
   unshare(activityId: string): Promise<Result<void>>;
   /** The activity for one of my own drives, if it's shared. */
-  forTrip(tripId: string): Promise<Result<{ id: string; audience: Audience } | null>>;
+  forTrip(tripId: string): Promise<Result<{ id: string; audience: Audience; photoPath: string | null } | null>>;
   setLiked(activityId: string, liked: boolean): Promise<Result<void>>;
+  /** Keep someone's shared drive to find again, or let it go. */
+  setSaved(activityId: string, saved: boolean): Promise<Result<void>>;
+  /** Put a photo on one of my shared drives (Pro), or take it off with null. Returns where it's stored. */
+  setPhoto(activityId: string, photo: { data: ArrayBuffer | Blob; contentType: string } | null, previousPath: string | null): Promise<Result<string | null>>;
+  /** A link that shows a stored photo for the next hour. Null if it can't be shown. */
+  photoUrl(path: string): Promise<string | null>;
   comments(activityId: string, cursor: string | null): Promise<Result<Page<Comment>>>;
   addComment(activityId: string, body: string): Promise<Result<Comment>>;
   deleteComment(commentId: string): Promise<Result<void>>;
@@ -69,6 +78,8 @@ export function activityFromRow(r: ActivityRow): Activity {
     commentCount: r.comment_count,
     likedByMe: r.liked_by_me,
     createdAt: r.created_at,
+    photoPath: r.photo_path ?? null,
+    savedByMe: Boolean(r.saved_by_me),
   };
 }
 
@@ -81,6 +92,10 @@ export function commentFromRow(r: CommentRow): Comment {
     createdAt: r.created_at,
   };
 }
+
+const PHOTO_BUCKET = 'activity-photos';
+/** Photo links already asked for, so a list of cards doesn't ask again on every draw. */
+const signed = new Map<string, { url: string; until: number }>();
 
 async function myId() {
   const { data } = await supabase.auth.getSession();
@@ -141,10 +156,54 @@ const live: FeedService = {
 
   forTrip: (tripId) =>
     attempt(async () => {
-      const { data, error } = await supabase.from('activities').select('id, to_friends, club_id').eq('trip_id', tripId).maybeSingle();
+      const { data, error } = await supabase.from('activities').select('id, to_friends, club_id, photo_path').eq('trip_id', tripId).maybeSingle();
       if (error) return { ok: false, error: classify(error) };
-      return ok(data ? { id: data.id as string, audience: { friends: data.to_friends as boolean, clubId: data.club_id as string | null } } : null);
+      return ok(data ? { id: data.id as string, audience: { friends: data.to_friends as boolean, clubId: data.club_id as string | null }, photoPath: (data.photo_path as string | null) ?? null } : null);
     }),
+
+  setSaved: (activityId, saved) =>
+    attempt(async () => {
+      const uid = await myId();
+      if (!uid) return fail('auth', 'Sign in to save a drive.');
+      const { error } = saved
+        ? await supabase.from('saved_routes').upsert({ activity_id: activityId, user_id: uid }, { onConflict: 'user_id,activity_id', ignoreDuplicates: true })
+        : await supabase.from('saved_routes').delete().eq('activity_id', activityId).eq('user_id', uid);
+      return error ? { ok: false, error: classify(error) } : ok(undefined);
+    }),
+
+  setPhoto: (activityId, photo, previousPath) =>
+    attempt(async () => {
+      const uid = await myId();
+      if (!uid) return fail('auth', 'Sign in to add a photo.');
+      let path: string | null = null;
+      if (photo) {
+        path = `${uid}/${activityId}-${Date.now()}.jpg`;
+        const { error } = await supabase.storage.from(PHOTO_BUCKET).upload(path, photo.data, { contentType: photo.contentType, upsert: true });
+        if (error) return fail(/row-level|policy|unauthor/i.test(error.message) ? 'forbidden' : 'server', /row-level|policy|unauthor/i.test(error.message) ? 'Photos on shared drives are part of Convoy Pro.' : "Couldn't upload that photo. It may be too large (3 MB at most).");
+      }
+      const { error } = await supabase.rpc('set_activity_photo', { p_activity: activityId, p_path: path });
+      if (error) {
+        if (path) void supabase.storage.from(PHOTO_BUCKET).remove([path]);
+        return error.message.includes('Pro') ? fail('forbidden', 'Photos on shared drives are part of Convoy Pro.') : { ok: false, error: classify(error) };
+      }
+      // The old picture is no longer shown anywhere: don't keep paying to store it.
+      if (previousPath && previousPath !== path) void supabase.storage.from(PHOTO_BUCKET).remove([previousPath]);
+      if (previousPath) signed.delete(previousPath);
+      return ok(path);
+    }),
+
+  photoUrl: async (path) => {
+    const hit = signed.get(path);
+    if (hit && hit.until > Date.now()) return hit.url;
+    try {
+      const { data } = await supabase.storage.from(PHOTO_BUCKET).createSignedUrl(path, 3600);
+      if (!data?.signedUrl) return null;
+      signed.set(path, { url: data.signedUrl, until: Date.now() + 50 * 60_000 });
+      return data.signedUrl;
+    } catch {
+      return null;
+    }
+  },
 
   setLiked: (activityId, liked) =>
     attempt(async () => {
@@ -206,4 +265,7 @@ export const feed: FeedService = {
   comments: (...a) => pick().comments(...a),
   addComment: (...a) => pick().addComment(...a),
   deleteComment: (...a) => pick().deleteComment(...a),
+  setSaved: (...a) => pick().setSaved(...a),
+  setPhoto: (...a) => pick().setPhoto(...a),
+  photoUrl: (...a) => pick().photoUrl(...a),
 };

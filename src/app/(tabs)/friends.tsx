@@ -41,10 +41,11 @@ export default function FriendsScreen() {
   const [username, setUsername] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<'feed' | 'people'>('feed');
+  const [view, setView] = useState<'feed' | 'saved' | 'people'>('feed');
   const [menuFor, setMenuFor] = useState<Friendship | null>(null);
   const [report, setReport] = useState<ReportTarget | null>(null);
   const feedList = useFeedList({ kind: 'home' }, Boolean(profile));
+  const savedList = useFeedList({ kind: 'saved' }, Boolean(profile) && view === 'saved');
 
   useFocusEffect(
     useCallback(() => {
@@ -117,13 +118,14 @@ export default function FriendsScreen() {
       <ScrollView
         contentContainerStyle={{ padding: Spacing.three, paddingBottom: BottomTabInset + Spacing.four, gap: Spacing.three }}
         keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={view === 'feed' ? feedList.status === 'refreshing' : loading} onRefresh={() => void (view === 'feed' ? feedList.refresh() : refresh())} />}>
+        refreshControl={<RefreshControl refreshing={view === 'feed' ? feedList.status === 'refreshing' : view === 'saved' ? savedList.status === 'refreshing' : loading} onRefresh={() => void (view === 'feed' ? feedList.refresh() : view === 'saved' ? savedList.refresh() : refresh())} />}>
         <View style={styles.column}>
         <ScreenTitle kicker={friends.length ? `${friends.length} in your crew` : 'Your crew'} title="Friends" />
         <Segmented
           options={[
             { value: 'feed', label: 'Drives' },
-            { value: 'people', label: incoming.length ? `People · ${incoming.length} new` : 'People' },
+            { value: 'saved', label: 'Saved' },
+            { value: 'people', label: incoming.length ? `People (${incoming.length})` : 'People' },
           ]}
           value={view}
           onChange={setView}
@@ -138,6 +140,8 @@ export default function FriendsScreen() {
               </EmptyState>
             }
           />
+        ) : view === 'saved' ? (
+          <FeedList list={savedList} lockLabel="Your saved drives" empty={<EmptyState icon="bookmark-outline" title="Nothing saved yet" body="Tap the bookmark on a drive you'd like to try. You can open it later and get a route that follows it." />} />
         ) : (
           <>
         <Card style={{ gap: Spacing.two }}>

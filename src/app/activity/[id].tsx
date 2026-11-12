@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
@@ -12,7 +13,10 @@ import { Avatar, Button, Card, EmptyState, ErrorState, IconButton, LoadingRows, 
 import { Radius, Spacing } from '@/constants/theme';
 import { usePagedList } from '@/hooks/use-paged-list';
 import { useTheme } from '@/hooks/use-theme';
-import { postedAgo } from '@/lib/feed';
+import { postedAgo, waypointsFor } from '@/lib/feed';
+import { routeThrough } from '@/lib/places';
+import { useNav } from '@/store/nav';
+import { useTrips } from '@/store/trips';
 import { notify } from '@/lib/notifications';
 import { COMMENT_MAX, feed, type Activity, type Comment } from '@/services/feed';
 import { useAuth } from '@/store/auth';
@@ -33,6 +37,9 @@ export default function ActivityScreen() {
   const units = useSettings((s) => s.units);
   const locked = useDrivingLock();
   const toggleLike = useSocial((s) => s.toggleLike);
+  const toggleSave = useSocial((s) => s.toggleSave);
+  const [routing, setRouting] = useState(false);
+  const [routeError, setRouteError] = useState<string | null>(null);
   const commentsChanged = useSocial((s) => s.commentsChanged);
   const block = useFriends((s) => s.block);
 
@@ -59,6 +66,28 @@ export default function ActivityScreen() {
   useEffect(() => {
     if (!locked) void load();
   }, [load, locked]);
+
+  /** Plan a route from here that follows this drive, and hand it to the map to start. */
+  async function driveIt() {
+    if (!activity) return;
+    const here = useTrips.getState().lastSample;
+    const stops = waypointsFor(activity.preview);
+    if (!here) return setRouteError("Convoy doesn't know where you are yet. Open the Drive tab, allow location, then try again.");
+    if (stops.length === 0) return setRouteError("This drive doesn't have a route to follow.");
+    setRouting(true);
+    setRouteError(null);
+    try {
+      const route = await routeThrough([here.lng, here.lat], stops);
+      if (!route) throw new Error('No driving route found');
+      const name = activity.title ?? `${activity.author.display_name}'s drive`;
+      useNav.setState({ destination: { id: `activity-${activity.id}`, name, detail: `Follows ${activity.author.display_name}'s shared drive`, coord: stops[stops.length - 1] }, routes: [route], selected: 0, loading: false, error: null });
+      router.navigate('/');
+    } catch (e) {
+      setRouteError(e instanceof Error ? e.message : "Couldn't plan that route.");
+    } finally {
+      setRouting(false);
+    }
+  }
 
   async function send() {
     const body = draft.trim();
@@ -154,8 +183,17 @@ export default function ActivityScreen() {
                   const err = await toggleLike(activity);
                   if (err) Alert.alert("Couldn't save your like", err);
                 }}
+                onSave={async () => {
+                  const err = await toggleSave(activity);
+                  if (err) Alert.alert("Couldn't save that drive", err);
+                }}
                 onMenu={() => menu.open(activity)}
               />
+              <Button label="Drive this route" variant="secondary" icon={<MaterialCommunityIcons name="navigation-variant-outline" size={20} color={theme.text} />} onPress={() => void driveIt()} loading={routing} />
+              <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
+                Plans a route from where you are that follows this drive. The start and end were trimmed for privacy, so it begins and ends a little short of theirs.
+              </ThemedText>
+              {routeError ? <Notice tone="danger">{routeError}</Notice> : null}
 
               <ThemedText type="heading" accessibilityRole="header">
                 Comments

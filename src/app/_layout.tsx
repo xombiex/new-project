@@ -136,6 +136,7 @@ export default function RootLayout() {
       else if (data.type === 'friend_request' || data.type === 'friend_accepted') router.push('/friends');
       else if (data.type === 'member_joined' || data.type === 'arrived' || data.type === 'regroup') router.push('/convoy');
       else if (data.type === 'admin_message') router.push('/inbox');
+      else if (data.type === 'weekly_recap') router.push('/stats');
       else if ((data.type === 'activity_like' || data.type === 'activity_comment') && data.activity_id) router.push({ pathname: '/activity/[id]', params: { id: data.activity_id } });
       else if (data.type === 'event_reminder' && data.event_id) router.push({ pathname: '/event/[id]', params: { id: data.event_id } });
     });
@@ -193,6 +194,7 @@ export default function RootLayout() {
         <Stack.Screen name="inbox" options={{ title: 'Inbox' }} />
         <Stack.Screen name="activity/[id]" options={{ title: 'Drive' }} />
         <Stack.Screen name="blocked" options={{ title: 'Blocked people' }} />
+        <Stack.Screen name="car-log/[id]" options={{ title: 'Service and fuel' }} />
         <Stack.Screen name="whats-new" options={{ title: 'What’s new', presentation: 'modal' }} />
         <Stack.Screen name="stripe-return" options={{ headerShown: false }} />
         <Stack.Screen name="map-embed" options={{ headerShown: false }} />

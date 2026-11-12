@@ -46,6 +46,7 @@ export default function GarageTab() {
               },
             },
           ]),
+      { text: 'Service and fuel log', onPress: () => router.push({ pathname: '/car-log/[id]', params: { id: car.id } }) },
       { text: 'Edit', onPress: () => router.push({ pathname: '/car/[id]', params: { id: car.id } }) },
       {
         text: 'Delete',

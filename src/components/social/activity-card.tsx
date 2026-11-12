@@ -1,17 +1,17 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 
 import { sideImage } from '@/components/map/vehicle-sprites';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar, Card, IconButton } from '@/components/ui';
-import { HitTarget, Spacing } from '@/constants/theme';
+import { HitTarget, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { driveTime, postedAgo } from '@/lib/feed';
 import { formatDistance, speedIn, speedUnitLabel, type Units } from '@/lib/geo';
 import { formatDayOrdinal } from '@/lib/time';
-import type { Activity, Audience } from '@/services/feed';
+import { feed, type Activity, type Audience } from '@/services/feed';
 import { useLiveActivity } from '@/store/social';
 
 import { RoutePreview } from './route-preview';
@@ -69,6 +69,21 @@ export function LikeButton({ liked, count, onPress, disabled }: { liked: boolean
   );
 }
 
+/** The photo on a shared drive. Takes no room until its link has been fetched. */
+export function DrivePhoto({ path, height = 200 }: { path: string | null; height?: number }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    setUrl(null);
+    if (path) void feed.photoUrl(path).then((u) => live && setUrl(u));
+    return () => {
+      live = false;
+    };
+  }, [path]);
+  if (!path || !url) return null;
+  return <Image source={{ uri: url }} style={{ width: '100%', height, borderRadius: Radius.md }} resizeMode="cover" accessibilityLabel="Photo from this drive" />;
+}
+
 function Figure({ value, label }: { value: string; label: string }) {
   return (
     <View style={{ flex: 1 }}>
@@ -91,6 +106,7 @@ export function ActivityCard({
   units,
   onOpen,
   onLike,
+  onSave,
   onMenu,
   locked,
 }: {
@@ -99,6 +115,8 @@ export function ActivityCard({
   /** opens the drive's own page; left out on that page */
   onOpen?: () => void;
   onLike: () => void;
+  /** keep this drive in Saved; left out where saving makes no sense */
+  onSave?: () => void;
   onMenu: () => void;
   locked?: boolean;
 }) {
@@ -122,7 +140,8 @@ export function ActivityCard({
           </View>
         ) : null}
       </View>
-      <RoutePreview segments={activity.preview} />
+      <DrivePhoto path={activity.photoPath} />
+      <RoutePreview segments={activity.preview} height={activity.photoPath ? 110 : 150} />
       <View style={styles.figures}>
         <Figure value={formatDistance(units, activity.distanceM)} label="Distance" />
         <Figure value={driveTime(activity.movingS)} label="Drive time" />
@@ -172,6 +191,16 @@ export function ActivityCard({
             </ThemedText>
           </Pressable>
         ) : null}
+        <View style={{ flex: 1 }} />
+        {onSave ? (
+          <IconButton
+            icon={activity.savedByMe ? 'bookmark' : 'bookmark-outline'}
+            label={activity.savedByMe ? 'Remove from saved drives' : 'Save this drive'}
+            color={activity.savedByMe ? theme.accent : theme.textSecondary}
+            onPress={onSave}
+            disabled={locked}
+          />
+        ) : null}
       </View>
     </Card>
   );
@@ -184,6 +213,6 @@ const styles = StyleSheet.create({
   car: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   carImage: { width: 40, height: 22 },
   figures: { flexDirection: 'row', gap: Spacing.three },
-  actions: { flexDirection: 'row', gap: Spacing.two, borderTopWidth: StyleSheet.hairlineWidth, marginTop: -Spacing.one, paddingTop: Spacing.one, marginBottom: -Spacing.two },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, borderTopWidth: StyleSheet.hairlineWidth, marginTop: -Spacing.one, paddingTop: Spacing.one, marginBottom: -Spacing.two },
   action: { minHeight: HitTarget.min, minWidth: 88, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingRight: Spacing.three },
 });

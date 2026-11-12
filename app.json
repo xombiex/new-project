@@ -46,6 +46,7 @@
     "plugins": [
       "expo-router",
       "expo-dev-client",
+      ["expo-image-picker", { "photosPermission": "Convoy uses your photo library so you can add a photo to a drive you share.", "cameraPermission": false, "microphonePermission": false }],
       "@maplibre/maplibre-react-native",
       [
         "expo-notifications",

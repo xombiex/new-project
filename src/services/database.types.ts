@@ -31,6 +31,9 @@ export type ActivityRow = {
   comment_count: number;
   liked_by_me: boolean;
   created_at: string;
+  /** where the drive's photo is stored, if it has one */
+  photo_path: string | null;
+  saved_by_me: boolean;
 };
 
 /** One row from the `activity_comments_page` function. */

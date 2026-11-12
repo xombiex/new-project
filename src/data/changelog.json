@@ -7,6 +7,26 @@
       "title": "Drives you can share",
       "items": [
         {
+          "icon": "wrench-outline",
+          "title": "Service and fuel log",
+          "text": "Open a car's menu in the Garage to log oil changes, tires, repairs and fill-ups. Convoy adds up what you've spent this year and works out your fuel economy."
+        },
+        {
+          "icon": "bookmark-outline",
+          "title": "Save a drive, then drive it",
+          "text": "Bookmark a friend's shared drive and find it under Friends, Saved. Open it and tap Drive this route to get directions that follow it."
+        },
+        {
+          "icon": "image-plus",
+          "title": "Photos on shared drives",
+          "text": "With Pro, add one photo to a drive you share. Where it was taken is removed before it uploads."
+        },
+        {
+          "icon": "calendar-week",
+          "title": "Your week on the road",
+          "text": "A Sunday notification with how far you drove and where that puts you among your friends. Turn it off in Profile."
+        },
+        {
           "icon": "road-variant",
           "title": "A feed of drives",
           "text": "Share a drive with friends or a club from its page, then find everyone's drives under Friends. Like them and leave a comment. Drives stay private until you share them, and both ends of the route are always cut off."

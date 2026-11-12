@@ -63,6 +63,17 @@ export function previewLength(segments: LngLat[][]): number {
   return m;
 }
 
+/**
+ * Points to route through so a new route follows a shared one: a handful spread along it, ending
+ * at its last point. Routers take only so many stops, and the sketch is too coarse for more.
+ */
+export function waypointsFor(segments: LngLat[][], max = 8): LngLat[] {
+  const all = segments.flat();
+  if (all.length < 2) return [];
+  const n = Math.min(max, all.length);
+  return Array.from({ length: n }, (_, i) => all[Math.round(((i + 1) / n) * (all.length - 1))]);
+}
+
 /** Above this the phone is in a moving car, not in a pocket on foot. */
 export const DRIVING_MPS = 3;
 

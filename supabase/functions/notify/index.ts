@@ -13,7 +13,7 @@ const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE
 });
 const EXPO_TOKEN = Deno.env.get('EXPO_ACCESS_TOKEN');
 
-type Pref = 'friend_requests' | 'drive_invites' | 'drive_activity' | 'club_events' | 'announcements' | 'likes' | 'comments';
+type Pref = 'friend_requests' | 'drive_invites' | 'drive_activity' | 'club_events' | 'announcements' | 'likes' | 'comments' | 'weekly_recap';
 
 // The website calls this from a browser, which asks permission first (a "preflight") and refuses
 // any answer without these headers. Phones don't check. Callers still need a signed-in token.
@@ -144,6 +144,21 @@ async function eventReminders() {
   return sent;
 }
 
+/** Sunday's "your week on the road" for everyone who drove (called by the scheduled job). */
+async function weeklyRecap() {
+  const { data: rows } = await admin.rpc('weekly_recaps');
+  let sent = 0;
+  for (const r of (rows ?? []) as { user_id: string; distance_m: number; drives: number; place: number; crew: number }[]) {
+    // The server doesn't know anyone's units, so the distance is given both ways.
+    const km = Math.round(r.distance_m / 1000);
+    const mi = Math.round(r.distance_m / 1609.344);
+    const drives = `${r.drives} ${r.drives === 1 ? 'drive' : 'drives'}`;
+    const place = r.crew > 1 ? (r.place === 1 ? ' You drove the furthest in your crew.' : ` That puts you ${r.place} of ${r.crew} in your crew.`) : '';
+    sent += await send(null, [r.user_id], 'weekly_recap', 'weekly_recap', 'Your week on the road', `${drives}, ${mi} mi (${km} km).${place}`, {});
+  }
+  return sent;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405);
@@ -152,7 +167,8 @@ Deno.serve(async (req) => {
     if (cronSecret) {
       const { data: ok } = await admin.rpc('cron_secret_ok', { p: cronSecret });
       if (!ok) return json({ error: 'unauthorized' }, 401);
-      return json({ sent: await eventReminders() });
+      const job = (await req.json().catch(() => ({})))?.job;
+      return json({ sent: job === 'weekly_recap' ? await weeklyRecap() : await eventReminders() });
     }
 
     const jwt = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');

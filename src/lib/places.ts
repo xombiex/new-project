@@ -183,6 +183,13 @@ export async function routeVia(from: LngLat, via: LngLat, to: LngLat, signal?: A
   return plans[0] ? toRoute(plans[0], 'fastest') : undefined;
 }
 
+/** A route from `from` that passes through each of `through` in order and ends at the last one. */
+export async function routeThrough(from: LngLat, through: LngLat[], signal?: AbortSignal): Promise<Route | undefined> {
+  if (through.length === 0) return undefined;
+  const plans = await router.route({ from, to: through[through.length - 1], via: through.slice(0, -1), preference: 'fastest', signal });
+  return plans[0] ? toRoute(plans[0], 'fastest') : undefined;
+}
+
 /** Driving routes, best first (includes alternatives when the router finds them). */
 export function getRoutes(from: LngLat, to: LngLat, signal?: AbortSignal): Promise<Route[]> {
   return plan('fastest', from, to, signal);
