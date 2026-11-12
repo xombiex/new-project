@@ -61,7 +61,8 @@ export function LocationPrompt() {
 
 const styles = StyleSheet.create({
   // Centered over the map, clear of the speed panel at the bottom.
-  wrap: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 200, alignItems: 'center', justifyContent: 'center', padding: Spacing.four },
+  // Drawn over the trip panel and the floating buttons: it's the one thing to deal with first.
+  wrap: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 200, alignItems: 'center', justifyContent: 'center', padding: Spacing.four, zIndex: 30, elevation: 30 },
   card: { width: '100%', maxWidth: 380, borderRadius: Radius.lg, padding: Spacing.four, gap: Spacing.two, alignItems: 'center' },
   icon: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.one },
   center: { textAlign: 'center' },

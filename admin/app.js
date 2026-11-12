@@ -96,7 +96,7 @@ document.querySelectorAll('nav [data-view]').forEach((b) => (b.onclick = () => s
 function show(view) {
   current = view;
   document.querySelectorAll('nav [data-view]').forEach((b) => b.classList.toggle('active', b.dataset.view === view));
-  ({ overview, users, drives, clubs, reports, messages, audit })[view]();
+  ({ overview, users, drives, clubs, reports, flagged, messages, audit })[view]();
 }
 
 async function overview() {
@@ -276,6 +276,26 @@ async function clubs() {
     toast('Club deleted');
     clubs();
   }));
+}
+
+/** People, shared drives and comments that users have reported. */
+async function flagged() {
+  const rows = await rpc('admin_list_content_reports');
+  const kind = { user: 'Person', activity: 'Shared drive', comment: 'Comment' };
+  tableView('Reported content', ['What', 'About', 'Reports against them', 'Reported by', 'Reason', 'Content', 'When', ''], rows, (r) => `<tr>
+    <td>${esc(kind[r.kind] ?? r.kind)}</td>
+    <td>${r.reported ? '@' + esc(r.reported) : '—'}</td><td>${esc(r.reports_against)}</td>
+    <td>${r.reporter ? '@' + esc(r.reporter) : '—'}</td>
+    <td>${esc(r.reason)}${r.details ? '<br><small>' + esc(r.details) + '</small>' : ''}</td>
+    <td>${esc(r.snapshot ?? '')}</td><td>${ago(r.created_at)}</td>
+    <td>${r.kind === 'user' ? '' : `<button class="danger" data-take="${esc(r.id)}">Remove it</button> `}<button data-keep="${esc(r.id)}">${r.kind === 'user' ? 'Mark handled' : 'Keep it'}</button></td></tr>`, 'No open reports.');
+  const settle = (remove) => async (e) => {
+    await rpc('admin_resolve_content_report', { p_id: e.currentTarget.dataset[remove ? 'take' : 'keep'], p_remove: remove });
+    toast(remove ? 'Removed, and the report is closed' : 'Report closed');
+    flagged();
+  };
+  document.querySelectorAll('[data-take]').forEach((b) => (b.onclick = settle(true)));
+  document.querySelectorAll('[data-keep]').forEach((b) => (b.onclick = settle(false)));
 }
 
 async function reports() {

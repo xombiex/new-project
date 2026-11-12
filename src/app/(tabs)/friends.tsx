@@ -234,7 +234,7 @@ export default function FriendsScreen() {
                 key={f.other.id}
                 onPress={() => router.push({ pathname: '/friend/[id]', params: { id: f.other.id } })}
                 onLongPress={() => setMenuFor(f)}
-                accessibilityRole="button"
+                // No button role: the row holds a real button (the menu), and one can't sit inside another on the web.
                 accessibilityLabel={`${f.other.display_name}. Open profile`}
                 style={[styles.person, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border }]}>
                 <View>

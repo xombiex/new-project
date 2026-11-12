@@ -10,6 +10,9 @@ import { useAuth } from '@/store/auth';
 import { useGarage } from '@/store/garage';
 import { addSample, startTrip, type LocationSample, type TripState } from '@/lib/trip-recorder';
 
+/** A drive as the `trips` table stores it. */
+type CloudTrip = { id: string; name: string | null; notes: string | null; started_at: string; ended_at: string; distance_m: number; moving_s: number; max_speed_mps: number; path: LngLat[] | null; speeds: number[] | null; speed_hist: number[] | null; car_label: string | null; car_body: string | null; car_paint: string | null; role: string | null };
+
 export type TripCar = { label: string; body: string; paint: string };
 
 export type SavedTrip = {
@@ -50,6 +53,8 @@ type TripsState = {
   syncPending: () => Promise<void>;
   setRole: (id: string, role: 'driver' | 'passenger') => void;
   pullFromCloud: () => Promise<void>;
+  /** Adds drives from the account that this device doesn't have yet. */
+  mergeFromCloud: (rows: CloudTrip[]) => void;
 };
 
 /** Trips shorter than this are almost always accidental taps. */
@@ -144,16 +149,30 @@ export const useTrips = create<TripsState>()(
       pullFromCloud: async () => {
         const { data: auth } = await supabase.auth.getSession();
         if (!auth.session) return;
-        const { data, error } = await supabase
-          .from('trips')
-          .select('id, name, notes, started_at, ended_at, distance_m, moving_s, max_speed_mps, path, speeds, speed_hist, car_label, car_body, car_paint, role')
-          .eq('user_id', auth.session.user.id)
-          .order('started_at', { ascending: false })
-          .limit(1000);
-        if (error || !data) {
-          if (error) console.warn('Trip download failed', error.message);
-          return;
+        // Newest first, 100 at a time, each page shown as it lands. Stats need the whole log, so this
+        // keeps going to the end, but no single request is unbounded and a failure keeps what arrived.
+        const PAGE = 100;
+        let before: string | null = null;
+        for (let pages = 0; pages < 100; pages++) {
+          let query = supabase
+            .from('trips')
+            .select('id, name, notes, started_at, ended_at, distance_m, moving_s, max_speed_mps, path, speeds, speed_hist, car_label, car_body, car_paint, role')
+            .eq('user_id', auth.session.user.id)
+            .order('started_at', { ascending: false })
+            .limit(PAGE);
+          if (before) query = query.lt('started_at', before);
+          const { data, error } = await query;
+          if (error || !data) {
+            if (error) console.warn('Trip download failed', error.message);
+            return;
+          }
+          get().mergeFromCloud(data as CloudTrip[]);
+          if (data.length < PAGE) return;
+          before = data[data.length - 1].started_at;
         }
+      },
+
+      mergeFromCloud: (data) => {
         const have = new Set(get().history.map((t) => t.id));
         const incoming: SavedTrip[] = data
           .filter((r) => !have.has(r.id))

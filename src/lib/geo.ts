@@ -56,6 +56,8 @@ export function formatDuration(seconds: number): string {
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
   const sec = s % 60;
+  // Past a hundred hours the minutes no longer matter, and they don't fit on a readout.
+  if (h >= 100) return `${h}h`;
   if (h > 0) return `${h}h ${m.toString().padStart(2, '0')}m`;
   return `${m}:${sec.toString().padStart(2, '0')}`;
 }

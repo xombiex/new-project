@@ -5,8 +5,9 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
 
 import { LicensePlate } from '@/components/shop';
+import { FeedList, useFeedList } from '@/components/social/feed-list';
 import { ThemedText } from '@/components/themed-text';
-import { Avatar, Button, Card, SectionTitle } from '@/components/ui';
+import { Avatar, Button, Card, EmptyState, SectionTitle } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatPrice, setUpPayouts } from '@/lib/payments';
@@ -21,6 +22,7 @@ export default function ClubScreen() {
   const [data, setData] = useState<ClubDetail | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const currentDrive = useDrive((s) => s.drive);
+  const feedList = useFeedList({ kind: 'club', clubId: String(id) }, Boolean(id));
 
   const reload = useCallback(() => {
     void useClubs.getState().load(id).then(setData);
@@ -177,6 +179,17 @@ export default function ClubScreen() {
                 </ThemedText>
                 <Button label={payouts ? (payouts.charges_enabled ? 'Manage payouts' : 'Finish setup') : 'Set up payouts'} variant="secondary" onPress={payouts_} />
               </Card>
+            </>
+          ) : null}
+
+          {role ? (
+            <>
+              <SectionTitle>Drives</SectionTitle>
+              <FeedList
+                list={feedList}
+                lockLabel="The club feed"
+                empty={<EmptyState icon="road-variant" title="No club drives yet" body={`Open one of your drives in Stats and share it with ${club.name}. Only members see it.`} />}
+              />
             </>
           ) : null}
 

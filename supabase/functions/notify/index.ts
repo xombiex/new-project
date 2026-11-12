@@ -13,7 +13,7 @@ const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE
 });
 const EXPO_TOKEN = Deno.env.get('EXPO_ACCESS_TOKEN');
 
-type Pref = 'friend_requests' | 'drive_invites' | 'drive_activity' | 'club_events' | 'announcements';
+type Pref = 'friend_requests' | 'drive_invites' | 'drive_activity' | 'club_events' | 'announcements' | 'likes' | 'comments';
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -191,6 +191,22 @@ Deno.serve(async (req) => {
         if (!row || row.owner_id !== me || !row.regroup_name) throw new HttpError(403, 'only the leader can regroup');
         const { data: members } = await admin.from('group_members').select('user_id').eq('drive_id', drive.id);
         sent = await send(me, (members ?? []).map((m) => m.user_id), 'regroup', 'drive_activity', `${drive.name}: regroup`, `${name} wants everyone to meet at ${row.regroup_name}. Tap to see it.`, { drive_id: drive.id });
+        break;
+      }
+      case 'activity_like':
+      case 'activity_comment': {
+        const id = uuid(body.activity_id);
+        const { data: activity } = await admin.from('activities').select('user_id, title').eq('id', id).maybeSingle();
+        if (!activity) throw new HttpError(404, 'no such drive');
+        // Only for something the caller really did: the like or comment has to be there.
+        const liked = body.type === 'activity_like';
+        const { count } = await admin.from(liked ? 'activity_likes' : 'activity_comments').select('*', { count: 'exact', head: true }).eq('activity_id', id).eq('user_id', me);
+        if (!count) throw new HttpError(403, 'nothing to notify about');
+        // Never buzz someone who is driving. The notice is already waiting in their inbox.
+        const { data: driving } = await admin.rpc('is_driving', { p_user: activity.user_id });
+        if (driving) break;
+        const what = activity.title ? `"${activity.title}"` : 'your drive';
+        sent = await send(me, [activity.user_id], body.type, liked ? 'likes' : 'comments', liked ? 'New like' : 'New comment', liked ? `${name} liked ${what}` : `${name} commented on ${what}`, { activity_id: id });
         break;
       }
       case 'admin_message': {

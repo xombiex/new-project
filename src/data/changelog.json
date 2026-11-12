@@ -22,6 +22,11 @@
           "text": "Every shared drive, comment and person has a menu to report it to the Convoy team or block them. See who you've blocked in Profile."
         },
         {
+          "icon": "shield-account-outline",
+          "title": "Club and friend drives",
+          "text": "A club's page now lists the drives members shared with it, and a friend's page lists theirs. You can turn like and comment notifications on or off in Profile."
+        },
+        {
           "icon": "account-cancel-outline",
           "title": "Blocking that sticks",
           "text": "Block someone from a friend request or your friends list and they can no longer send you requests or see your location, drives or garage. They aren't told."
