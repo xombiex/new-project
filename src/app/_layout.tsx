@@ -110,7 +110,10 @@ export default function RootLayout() {
   }, [signedIn, driving]);
 
   // "I'm a passenger" lasts for one drive.
-  const onDrive = useTrips((s) => Boolean(s.active)) || useNavigation((s) => s.active);
+  // Both hooks always run: `a() || b()` would skip the second one mid-trip and crash React.
+  const recording = useTrips((s) => Boolean(s.active));
+  const navigating = useNavigation((s) => s.active);
+  const onDrive = recording || navigating;
   useEffect(() => {
     if (!onDrive) useSocial.getState().setPassenger(false);
   }, [onDrive]);

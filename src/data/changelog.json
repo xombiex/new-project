@@ -32,6 +32,11 @@
           "text": "On a phone's browser, screens used to go blank for a moment the first time you tapped them. Now they open straight away."
         },
         {
+          "icon": "bug-outline",
+          "title": "Fixed: black screen when a drive starts or ends",
+          "text": "Starting a trip, starting directions or ending a drive could turn the whole screen black. That's fixed."
+        },
+        {
           "icon": "road-variant",
           "title": "A feed of drives",
           "text": "Share a drive with friends or a club from its page, then find everyone's drives under Friends. Like them and leave a comment. Drives stay private until you share them, and both ends of the route are always cut off."
