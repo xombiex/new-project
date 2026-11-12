@@ -37,6 +37,11 @@
           "text": "Starting a trip, starting directions or ending a drive could turn the whole screen black. That's fixed."
         },
         {
+          "icon": "dock-bottom",
+          "title": "Fixed: missing tab icons on the website",
+          "text": "On a slow phone connection the icons in the bottom bar could stay blank. They now show up as soon as they've loaded, and load faster on later visits."
+        },
+        {
           "icon": "road-variant",
           "title": "A feed of drives",
           "text": "Share a drive with friends or a club from its page, then find everyone's drives under Friends. Like them and leave a comment. Drives stay private until you share them, and both ends of the route are always cut off."

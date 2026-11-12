@@ -2,6 +2,8 @@ import '@/lib/bootstrap';
 import { AppState, Platform } from 'react-native';
 import '@/lib/web-alert';
 
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Font from 'expo-font';
 import * as Notifications from 'expo-notifications';
 import { BarlowCondensed_600SemiBold, BarlowCondensed_700Bold, BarlowCondensed_700Bold_Italic, useFonts } from '@expo-google-fonts/barlow-condensed';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter, useSegments } from 'expo-router';
@@ -29,6 +31,12 @@ import { useDrivingLock, useSocial } from '@/store/social';
 import { useTrips } from '@/store/trips';
 
 SplashScreen.preventAutoHideAsync();
+
+// Web: register the icon font before anything draws. An icon that mounts before the font is
+// registered waits for the download and, if that takes over 12 s (a 1.3 MB file on mobile data),
+// gives up and stays blank for good. The tab bar mounts first, so it was the one left empty.
+// Registered up front, every icon draws its glyph and the browser fills it in when the file lands.
+if (Platform.OS === 'web') void Font.loadAsync(MaterialCommunityIcons.font).catch(() => {});
 
 // No notification banners over the map while recording or navigating.
 setDrivingCheck(() => Boolean(useTrips.getState().active) || useNavigation.getState().active);
