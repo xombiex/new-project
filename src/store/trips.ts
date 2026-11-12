@@ -110,7 +110,11 @@ export const useTrips = create<TripsState>()(
           synced: false,
         };
         set({ history: [trip, ...get().history] });
-        void get().syncPending();
+        // Loaded on demand: the sharing code reads this store, so a normal import would be a loop.
+        void get()
+          .syncPending()
+          .then(() => import('@/services/share-drive'))
+          .then((m) => m.autoShareIfOn(get().history.find((t) => t.id === trip.id) ?? trip));
         return trip;
       },
 

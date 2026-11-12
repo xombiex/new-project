@@ -4,8 +4,23 @@
     {
       "id": "2026-11-12",
       "date": "2026-11-12",
-      "title": "Safer and steadier",
+      "title": "Drives you can share",
       "items": [
+        {
+          "icon": "road-variant",
+          "title": "A feed of drives",
+          "text": "Share a drive with friends or a club from its page, then find everyone's drives under Friends. Like them and leave a comment. Drives stay private until you share them, and both ends of the route are always cut off."
+        },
+        {
+          "icon": "steering",
+          "title": "Eyes on the road",
+          "text": "The feed, comments and inbox close while you're driving and open again when you stop. Riding along? Tap I'm a passenger."
+        },
+        {
+          "icon": "flag-outline",
+          "title": "Report and block",
+          "text": "Every shared drive, comment and person has a menu to report it to the Convoy team or block them. See who you've blocked in Profile."
+        },
         {
           "icon": "account-cancel-outline",
           "title": "Blocking that sticks",

@@ -14,6 +14,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { hasUnseenRelease } from '@/lib/changelog';
 import { exposeStoresForTesting, isDemo, seedDemo } from '@/lib/demo';
 import { startPresence } from '@/lib/presence';
+import { supabase } from '@/lib/supabase';
 import { registerForPush, setDrivingCheck } from '@/lib/notifications';
 import { useAuth } from '@/store/auth';
 import { useClubs } from '@/store/clubs';
@@ -24,6 +25,7 @@ import { useNavigation } from '@/store/navigation';
 import { useNotificationSettings } from '@/store/notification-settings';
 import { usePro } from '@/store/pro';
 import { useSettings } from '@/store/settings';
+import { useDrivingLock, useSocial } from '@/store/social';
 import { useTrips } from '@/store/trips';
 
 SplashScreen.preventAutoHideAsync();
@@ -93,6 +95,26 @@ export default function RootLayout() {
   const signedIn = Boolean(profile);
   useEffect(() => (signedIn ? startPresence(shareOnline) : undefined), [signedIn, shareOnline]);
 
+  // While this person is driving, the server holds back pushes about likes and comments. The app
+  // says so every couple of minutes; it lapses by itself if the app is closed mid-drive.
+  const driving = useDrivingLock();
+  useEffect(() => {
+    if (!signedIn || !driving || isDemo()) return;
+    const touch = () => void supabase.rpc('touch_driving');
+    touch();
+    const timer = setInterval(touch, 2 * 60_000);
+    return () => {
+      clearInterval(timer);
+      void supabase.rpc('end_driving');
+    };
+  }, [signedIn, driving]);
+
+  // "I'm a passenger" lasts for one drive.
+  const onDrive = useTrips((s) => Boolean(s.active)) || useNavigation((s) => s.active);
+  useEffect(() => {
+    if (!onDrive) useSocial.getState().setPassenger(false);
+  }, [onDrive]);
+
   // Purchases follow the Supabase account (RevenueCat app user id = Supabase user id).
   const userId = session?.user.id ?? null;
   useEffect(() => {
@@ -109,16 +131,18 @@ export default function RootLayout() {
   // Tapping a notification opens the relevant screen.
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener((res) => {
-      const data = res.notification.request.content.data as { type?: string; code?: string; event_id?: string };
+      const data = res.notification.request.content.data as { type?: string; code?: string; event_id?: string; activity_id?: string };
       if (data.type === 'drive_invite' && data.code) router.push({ pathname: '/convoy', params: { code: data.code } });
       else if (data.type === 'friend_request' || data.type === 'friend_accepted') router.push('/friends');
       else if (data.type === 'member_joined' || data.type === 'arrived' || data.type === 'regroup') router.push('/convoy');
       else if (data.type === 'admin_message') router.push('/inbox');
+      else if ((data.type === 'activity_like' || data.type === 'activity_comment') && data.activity_id) router.push({ pathname: '/activity/[id]', params: { id: data.activity_id } });
       else if (data.type === 'event_reminder' && data.event_id) router.push({ pathname: '/event/[id]', params: { id: data.event_id } });
     });
     // A team message arriving while the app is open: refresh the inbox so the badge shows up.
     const got = Notifications.addNotificationReceivedListener((n) => {
-      if ((n.request.content.data as { type?: string })?.type === 'admin_message') void useInbox.getState().load();
+      const type = (n.request.content.data as { type?: string })?.type;
+      if (type === 'admin_message' || type === 'activity_like' || type === 'activity_comment') void useInbox.getState().load();
     });
     return () => {
       sub.remove();
@@ -167,6 +191,8 @@ export default function RootLayout() {
         <Stack.Screen name="car/[id]" options={{ presentation: 'modal', title: 'Car' }} />
         <Stack.Screen name="friend/[id]" options={{ title: 'Friend' }} />
         <Stack.Screen name="inbox" options={{ title: 'Inbox' }} />
+        <Stack.Screen name="activity/[id]" options={{ title: 'Drive' }} />
+        <Stack.Screen name="blocked" options={{ title: 'Blocked people' }} />
         <Stack.Screen name="whats-new" options={{ title: 'What’s new', presentation: 'modal' }} />
         <Stack.Screen name="stripe-return" options={{ headerShown: false }} />
         <Stack.Screen name="map-embed" options={{ headerShown: false }} />

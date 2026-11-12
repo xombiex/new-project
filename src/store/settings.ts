@@ -55,6 +55,9 @@ type SettingsState = {
   setShareOnline: (on: boolean) => void;
   /** start/stop recording automatically when driving is detected */
   autoDetect: boolean;
+  /** put each finished drive in friends' feeds without asking (trimmed like any shared drive) */
+  autoShare: boolean;
+  setAutoShare: (on: boolean) => void;
   setUnits: (units: Units) => void;
   setKeepScreenOn: (on: boolean) => void;
   setAppearance: (appearance: Appearance) => void;
@@ -125,6 +128,8 @@ export const useSettings = create<SettingsState>()(
       setRadar: (radar) => set({ radar }),
       setShareOnline: (shareOnline) => set({ shareOnline }),
       autoDetect: false,
+      autoShare: false,
+      setAutoShare: (autoShare) => set({ autoShare }),
       setUnits: (units) => set({ units }),
       setKeepScreenOn: (keepScreenOn) => set({ keepScreenOn }),
       setAppearance: (appearance) => set({ appearance }),

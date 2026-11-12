@@ -7,9 +7,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Leaderboard } from '@/components/leaderboard';
 import { OnlineDot } from '@/components/online-status';
+import { ActionMenu, type MenuAction } from '@/components/social/action-menu';
+import { FeedList, useFeedList } from '@/components/social/feed-list';
+import { ReportSheet, type ReportTarget } from '@/components/social/report-sheet';
 import { ThemedText } from '@/components/themed-text';
 import { ScreenTitle } from '@/components/shop';
-import { Avatar, Button, Card, EmptyState, Screen, SectionTitle, Skeleton, TextField } from '@/components/ui';
+import { Avatar, Button, Card, EmptyState, IconButton, Screen, SectionTitle, Segmented, Skeleton, TextField } from '@/components/ui';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDistance, haversine } from '@/lib/geo';
@@ -24,7 +27,7 @@ import { useTrips } from '@/store/trips';
 const SHARE_OPTIONS = [
   { hours: 1, label: '1 hour' },
   { hours: 8, label: '8 hours' },
-  { hours: 24, label: '24 hours' },
+  { hours: 24, label: '1 day' },
 ];
 
 export default function FriendsScreen() {
@@ -38,6 +41,10 @@ export default function FriendsScreen() {
   const [username, setUsername] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<'feed' | 'people'>('feed');
+  const [menuFor, setMenuFor] = useState<Friendship | null>(null);
+  const [report, setReport] = useState<ReportTarget | null>(null);
+  const feedList = useFeedList({ kind: 'home' }, Boolean(profile));
 
   useFocusEffect(
     useCallback(() => {
@@ -81,21 +88,19 @@ export default function FriendsScreen() {
     ]);
   }
 
-  function confirmRemove(f: Friendship) {
-    Alert.alert(f.other.display_name, undefined, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove friend', style: 'destructive', onPress: () => void remove(f.other.id) },
-      { text: 'Block', style: 'destructive', onPress: () => confirmBlock(f) },
-    ]);
-  }
-
-  function declineOrBlock(f: Friendship) {
-    Alert.alert(`Request from ${f.other.display_name}`, undefined, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Decline', onPress: () => void remove(f.other.id) },
-      { text: 'Block', style: 'destructive', onPress: () => confirmBlock(f) },
-    ]);
-  }
+  /** What you can do with one person: a friend, or someone who asked to be one. */
+  const personActions: MenuAction[] = !menuFor
+    ? []
+    : [
+        ...(menuFor.status === 'accepted'
+          ? [
+              { icon: 'account-outline' as const, label: 'View profile', onPress: () => router.push({ pathname: '/friend/[id]', params: { id: menuFor.other.id } }) },
+              { icon: 'account-remove-outline' as const, label: 'Remove friend', destructive: true, onPress: () => void remove(menuFor.other.id) },
+            ]
+          : [{ icon: 'close' as const, label: 'Decline request', onPress: () => void remove(menuFor.other.id) }]),
+        { icon: 'account-cancel-outline', label: `Block ${menuFor.other.display_name}`, hint: "They can't send requests or see anything of yours. They aren't told.", destructive: true, onPress: () => confirmBlock(menuFor) },
+        { icon: 'flag-outline', label: 'Report', hint: 'Tell the Convoy team about this person', onPress: () => setReport({ kind: 'user', id: menuFor.other.id, userId: menuFor.other.id, name: menuFor.other.display_name }) },
+      ];
 
   function friendDetail(f: Friendship) {
     const loc = locations[f.other.id];
@@ -112,9 +117,29 @@ export default function FriendsScreen() {
       <ScrollView
         contentContainerStyle={{ padding: Spacing.three, paddingBottom: BottomTabInset + Spacing.four, gap: Spacing.three }}
         keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} />}>
+        refreshControl={<RefreshControl refreshing={view === 'feed' ? feedList.status === 'refreshing' : loading} onRefresh={() => void (view === 'feed' ? feedList.refresh() : refresh())} />}>
+        <View style={styles.column}>
         <ScreenTitle kicker={friends.length ? `${friends.length} in your crew` : 'Your crew'} title="Friends" />
+        <Segmented
+          options={[
+            { value: 'feed', label: 'Drives' },
+            { value: 'people', label: incoming.length ? `People · ${incoming.length} new` : 'People' },
+          ]}
+          value={view}
+          onChange={setView}
+        />
 
+        {view === 'feed' ? (
+          <FeedList
+            list={feedList}
+            empty={
+              <EmptyState icon="road-variant" title="No drives here yet" body={friends.length ? 'When you or a friend shares a drive, it shows up here. Open one of your drives in Stats to share it.' : 'Add a friend, then share a drive from Stats. Shared drives from your crew show up here.'}>
+                <Button label={friends.length ? 'Go to my drives' : 'Find friends'} variant="secondary" onPress={() => (friends.length ? router.push({ pathname: '/stats', params: { view: 'drives' } }) : setView('people'))} />
+              </EmptyState>
+            }
+          />
+        ) : (
+          <>
         <Card style={{ gap: Spacing.two }}>
           <View style={styles.row}>
             <MaterialCommunityIcons
@@ -184,13 +209,7 @@ export default function FriendsScreen() {
                     </ThemedText>
                   </View>
                   <Button label="Accept" onPress={() => void accept(f.other.id)} />
-                  <Pressable
-                    onPress={() => declineOrBlock(f)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Decline or block ${f.other.display_name}`}
-                    hitSlop={10}>
-                    <MaterialCommunityIcons name="close" size={24} color={theme.textSecondary} />
-                  </Pressable>
+                  <IconButton icon="dots-horizontal" label={`Decline, block or report ${f.other.display_name}`} color={theme.textSecondary} onPress={() => setMenuFor(f)} />
                 </View>
               ))}
             </Card>
@@ -214,7 +233,9 @@ export default function FriendsScreen() {
               <Pressable
                 key={f.other.id}
                 onPress={() => router.push({ pathname: '/friend/[id]', params: { id: f.other.id } })}
-                onLongPress={() => confirmRemove(f)}
+                onLongPress={() => setMenuFor(f)}
+                accessibilityRole="button"
+                accessibilityLabel={`${f.other.display_name}. Open profile`}
                 style={[styles.person, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border }]}>
                 <View>
                   <Avatar name={f.other.display_name} color={f.other.avatar_color} />
@@ -227,6 +248,7 @@ export default function FriendsScreen() {
                   </ThemedText>
                 </View>
                 {locations[f.other.id] ? <MaterialCommunityIcons name="map-marker" size={20} color={theme.success} /> : null}
+                <IconButton icon="dots-horizontal" label={`More options for ${f.other.display_name}`} color={theme.textSecondary} onPress={() => setMenuFor(f)} />
               </Pressable>
             ))}
           </Card>
@@ -237,15 +259,19 @@ export default function FriendsScreen() {
             Pending: {outgoing.map((f) => `@${f.other.username}`).join(', ')}
           </ThemedText>
         ) : null}
-        <ThemedText type="small" themeColor="textSecondary">
-          Long-press a friend to remove them.
-        </ThemedText>
+          </>
+        )}
+        </View>
       </ScrollView>
+      <ActionMenu visible={Boolean(menuFor)} onClose={() => setMenuFor(null)} title={menuFor?.other.display_name} actions={personActions} />
+      <ReportSheet target={report} onClose={() => setReport(null)} onBlocked={() => void refresh()} />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  /** one readable column on a wide screen */
+  column: { width: '100%', maxWidth: 680, alignSelf: 'center', gap: Spacing.three },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   person: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.two + 2 },
 });

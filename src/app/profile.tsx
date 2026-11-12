@@ -421,6 +421,8 @@ export default function ProfileScreen() {
                 ['drive_invites', 'Group drive invites'],
                 ['drive_activity', 'Drive activity (joins, arrivals, fell behind)'],
                 ['club_events', 'Club event reminders'],
+                ['likes', 'Likes on your shared drives'],
+                ['comments', 'Comments on your shared drives'],
                 ['announcements', 'News & updates from Convoy'],
               ] as [keyof NotificationPrefs, string][]
             ).map(([key, label]) => (
@@ -450,6 +452,20 @@ export default function ProfileScreen() {
       </Card>
 
       <SectionTitle>Privacy</SectionTitle>
+      {session ? (
+        <Pressable onPress={() => router.push('/blocked')} accessibilityRole="button">
+          <Card style={styles.row}>
+            <MaterialCommunityIcons name="account-cancel-outline" size={24} color={theme.accent} />
+            <View style={{ flex: 1 }}>
+              <ThemedText style={{ fontWeight: 700 }}>Blocked people</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                See who you&apos;ve blocked, or unblock someone
+              </ThemedText>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={22} color={theme.textSecondary} />
+          </Card>
+        </Pressable>
+      ) : null}
       <Pressable onPress={() => router.push('/privacy-zones')} accessibilityRole="button">
         <Card style={styles.row}>
           <MaterialCommunityIcons name="shield-home-outline" size={24} color={theme.accent} />

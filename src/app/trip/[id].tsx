@@ -7,6 +7,7 @@ import Animated, { FadeInUp, ZoomIn } from 'react-native-reanimated';
 import { ConvoyMap, type MapLine, type MapPerson } from '@/components/map/convoy-map';
 import { sideImage } from '@/components/map/vehicle-sprites';
 import { Scrubber } from '@/components/scrubber';
+import { ShareDriveCard } from '@/components/social/share-drive-card';
 import { SpeedDistribution } from '@/components/speed-distribution';
 import { ThemedText } from '@/components/themed-text';
 import { Button, Card, TextField } from '@/components/ui';
@@ -272,6 +273,8 @@ export default function TripScreen() {
               {new Date(trip.endedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
             </ThemedText>
           </View>
+
+          <ShareDriveCard trip={trip} />
 
           <Card style={{ gap: Spacing.three }}>
             <TextField label="Name" value={name} onChangeText={setName} placeholder={tripTitle(trip.startedAt)} maxLength={80} />
