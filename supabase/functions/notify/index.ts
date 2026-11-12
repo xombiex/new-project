@@ -15,8 +15,16 @@ const EXPO_TOKEN = Deno.env.get('EXPO_ACCESS_TOKEN');
 
 type Pref = 'friend_requests' | 'drive_invites' | 'drive_activity' | 'club_events' | 'announcements' | 'likes' | 'comments';
 
+// The website calls this from a browser, which asks permission first (a "preflight") and refuses
+// any answer without these headers. Phones don't check. Callers still need a signed-in token.
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
 const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+  new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
 class HttpError extends Error {
   constructor(public status: number, message: string) {
@@ -137,6 +145,7 @@ async function eventReminders() {
 }
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405);
   try {
     const cronSecret = req.headers.get('x-cron-secret');
